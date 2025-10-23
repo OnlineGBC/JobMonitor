@@ -207,6 +207,36 @@ def text_diff(old: str, new: str, context: int = 3, max_lines: int = 200) -> str
         diff_lines = diff_lines[:max_lines] + ["... (diff truncated)"]
     return "\n".join(diff_lines)
 
+def extract_job_key_list_from_html(html: str) -> Optional[str]:
+    """
+    Return a stable JSON array of (id, title) pairs for *real* LinkedIn job items.
+    Real items have a data job-id OR a link to /jobs/view/.
+    """
+    if not HAS_BS4:
+        return None
+    try:
+        soup = BeautifulSoup(html, "html.parser")
+        # Tolerate DOM variants
+        ul = (
+            soup.select_one("ul.jobs-search__results-list")
+            or soup.select_one("div.jobs-search__results-list")
+            or soup.select_one("[data-search-results-container='true']")
+        )
+        if not ul:
+            return "[]"
+        items = []
+        for li in ul.find_all("li", recursive=False):
+            job_id = (li.get("data-occludable-job-id") or li.get("data-job-id") or "").strip()
+            title_el = li.select_one("a[href*='/jobs/view/'], a.job-card-list__title, a.job-card-container__link")
+            title = title_el.get_text(strip=True) if title_el else ""
+            # Only keep entries that look like real jobs
+            if job_id or (title_el and title):
+                items.append((job_id, title))
+        items = sorted(set(items))
+        import json
+        return json.dumps(items, ensure_ascii=False, sort_keys=True, indent=2)
+    except Exception:
+        return None
 
 # --------- Fetchers ---------
 
@@ -332,27 +362,61 @@ def check_one_monitor(m: Dict[str, Any], defaults: Dict[str, Any], email_cfg: Di
         if HAS_BS4:
             soup = BeautifulSoup(html, "html.parser")
             page_text = soup.get_text(separator=" ", strip=True)
+            page_text_lc = page_text.lower()
 
-            skip_patterns = []
-            skip_patterns.extend(defaults.get("skip_if_page_text_matches", []) or [])
-            skip_patterns.extend(m.get("skip_if_page_text_matches", []) or [])
+            # Collect skip patterns from defaults + monitor
+            skip_patterns = (defaults.get("skip_if_page_text_matches", []) or []) + \
+                            (m.get("skip_if_page_text_matches", []) or [])
 
-            # ✅ EARLY GUARD: bail out immediately if any skip pattern matches
+            # 1) Regex-based guard
+            matched_pat = None
             for pat in skip_patterns:
                 try:
                     if re.search(pat, page_text, flags=re.IGNORECASE):
-                        logging.info(f"[{name}] Matched skip pattern → '{pat}' → early skip (no email).")
-                        return
+                        matched_pat = pat
+                        break
                 except re.error:
                     logging.warning(f"[{name}] Bad regex in skip_if_page_text_matches: {pat!r}")
 
-            # ✅ STRUCTURAL CHECK for empty results list
-            results_ul = soup.select_one("ul.jobs-search__results-list")
-            if not results_ul or not results_ul.find("li", recursive=False):
-                logging.info(f"[{name}] No <li> elements in results list — skipping without email.")
+            # 2) Plain-substring guard (conservative; no suggestions-only phrase)
+            plain_triggers = [
+                "no matching jobs found",
+                "0 results",
+                "try adjusting your search",
+            ]
+            matched_plain = next((t for t in plain_triggers if t in page_text_lc), None)
+
+            if matched_pat or matched_plain:
+                logging.info(f"[{name}] Early skip (no email): "
+                             f"{'regex '+repr(matched_pat) if matched_pat else 'plain '+repr(matched_plain)}")
+                return
+
+            # 3) Structural guard — count *real* job items only
+            results_ul = (
+                soup.select_one("ul.jobs-search__results-list")
+                or soup.select_one("div.jobs-search__results-list")
+                or soup.select_one("[data-search-results-container='true']")
+            )
+            real_count = 0
+            if results_ul:
+                for li in results_ul.find_all("li", recursive=False):
+                    job_id = (li.get("data-occludable-job-id") or li.get("data-job-id") or "").strip()
+                    title_a = li.select_one("a[href*='/jobs/view/']")
+                    if job_id or title_a:
+                        real_count += 1
+            logging.info(f"[{name}] Structural check: real_count={real_count}")
+            if real_count == 0:
+                logging.info(f"[{name}] Structural empty results (0 real job cards) — skipping without email.")
+                return
+        else:
+            # Fallback: raw-HTML plain check if bs4 is unavailable
+            page_text_lc = html.lower()
+            if ("no matching jobs found" in page_text_lc) or ("0 results" in page_text_lc):
+                logging.info(f"[{name}] Early skip (no email): plain-fallback on raw HTML.")
                 return
     except Exception as _e:
         logging.warning(f"[{name}] Skip-check failed, continuing: {_e}")
+
     # Strip ignorable selectors (noise)
     if remove_selectors:
         html = strip_ignorable_selectors(html, remove_selectors)
@@ -360,25 +424,26 @@ def check_one_monitor(m: Dict[str, Any], defaults: Dict[str, Any], email_cfg: Di
     # Select element or full page
     extracted = select_element(html, css_selector)
 
-    # Convert to text vs html
-    if compare_mode == "text" and HAS_BS4:
-        # Use visible text for comparison to reduce HTML noise
-        soup = BeautifulSoup(extracted if extracted else html, "html.parser")
-        content = soup.get_text(separator="\n")
-    else:
-        content = extracted if extracted else html
+    # LinkedIn: prefer structured comparison (stable JSON of job keys)
+    content = None
+    if "linkedin.com/jobs/search" in url:
+        structured = extract_job_key_list_from_html(extracted if extracted else html)
+        if structured is not None:
+            content = structured
 
-    # Apply regex ignores
-    if ignore_regexes:
-        content = apply_regex_ignores(content, ignore_regexes)
-
-    # Normalize whitespace
-    if normalize:
-        content = normalize_whitespace(content)
-
-    # Sort jobs to eliminate reordering false positives
-    content = normalize_job_content(content)
-
+    # Legacy text pipeline (if not structured)
+    if content is None:
+        if compare_mode == "text" and HAS_BS4:
+            soup = BeautifulSoup(extracted if extracted else html, "html.parser")
+            content = soup.get_text(separator="\n")
+        else:
+            content = extracted if extracted else html
+        if ignore_regexes:
+            content = apply_regex_ignores(content, ignore_regexes)
+        if normalize:
+            content = normalize_whitespace(content)
+        # Last-mile normalization to reduce job reordering noise (legacy)
+        content = normalize_job_content(content)
     # Snapshot paths
     snapshot_path = Path("snapshots") / f"{name}.txt"
     hash_path = Path("snapshots") / f"{name}.sha256"

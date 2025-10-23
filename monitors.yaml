@@ -3,7 +3,7 @@
 
 defaults:
   render_js: true
-  wait_until: "domcontentloaded"        # Faster than networkidle, still waits for JS
+  wait_until: "networkidle"             # More reliable for LinkedIn's async loads
   compare_mode: "text"                  # diff visible text to reduce HTML noise (legacy mode)
   normalize_whitespace: true
   timeout_seconds: 90                   # Increased timeout for LinkedIn
@@ -22,12 +22,12 @@ monitors:
     structured_mode: "linkedin_jobs"
 
     # If LinkedIn shows a "no jobs" banner, bail out quietly (no email)
+    # Use single-quoted YAML so backslashes are literal; \s+ tolerates spacing; (?:\.)? allows trailing period
     skip_if_page_text_matches:
-      - '(?i)\bno\s+matching\s+jobs\s+found\b(?:\.)?'   # handles optional trailing period
+      - '(?i)\bno\s+matching\s+jobs\s+found\b(?:\.)?'
       - '(?i)\bno\s+results\s+found\b'
       - '(?i)\bno\s+jobs\s+found\b'
       - '(?i)\b0\s+results\b'
-      - '(?i)\bjobs\s+you\s+may\s+be\s+interested\s+in\b'
       - '(?i)\btry\s+adjusting\s+your\s+search\b'
 
     # Remove noisy, highly dynamic elements before comparing (legacy mode only):
@@ -63,11 +63,10 @@ monitors:
     structured_mode: "linkedin_jobs"
 
     skip_if_page_text_matches:
-      - '(?i)\bno\s+matching\s+jobs\s+found\b(?:\.)?'   # handles optional trailing period
+      - '(?i)\bno\s+matching\s+jobs\s+found\b(?:\.)?'
       - '(?i)\bno\s+results\s+found\b'
       - '(?i)\bno\s+jobs\s+found\b'
       - '(?i)\b0\s+results\b'
-      - '(?i)\bjobs\s+you\s+may\s+be\s+interested\s+in\b'
       - '(?i)\btry\s+adjusting\s+your\s+search\b'
 
     remove_selectors:
