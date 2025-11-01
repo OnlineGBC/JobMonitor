@@ -51,10 +51,22 @@ SMTP_USE_TLS=1
 FROM_ADDR=your-email@domain.com
 TO_ADDRS=your-email@domain.com,another@domain.com
 
+# LinkedIn Authentication (optional - for authenticated access)
+# If not provided, the monitor will access LinkedIn as an unauthenticated user
+LINKEDIN_USERNAME=your-linkedin-email@example.com
+LINKEDIN_PASSWORD=your-linkedin-password
+
 # Optional settings
 SUBJECT_PREFIX=[WebChange in LinkedIn]
 CONFIG_PATH=monitors.yaml
 ```
+
+**Note on LinkedIn Authentication:**
+- **Visible browser is used only when cookies are not available** - this allows you to see and interact with security challenges during initial login
+- Once cookies are saved, the monitor uses **headless mode** (hidden browser) for subsequent runs
+- **Cookie/session persistence** is automatically enabled - after successful login, your session is saved to `linkedin_state.json`
+- On subsequent runs, the monitor will reuse the saved session, avoiding frequent logins and reducing security challenges
+- If the session expires and re-login is needed, it will attempt in headless mode; if you encounter challenges, delete `linkedin_state.json` and rerun to get visible browser mode
 
 ### 3. Run the Monitor
 
@@ -181,7 +193,14 @@ JobMonitor/
 1. **Playwright not installed**: Run `playwright install chromium`
 2. **SMTP authentication failed**: Check email credentials and app passwords
 3. **LinkedIn blocking requests**: Use `render_js: true` and proper User-Agent
-4. **Too many false positives**: Adjust `remove_selectors` and `ignore_regexes`
+4. **LinkedIn login fails**: 
+   - Ensure credentials are correct in `.env` file
+   - If you have 2FA enabled, you may need to create an app-specific password or temporarily disable 2FA
+   - LinkedIn may show captchas or security challenges - **visible browser is used only when cookies don't exist** (first login)
+   - After successful login, your session is saved to `linkedin_state.json` and subsequent runs use headless mode
+   - If session expires and re-login encounters challenges: delete `linkedin_state.json` and rerun to get visible browser
+   - The monitor will continue with unauthenticated access if login fails
+5. **Too many false positives**: Adjust `remove_selectors` and `ignore_regexes`
 
 ### Logs
 
