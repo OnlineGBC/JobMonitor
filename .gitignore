@@ -1,6 +1,3 @@
-# Troubleshooting--to be removed later
-# logs/
-
 # --- Byte-compiled / cache ---
 __pycache__/
 *.py[cod]
@@ -66,7 +63,6 @@ coverage.xml
 
 # --- Framework/project artifacts ---
 # Django
-*.log
 local_settings.py
 db.sqlite3
 db.sqlite3-journal
