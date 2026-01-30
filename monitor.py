@@ -552,6 +552,11 @@ def check_one_monitor(m: Dict[str, Any], defaults: Dict[str, Any], email_cfg: Di
         logging.debug(traceback.format_exc())
         return
 
+    linkedin_url = "linkedin.com/jobs/search" in url
+    skip_due_to_text = False
+    real_count = 0
+    auth_block_detected = False
+
     # ----- Early exit if the page clearly shows "no results" -----
     try:
         if HAS_BS4:
@@ -582,9 +587,7 @@ def check_one_monitor(m: Dict[str, Any], defaults: Dict[str, Any], email_cfg: Di
             matched_plain = next((t for t in plain_triggers if t in page_text_lc), None)
 
             if matched_pat or matched_plain:
-                logging.info(f"[{name}] Early skip (no email): "
-                             f"{'regex '+repr(matched_pat) if matched_pat else 'plain '+repr(matched_plain)}")
-                return
+                skip_due_to_text = True
 
             # 3) Structural guard — count *real* job items only
             results_ul = (
@@ -592,7 +595,6 @@ def check_one_monitor(m: Dict[str, Any], defaults: Dict[str, Any], email_cfg: Di
                 or soup.select_one("div.jobs-search__results-list")
                 or soup.select_one("[data-search-results-container='true']")
             )
-            real_count = 0
             if results_ul:
                 for li in results_ul.find_all("li", recursive=False):
                     job_id = (li.get("data-occludable-job-id") or li.get("data-job-id") or "").strip()
@@ -600,8 +602,28 @@ def check_one_monitor(m: Dict[str, Any], defaults: Dict[str, Any], email_cfg: Di
                     if job_id or title_a:
                         real_count += 1
             logging.info(f"[{name}] Structural check: real_count={real_count}")
-            if real_count == 0:
+
+            # Auth/challenge detection for LinkedIn
+            if linkedin_url:
+                auth_markers = [
+                    "sign in",
+                    "join now",
+                    "security verification",
+                    "checkpoint",
+                    "captcha",
+                    "verify",
+                ]
+                auth_block_detected = any(marker in page_text_lc for marker in auth_markers)
+                if auth_block_detected:
+                    logging.warning(f"[{name}] LinkedIn auth/challenge page detected; skipping update.")
+                    return
+
+            if not linkedin_url and real_count == 0:
                 logging.info(f"[{name}] Structural empty results (0 real job cards) — skipping without email.")
+                return
+            if not linkedin_url and skip_due_to_text:
+                logging.info(f"[{name}] Early skip (no email): "
+                             f"{'regex '+repr(matched_pat) if matched_pat else 'plain '+repr(matched_plain)}")
                 return
         else:
             # Fallback: raw-HTML plain check if bs4 is unavailable
@@ -622,10 +644,22 @@ def check_one_monitor(m: Dict[str, Any], defaults: Dict[str, Any], email_cfg: Di
     # LinkedIn: prefer structured comparison (stable JSON of job keys)
     content = None
     structured = None
-    if "linkedin.com/jobs/search" in url:
+    if linkedin_url:
         structured = extract_job_key_list_from_html(extracted if extracted else html)
         if structured is not None:
             content = structured
+
+    if linkedin_url and (skip_due_to_text or real_count == 0):
+        try:
+            import json
+            parsed_jobs = json.loads(content) if content else []
+        except Exception:
+            parsed_jobs = []
+        if not parsed_jobs:
+            logging.info(
+                f"[{name}] LinkedIn no-results guard matched; skipping without email."
+            )
+            return
 
     # Legacy text pipeline (if not structured)
     if content is None:
