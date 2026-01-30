@@ -1,3 +1,6 @@
+# Troubleshooting--to be removed later
+# logs/
+
 # --- Byte-compiled / cache ---
 __pycache__/
 *.py[cod]
@@ -9,7 +12,6 @@ linkedin_state.json  # LinkedIn session cookies (contains authentication tokens)
 # --- Distribution / packaging ---
 .env
 patches/
-logs/
 snapshots/
 temp/
 .Python
