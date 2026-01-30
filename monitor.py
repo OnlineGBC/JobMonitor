@@ -347,15 +347,17 @@ def fetch_via_playwright(url: str, timeout: int, wait_until: str, wait_selector:
             logging.warning(f"Could not load storage state: {e}")
             storage_state = None
     
-    # For LinkedIn: Use visible browser only when cookies are unavailable or invalid
-    # If valid cookies exist, use headless mode to avoid showing browser unnecessarily
+    # For LinkedIn: respect explicit headless setting, even when cookies are present.
+    # Use visible browser when cookies are unavailable or when headless is disabled.
     effective_headless = headless
     if needs_login:
-        # If we have a saved session, we'll validate it and use headless if valid
-        # For now, assume we'll use headless if session exists (will be validated below)
         if has_saved_session:
-            effective_headless = True  # Use headless when cookies are available
-            logging.info("Valid cookies detected - using headless mode")
+            if headless:
+                effective_headless = True
+                logging.info("Valid cookies detected - using headless mode")
+            else:
+                effective_headless = False
+                logging.info("Valid cookies detected - using visible browser (headless disabled)")
         else:
             effective_headless = False  # Use visible browser when no cookies (for login/challenges)
             logging.info("No cookies available - using visible browser for login")
