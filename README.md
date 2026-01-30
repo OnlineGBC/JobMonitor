@@ -157,6 +157,26 @@ SMTP_USE_TLS=1
 4. Set action to start program: `python.exe`
 5. Set arguments: `C:\path\to\JobMonitor\monitor.py`
 6. Set start in: `C:\path\to\JobMonitor`
+   #### Run or manage the task from the command line
+
+You can run an existing Task Scheduler task on demand with `schtasks` or PowerShell:
+
+```bat
+:: Run an existing task immediately
+schtasks /Run /TN "LinkedIn Job Monitor"
+
+:: Query last run results
+schtasks /Query /TN "LinkedIn Job Monitor" /V /FO LIST
+```
+
+```powershell
+# Run an existing task immediately
+Start-ScheduledTask -TaskName "LinkedIn Job Monitor"
+
+# Check last run results
+Get-ScheduledTaskInfo -TaskName "LinkedIn Job Monitor"
+```
+
 
 ### Linux/Mac Cron
 
