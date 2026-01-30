@@ -9,8 +9,6 @@ Web Change Monitor (Windows-friendly)
 - Sends email (SMTP) when a change is detected, with a short textual diff
 
 Run once and exit. Use Windows Task Scheduler to run every X minutes.
-
-Author: ChatGPT (GPT-5 Thinking)
 """
 
 import os
