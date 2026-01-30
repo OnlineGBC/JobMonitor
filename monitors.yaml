@@ -3,11 +3,12 @@
 
 defaults:
   render_js: true
+  wait_until: "load"
   headless: false
   wait_until: "domcontentloaded"       # Faster and more reliable - networkidle times out on LinkedIn
   compare_mode: "text"                  # diff visible text to reduce HTML noise (legacy mode)
   normalize_whitespace: true
-  timeout_seconds: 90                   # Increased timeout for LinkedIn
+  timeout_seconds: 180                   # Increased timeout for LinkedIn
   headers:                              # used only by requests mode; here for completeness
     User-Agent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) WebChangeMonitor/1.0"
 
