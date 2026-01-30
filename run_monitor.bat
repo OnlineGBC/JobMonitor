@@ -1,5 +1,3 @@
-where python 
-python -c "import sys; print(sys.executable)" 
 
 @echo off
 REM Batch file wrapper for monitor.py to ensure correct working directory

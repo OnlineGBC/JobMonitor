@@ -14,12 +14,12 @@ Write-Host ""
 
 # Extract all timestamps from "Fetching" lines (first monitor in each run)
 $timestamps = Get-Content $logFile | 
-    Select-String -Pattern '\[INFO\] \[(RemoteUSA|HybridNYC)\] Fetching' | 
-    ForEach-Object {
-        if ($_.Line -match '(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2})') {
-            [DateTime]::Parse($matches[1])
-        }
+Select-String -Pattern '\[INFO\] \[(RemoteUSA|HybridNYC)\] Fetching' | 
+ForEach-Object {
+    if ($_.Line -match '(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2})') {
+        [DateTime]::Parse($matches[1])
     }
+}
 
 if ($timestamps.Count -eq 0) {
     Write-Host "No execution timestamps found in log file." -ForegroundColor Yellow
@@ -42,7 +42,7 @@ Write-Host "Intervals between executions:" -ForegroundColor Yellow
 # Calculate intervals
 $intervals = @()
 for ($i = 1; $i -lt $timestamps.Count; $i++) {
-    $interval = ($timestamps[$i] - $timestamps[$i-1]).TotalMinutes
+    $interval = ($timestamps[$i] - $timestamps[$i - 1]).TotalMinutes
     $intervals += $interval
     $status = if ([math]::Abs($interval - 10) -lt 1) { "OK" } else { "X" }
     $color = if ([math]::Abs($interval - 10) -lt 1) { "Green" } else { "Red" }
@@ -70,7 +70,8 @@ Write-Host "  $withinRange out of $($intervals.Count) intervals are within 8-12 
 if ($percentage -gt 80) {
     Write-Host ""
     Write-Host "[OK] Task appears to be running approximately every 10 minutes" -ForegroundColor Green
-} else {
+}
+else {
     Write-Host ""
     Write-Host "[WARNING] Task may not be running consistently every 10 minutes" -ForegroundColor Red
     Write-Host "  Check Task Scheduler trigger settings" -ForegroundColor Yellow
