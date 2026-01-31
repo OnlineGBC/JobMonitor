@@ -359,9 +359,7 @@ def fetch_via_playwright(url: str, timeout: int, wait_until: str, wait_selector:
             else:
                 effective_headless = False
                 logging.info("Valid cookies detected - using visible browser (headless disabled)")
-            else:
-                effective_headless = False
-                logging.info("Valid cookies detected - using visible browser (headless disabled)")
+
         else:
             effective_headless = False  # Use visible browser when no cookies (for login/challenges)
             logging.info("No cookies available - using visible browser for login")
