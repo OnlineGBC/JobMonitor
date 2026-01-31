@@ -20,6 +20,7 @@ import hashlib
 import logging
 import difflib
 import traceback
+from datetime import datetime
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from pathlib import Path
@@ -358,6 +359,9 @@ def fetch_via_playwright(url: str, timeout: int, wait_until: str, wait_selector:
             else:
                 effective_headless = False
                 logging.info("Valid cookies detected - using visible browser (headless disabled)")
+            else:
+                effective_headless = False
+                logging.info("Valid cookies detected - using visible browser (headless disabled)")
         else:
             effective_headless = False  # Use visible browser when no cookies (for login/challenges)
             logging.info("No cookies available - using visible browser for login")
@@ -558,7 +562,10 @@ def check_one_monitor(m: Dict[str, Any], defaults: Dict[str, Any], email_cfg: Di
     skip_due_to_text = False
     real_count = 0
     auth_block_detected = False
-
+    linkedin_url = "linkedin.com/jobs/search" in url
+    skip_due_to_text = False
+    real_count = 0
+    auth_block_detected = False
     # ----- Early exit if the page clearly shows "no results" -----
     try:
         if HAS_BS4:
