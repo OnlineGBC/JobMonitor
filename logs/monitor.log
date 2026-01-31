@@ -1,8 +1,0 @@
-2026-01-31 12:22:40,742 [INFO] [RemoteUSA] Fetching https://www.linkedin.com/jobs/search/?currentJobId=4314563541&distance=25&f_E=5%2C6&f_TPR=r86400&f_WT=2&geoId=103644278&keywords=(title%3A%22Director%22%20OR%20title%3A%22VP%22%20OR%20title%3A%22Vice%20President%22%20OR%20title%3A%22Vice-President%22%20OR%20title%3A%22Head%22%20OR%20title%3A%22Leader%22%20OR%20title%3A%22Fractional%20CTO%22%20OR%20title%3A%22Fractional%20CIO%22%20)%20AND%20(title%3A%22AI%22%20OR%20title%3A%22Artificial%20Intelligence%22)%20AND%20NOT%20(%22Crossover%22%20OR%20%22Get%20IT%22%20OR%20%22Talentify%22%20OR%20%22Toptal%22%20OR%20%22Stealth%20Stanford%20AI%20Startup%22%20OR%20%22Lensa%22%20OR%20%22Tempus%22%20OR%20%22Harnham%22%20OR%20%22Swooped%22%20OR%20%22Jobgether%22)&origin=JOB_SEARCH_PAGE_JOB_FILTER&refresh=true&sortBy=R&spellCorrectionEnabled=true (render_js=True, headless=False)
-2026-01-31 12:22:40,743 [INFO] Loading saved LinkedIn session from linkedin_state.json
-2026-01-31 12:22:40,744 [INFO] Valid cookies detected - using visible browser (headless disabled)
-2026-01-31 12:22:52,140 [INFO] Saved LinkedIn session is still valid
-2026-01-31 12:23:56,600 [WARNING] LinkedIn results container not found, continuing anyway
-2026-01-31 12:24:01,582 [INFO] [RemoteUSA] Structural check: real_count=0
-2026-01-31 12:24:01,593 [WARNING] [RemoteUSA] Auth/challenge HTML dumped to C:\Users\raja\Downloads\JobMonitor\logs\RemoteUSA_auth_dump_20260131_172401.html
-2026-01-31 12:24:01,593 [WARNING] [RemoteUSA] LinkedIn auth/challenge page detected; skipping update.
