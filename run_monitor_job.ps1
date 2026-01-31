@@ -24,7 +24,7 @@
 #   2  - Missing required email environment variables
 #   3  - Missing ANTHROPIC_API_KEY (required for screenshot comparison)
 #   4  - Screenshot capture failed
-#   5  - AI comparison failed
+#   5  - AI comparison call to LLM failed
 #   10 - LinkedIn login failed
 #
 # HOW TO USE:
@@ -45,7 +45,7 @@ Start-Job -Name JobMonitorLoop -ScriptBlock {
         2  = "Missing email environment variables"
         3  = "Missing ANTHROPIC_API_KEY"
         4  = "Screenshot capture failed"
-        5  = "AI comparison failed"
+        5  = "AI comparison call to LLM failed"
         10 = "LinkedIn login failed"
     }
 
