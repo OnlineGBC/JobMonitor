@@ -1,13 +1,38 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Screenshot-based Web Change Monitor (Windows-friendly)
-- Captures screenshots of LinkedIn job search pages using Playwright
-- Uses Claude AI vision to compare screenshots for meaningful changes
-- Sends email with screenshot attachment when changes are detected
+=============================================================================
+LinkedIn Job Monitor - Screenshot-based Change Detection
+=============================================================================
 
-Run manually. On first run, captures initial screenshot and emails it.
-On subsequent runs, compares with previous screenshot and only alerts on changes.
+WHAT THIS SCRIPT DOES:
+    Monitors a LinkedIn job search page for new job postings by taking
+    screenshots and using Claude AI to detect meaningful changes.
+
+HOW IT WORKS:
+    1. First run: Takes a screenshot, saves it, and emails it to you
+    2. Subsequent runs: Takes a new screenshot and compares it to the previous one
+       - If the job listings are the same: discards the new screenshot, does nothing
+       - If there are new/removed jobs: emails you the new screenshot and saves it
+
+CONFIGURATION:
+    - monitors.yaml: Contains the LinkedIn search URL to monitor
+    - .env file: Contains credentials (LinkedIn, SMTP, Anthropic API key)
+
+EXIT CODES:
+    0  = Success
+    1  = Cannot read config file
+    2  = Missing email environment variables
+    3  = Missing ANTHROPIC_API_KEY
+    4  = Screenshot capture failed
+    5  = AI comparison failed
+    10 = LinkedIn login failed (triggers job stop in run_monitor_job.ps1)
+
+FILES CREATED:
+    - snapshots/screenshot1.png: The baseline screenshot for comparison
+    - snapshots/screenshot2.png: Temporary screenshot (deleted after comparison)
+    - logs/screen_compare.log: Log file
+    - linkedin_state.json: Saved LinkedIn session cookies (for faster login)
 """
 
 import os
@@ -26,7 +51,6 @@ from typing import Dict, Any, Optional
 import yaml
 from dotenv import load_dotenv
 
-# Optional imports
 try:
     from playwright.sync_api import sync_playwright
     HAS_PLAYWRIGHT = True
@@ -40,20 +64,26 @@ except Exception:
     HAS_ANTHROPIC = False
 
 
-# --------- Configuration ---------
+# =============================================================================
+# Configuration
+# =============================================================================
 
-SCREENSHOT1_PATH = Path("snapshots/screenshot1.png")
-SCREENSHOT2_PATH = Path("snapshots/screenshot2.png")
+SCREENSHOT1_PATH = Path("snapshots/screenshot1.png")  # Baseline screenshot
+SCREENSHOT2_PATH = Path("snapshots/screenshot2.png")  # Temporary screenshot for comparison
 
 
-# --------- Utilities ---------
+# =============================================================================
+# Utility Functions
+# =============================================================================
 
 def ensure_dirs():
+    """Create required directories if they don't exist."""
     Path("snapshots").mkdir(exist_ok=True)
     Path("logs").mkdir(exist_ok=True)
 
 
 def configure_logging():
+    """Set up logging to both file and console."""
     ensure_dirs()
     log_path = Path("logs/screen_compare.log")
     logging.basicConfig(
@@ -67,36 +97,41 @@ def configure_logging():
 
 
 def load_yaml(path: str) -> Dict[str, Any]:
+    """Load and parse a YAML configuration file."""
     with open(path, "r", encoding="utf-8") as f:
         return yaml.safe_load(f)
 
 
-# --------- LinkedIn Login ---------
+# =============================================================================
+# LinkedIn Login
+# =============================================================================
 
 def login_to_linkedin(page, username: str, password: str) -> bool:
     """
-    Login to LinkedIn with provided credentials.
-    Returns True if login successful, False otherwise.
+    Log in to LinkedIn using the provided credentials.
+
+    Returns True if login succeeded, False if it failed.
     """
     try:
         logging.info("Logging in to LinkedIn...")
         page.goto("https://www.linkedin.com/login", wait_until="domcontentloaded", timeout=30000)
 
+        # Wait for and fill in the login form
         page.wait_for_selector('input[name="session_key"]', timeout=10000)
         page.wait_for_selector('input[name="session_password"]', timeout=10000)
-
         page.fill('input[name="session_key"]', username)
         page.fill('input[name="session_password"]', password)
         page.click('button[type="submit"]')
 
-        # Wait for page to load after login (don't use networkidle - LinkedIn never stops)
+        # Wait for the page to load after submitting
+        # Note: Don't use "networkidle" - LinkedIn keeps making requests forever
         page.wait_for_load_state("load", timeout=30000)
-        page.wait_for_timeout(3000)  # Give time for redirect
+        page.wait_for_timeout(3000)
 
         current_url = page.url
         logging.info(f"Post-login URL: {current_url}")
 
-        # Check for error messages first
+        # Check for login error messages
         error_selectors = [
             'div[role="alert"]',
             '.error-for-password',
@@ -113,22 +148,22 @@ def login_to_linkedin(page, username: str, password: str) -> bool:
             except Exception:
                 pass
 
-        # Check if we hit a challenge/checkpoint
+        # Check if LinkedIn is asking for verification (2FA, captcha, etc.)
         if "/challenge" in current_url or "checkpoint" in current_url:
             logging.warning("LinkedIn login requires verification/challenge (2FA, captcha, etc.)")
             return False
 
-        # Check if we're still on login page (login failed)
+        # Check if we're still stuck on the login page
         if "/login" in current_url or "/uas/login" in current_url:
             logging.warning("Still on login page - login may have failed")
             return False
 
-        # If we're on feed, home, or jobs page, login succeeded
-        if any(x in current_url for x in ["/feed", "/mynetwork", "/jobs", "linkedin.com/$"]):
+        # If we reached the feed or jobs page, login worked
+        if any(x in current_url for x in ["/feed", "/mynetwork", "/jobs"]):
             logging.info("LinkedIn login successful")
             return True
 
-        # Default: assume success if we got past login page
+        # If we got past the login page, assume success
         logging.info("LinkedIn login appears successful (redirected away from login)")
         return True
 
@@ -138,7 +173,9 @@ def login_to_linkedin(page, username: str, password: str) -> bool:
         return False
 
 
-# --------- Screenshot Capture ---------
+# =============================================================================
+# Screenshot Capture
+# =============================================================================
 
 def capture_screenshot(
     url: str,
@@ -147,10 +184,14 @@ def capture_screenshot(
     linkedin_password: Optional[str] = None,
     headless: bool = False,
     timeout: int = 180
-) -> bool:
+) -> tuple:
     """
-    Capture a screenshot of the given URL using Playwright.
-    Returns True if successful, False otherwise.
+    Open a browser, navigate to the URL, and take a screenshot.
+
+    Returns a tuple: (success, login_failed)
+        - (True, False) = Screenshot captured successfully
+        - (False, True) = LinkedIn login failed
+        - (False, False) = Some other error occurred
     """
     if not HAS_PLAYWRIGHT:
         raise RuntimeError("Playwright not installed. Run: pip install playwright && playwright install chromium")
@@ -159,6 +200,7 @@ def capture_screenshot(
     storage_state = None
     has_saved_session = False
 
+    # Check if we have saved LinkedIn cookies from a previous session
     if Path(storage_state_path).exists():
         storage_state = storage_state_path
         has_saved_session = True
@@ -167,6 +209,7 @@ def capture_screenshot(
     needs_login = "linkedin.com" in url and linkedin_username and linkedin_password
     effective_headless = headless
 
+    # Decide whether to show the browser window
     if needs_login:
         if has_saved_session and headless:
             effective_headless = True
@@ -194,7 +237,7 @@ def capture_screenshot(
             session_valid = False
             is_authenticated = False
 
-            # Validate existing session
+            # If we have saved cookies, check if they're still valid
             if has_saved_session and needs_login:
                 try:
                     page.goto("https://www.linkedin.com/feed", wait_until="domcontentloaded", timeout=10000)
@@ -209,24 +252,26 @@ def capture_screenshot(
                 except Exception as e:
                     logging.warning(f"Could not validate session, will re-login: {e}")
 
-            # Login if needed
+            # Log in if we don't have a valid session
             if needs_login and not session_valid:
                 login_success = login_to_linkedin(page, linkedin_username, linkedin_password)
                 if login_success:
                     is_authenticated = True
+                    # Save the session cookies for next time
                     try:
                         context.storage_state(path=storage_state_path)
                         logging.info(f"Saved LinkedIn session to {storage_state_path}")
                     except Exception as e:
                         logging.warning(f"Could not save storage state: {e}")
                 else:
-                    logging.warning("LinkedIn login failed, continuing with unauthenticated access")
+                    logging.error("LinkedIn login failed!")
+                    return (False, True)
 
-            # Navigate to target URL
+            # Navigate to the target URL
             logging.info(f"Navigating to {url}")
             page.goto(url, wait_until="domcontentloaded", timeout=timeout * 1000)
 
-            # Wait for job results to load
+            # For LinkedIn job search pages, wait for the results to load
             if "linkedin.com/jobs/search" in url:
                 container_selectors = [
                     "[data-search-results-container='true']",
@@ -238,19 +283,18 @@ def capture_screenshot(
                 for selector in container_selectors:
                     try:
                         page.wait_for_selector(selector, timeout=15000)
-                        logging.debug(f"LinkedIn results container found: {selector}")
                         break
                     except Exception:
                         continue
 
-                # Wait for content to fully render
+                # Give the page a moment to finish rendering
                 page.wait_for_timeout(3000)
 
-            # Capture screenshot
+            # Take the screenshot
             logging.info(f"Capturing screenshot to {output_path}")
             page.screenshot(path=str(output_path), full_page=True)
 
-            # Refresh session state
+            # Update the saved session cookies
             if needs_login and is_authenticated:
                 try:
                     context.storage_state(path=storage_state_path)
@@ -258,23 +302,29 @@ def capture_screenshot(
                     pass
 
             logging.info("Screenshot captured successfully")
-            return True
+            return (True, False)
 
         except Exception as e:
             logging.error(f"Screenshot capture failed: {e}")
             logging.debug(traceback.format_exc())
-            return False
+            return (False, False)
         finally:
             browser.close()
 
 
-# --------- AI Comparison ---------
+# =============================================================================
+# AI-Powered Screenshot Comparison
+# =============================================================================
 
 def compare_screenshots_with_ai(img1_path: Path, img2_path: Path) -> bool:
     """
-    Use Claude AI vision to compare two screenshots.
-    Returns True if they appear to show the same content (no meaningful change).
-    Returns False if there are meaningful differences (new/removed jobs).
+    Use Claude AI to compare two screenshots and detect meaningful changes.
+
+    Returns True if the screenshots show the same job listings (no change).
+    Returns False if there are new or removed jobs (change detected).
+
+    The AI ignores minor differences like timestamps, applicant counts, and
+    visual styling - it only looks for actual changes to job listings.
     """
     if not HAS_ANTHROPIC:
         raise RuntimeError("Anthropic package not installed. Run: pip install anthropic")
@@ -285,7 +335,7 @@ def compare_screenshots_with_ai(img1_path: Path, img2_path: Path) -> bool:
 
     logging.info("Comparing screenshots using Claude AI vision...")
 
-    # Read and encode both images
+    # Read and encode both images as base64
     with open(img1_path, "rb") as f:
         img1_data = base64.standard_b64encode(f.read()).decode("utf-8")
 
@@ -294,6 +344,7 @@ def compare_screenshots_with_ai(img1_path: Path, img2_path: Path) -> bool:
 
     client = anthropic.Anthropic(api_key=api_key)
 
+    # Ask Claude to compare the screenshots
     message = client.messages.create(
         model="claude-sonnet-4-20250514",
         max_tokens=1024,
@@ -351,11 +402,12 @@ First image (previous screenshot):"""
     response_text = message.content[0].text.strip().upper()
     logging.info(f"AI comparison result: {response_text}")
 
-    # Return True if SAME (no change), False if DIFFERENT (change detected)
     return "SAME" in response_text
 
 
-# --------- Email ---------
+# =============================================================================
+# Email Functions
+# =============================================================================
 
 def send_email_with_image(
     smtp_host: str,
@@ -369,23 +421,22 @@ def send_email_with_image(
     body_text: str,
     image_path: Optional[Path] = None
 ):
-    """Send an email with optional image attachment."""
+    """Send an email, optionally with an image attachment."""
     msg = MIMEMultipart()
     msg["From"] = from_addr
     msg["To"] = ", ".join(to_addrs)
     msg["Subject"] = subject
-
     msg.attach(MIMEText(body_text, "plain", "utf-8"))
 
-    # Attach image if provided
+    # Attach the image if provided
     if image_path and image_path.exists():
         with open(image_path, "rb") as f:
             img_data = f.read()
-
         img_attachment = MIMEImage(img_data, name=image_path.name)
         img_attachment.add_header("Content-Disposition", "attachment", filename=image_path.name)
         msg.attach(img_attachment)
 
+    # Connect and send
     if use_tls:
         server = smtplib.SMTP(smtp_host, smtp_port, timeout=30)
         try:
@@ -404,7 +455,9 @@ def send_email_with_image(
 
 
 def send_alert(email_cfg: Dict[str, Any], subject: str, body: str, image_path: Optional[Path] = None) -> bool:
-    """Send email alert with optional image. Returns True if successful."""
+    """
+    Send an email alert. Returns True if successful, False otherwise.
+    """
     try:
         send_email_with_image(
             smtp_host=email_cfg["smtp_host"],
@@ -425,7 +478,9 @@ def send_alert(email_cfg: Dict[str, Any], subject: str, body: str, image_path: O
         return False
 
 
-# --------- Main ---------
+# =============================================================================
+# Main Program
+# =============================================================================
 
 def main():
     configure_logging()
@@ -436,7 +491,7 @@ def main():
     logging.info("Screen Compare Monitor Started")
     logging.info("=" * 60)
 
-    # Load config
+    # Load the monitor configuration
     config_path = os.getenv("CONFIG_PATH", "monitors.yaml")
     try:
         cfg = load_yaml(config_path)
@@ -444,18 +499,18 @@ def main():
         logging.error(f"Cannot read {config_path}: {e}")
         sys.exit(1)
 
-    # Get first monitor's URL (or could be configured differently)
     monitors = cfg.get("monitors", [])
     if not monitors:
         logging.error("No monitors defined in monitors.yaml")
         sys.exit(1)
 
-    monitor = monitors[0]  # Use first monitor
+    # Use the first monitor defined in the config
+    monitor = monitors[0]
     url = monitor["url"]
     name = monitor.get("name", "ScreenCompare")
     headless = bool(monitor.get("headless", cfg.get("defaults", {}).get("headless", False)))
 
-    # Email configuration
+    # Load email settings from environment variables
     required_env = ["SMTP_HOST", "SMTP_PORT", "SMTP_USERNAME", "SMTP_PASSWORD", "FROM_ADDR", "TO_ADDRS"]
     missing = [k for k in required_env if not os.getenv(k)]
     if missing:
@@ -474,21 +529,25 @@ def main():
 
     subject_prefix = os.getenv("SUBJECT_PREFIX", "[ScreenCompare]")
 
-    # LinkedIn credentials
+    # Load LinkedIn credentials
     linkedin_username = os.getenv("LINKEDIN_USERNAME")
     linkedin_password = os.getenv("LINKEDIN_PASSWORD")
 
-    # Check for Anthropic API key (needed for comparison)
+    # Check for Anthropic API key (only needed after first run)
     if SCREENSHOT1_PATH.exists() and not os.getenv("ANTHROPIC_API_KEY"):
         logging.error("ANTHROPIC_API_KEY environment variable not set (required for screenshot comparison)")
         sys.exit(3)
 
-    # Main logic
+    # -------------------------------------------------------------------------
+    # Main Logic
+    # -------------------------------------------------------------------------
+
     if not SCREENSHOT1_PATH.exists():
-        # First run - capture initial screenshot
+        # FIRST RUN: No previous screenshot exists
+        # Take an initial screenshot to use as the baseline
         logging.info("No existing screenshot found. Capturing initial screenshot...")
 
-        success = capture_screenshot(
+        success, login_failed = capture_screenshot(
             url=url,
             output_path=SCREENSHOT1_PATH,
             linkedin_username=linkedin_username,
@@ -496,11 +555,23 @@ def main():
             headless=headless
         )
 
+        if login_failed:
+            logging.error("LinkedIn login failed - sending alert and stopping")
+            body = (
+                f"LinkedIn login failed for '{name}'!\n\n"
+                f"URL: {url}\n"
+                f"Timestamp: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n"
+                f"The monitor job has been stopped.\n"
+                f"Please check your LinkedIn credentials or session."
+            )
+            send_alert(email_cfg, f"{subject_prefix} {name}: LOGIN FAILED - JOB STOPPED", body)
+            sys.exit(10)
+
         if not success:
             logging.error("Failed to capture initial screenshot")
             sys.exit(4)
 
-        # Email the initial screenshot
+        # Send email with the initial screenshot
         body = (
             f"Initial screenshot captured for '{name}'.\n\n"
             f"URL: {url}\n"
@@ -514,10 +585,11 @@ def main():
             logging.warning("Failed to send initial screenshot email")
 
     else:
-        # Subsequent run - capture and compare
+        # SUBSEQUENT RUN: A previous screenshot exists
+        # Take a new screenshot and compare it to the previous one
         logging.info("Existing screenshot found. Capturing new screenshot for comparison...")
 
-        success = capture_screenshot(
+        success, login_failed = capture_screenshot(
             url=url,
             output_path=SCREENSHOT2_PATH,
             linkedin_username=linkedin_username,
@@ -525,27 +597,38 @@ def main():
             headless=headless
         )
 
+        if login_failed:
+            logging.error("LinkedIn login failed - sending alert and stopping")
+            body = (
+                f"LinkedIn login failed for '{name}'!\n\n"
+                f"URL: {url}\n"
+                f"Timestamp: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n"
+                f"The monitor job has been stopped.\n"
+                f"Please check your LinkedIn credentials or session."
+            )
+            send_alert(email_cfg, f"{subject_prefix} {name}: LOGIN FAILED - JOB STOPPED", body)
+            sys.exit(10)
+
         if not success:
             logging.error("Failed to capture comparison screenshot")
             sys.exit(4)
 
-        # Compare screenshots using AI
+        # Use AI to compare the two screenshots
         try:
             is_same = compare_screenshots_with_ai(SCREENSHOT1_PATH, SCREENSHOT2_PATH)
         except Exception as e:
             logging.error(f"AI comparison failed: {e}")
             logging.debug(traceback.format_exc())
-            # Clean up and exit
             if SCREENSHOT2_PATH.exists():
                 SCREENSHOT2_PATH.unlink()
             sys.exit(5)
 
         if is_same:
-            # No change - discard the new screenshot
+            # No change detected - discard the new screenshot
             logging.info("No meaningful change detected. Discarding new screenshot.")
             SCREENSHOT2_PATH.unlink()
         else:
-            # Change detected - send alert and rotate screenshots
+            # Change detected - send alert and update the baseline
             logging.info("CHANGE DETECTED! Sending alert email...")
 
             body = (
@@ -561,7 +644,7 @@ def main():
             else:
                 logging.warning("Failed to send change alert email")
 
-            # Rotate screenshots: delete old, rename new to old
+            # Replace the old screenshot with the new one
             logging.info("Rotating screenshots...")
             SCREENSHOT1_PATH.unlink()
             SCREENSHOT2_PATH.rename(SCREENSHOT1_PATH)
