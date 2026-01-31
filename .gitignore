@@ -4,7 +4,9 @@ __pycache__/
 *$py.class
 
 # --- JobMonitor specific ---
-linkedin_state.json  # LinkedIn session cookies (contains authentication tokens)
+linkedin_state.json
+logs/
+*.log
 
 # --- Distribution / packaging ---
 .env
