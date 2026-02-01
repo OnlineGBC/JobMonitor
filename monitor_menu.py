@@ -15,7 +15,8 @@ HOW TO USE:
 MENU OPTIONS:
     1. Run once - Executes monitor.py once and returns to menu
     2. Run as scheduled job - Runs monitor.py on a schedule (Ctrl+C to stop)
-    3. Exit - Exits the program
+    3. Test custom schedule - Run with a custom interval (5-59 minutes)
+    4. Exit - Exits the program
 """
 
 import sys
@@ -38,14 +39,28 @@ def show_menu():
     print()
     print("  1. Run once")
     print("  2. Run as scheduled job")
-    print("  3. Exit")
+    print("  3. Test custom schedule")
+    print("  4. Exit")
     print()
 
     while True:
-        choice = input("Select option (1-3): ").strip()
-        if choice in ("1", "2", "3"):
+        choice = input("Select option (1-4): ").strip()
+        if choice in ("1", "2", "3", "4"):
             return choice
-        print("Invalid option. Please enter 1, 2, or 3.")
+        print("Invalid option. Please enter 1, 2, 3, or 4.")
+
+
+def get_custom_interval():
+    """Prompt user for custom interval in minutes (5-59)."""
+    while True:
+        try:
+            minutes = input("Enter interval in minutes (5-59): ").strip()
+            minutes = int(minutes)
+            if 5 <= minutes <= 59:
+                return minutes
+            print("Please enter a number between 5 and 59.")
+        except ValueError:
+            print("Please enter a valid number.")
 
 
 def main():
@@ -86,6 +101,23 @@ def main():
             print("Returning to menu...")
 
         elif choice == "3":
+            # Test custom schedule
+            print()
+            interval = get_custom_interval()
+            print()
+            print(f"Starting custom schedule: every {interval} minutes (Ctrl+C to stop)...")
+            print("-" * 40)
+            try:
+                run_monitor_loop(custom_interval_minutes=interval)
+            except KeyboardInterrupt:
+                print()
+                print("Job stopped by user.")
+            except Exception as e:
+                print(f"Error: {e}")
+            print("-" * 40)
+            print("Returning to menu...")
+
+        elif choice == "4":
             # Exit
             print()
             print("Goodbye!")

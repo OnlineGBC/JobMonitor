@@ -129,10 +129,18 @@ To restart the monitor:
     send_alert(email_cfg, subject, body)
 
 
-def run_monitor_loop():
-    """Main loop that runs monitor.py repeatedly."""
+def run_monitor_loop(custom_interval_minutes=None):
+    """
+    Main loop that runs monitor.py repeatedly.
+
+    Args:
+        custom_interval_minutes: If provided, use this fixed interval (in minutes)
+                                 instead of the business hours schedule.
+    """
     logging.info("=" * 60)
     logging.info("Job Monitor Loop Started")
+    if custom_interval_minutes:
+        logging.info(f"Custom schedule: every {custom_interval_minutes} minutes")
     logging.info("=" * 60)
 
     # Get the path to monitor.py (same directory as this script)
@@ -158,7 +166,10 @@ def run_monitor_loop():
 
         # Calculate sleep interval
         et_now = get_eastern_time()
-        sleep_seconds = get_sleep_interval(et_now)
+        if custom_interval_minutes:
+            sleep_seconds = custom_interval_minutes * 60
+        else:
+            sleep_seconds = get_sleep_interval(et_now)
         sleep_minutes = sleep_seconds / 60
 
         logging.info(
