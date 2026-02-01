@@ -70,12 +70,22 @@ except Exception:
 # Configuration
 # =============================================================================
 
-SCREENSHOT1_PATH = Path("snapshots/screenshot1.png")  # Baseline screenshot
-SCREENSHOT2_PATH = Path("snapshots/screenshot2.png")  # Temporary screenshot for comparison
-SCREENSHOT1_TEXT_PATH = Path("snapshots/screenshot1.txt")  # Page text for baseline
-SCREENSHOT2_TEXT_PATH = Path("snapshots/screenshot2.txt")  # Page text for comparison
-
 NO_MATCHING_JOBS_TEXT = "No matching jobs found"
+
+
+def get_snapshot_paths(monitor_name: str) -> tuple:
+    """
+    Get snapshot paths for a specific monitor.
+    Returns (screenshot1_path, screenshot2_path, text1_path, text2_path).
+    """
+    # Sanitize monitor name for use in filenames
+    safe_name = "".join(c if c.isalnum() or c in "-_" else "_" for c in monitor_name)
+    return (
+        Path(f"snapshots/{safe_name}_screenshot1.png"),
+        Path(f"snapshots/{safe_name}_screenshot2.png"),
+        Path(f"snapshots/{safe_name}_screenshot1.txt"),
+        Path(f"snapshots/{safe_name}_screenshot2.txt"),
+    )
 
 
 # =============================================================================
@@ -511,6 +521,179 @@ def send_alert(email_cfg: Dict[str, Any], subject: str, body: str, image_path: O
 # Main Program
 # =============================================================================
 
+def process_monitor(
+    monitor: Dict[str, Any],
+    defaults: Dict[str, Any],
+    email_cfg: Dict[str, Any],
+    subject_prefix: str,
+    linkedin_username: Optional[str],
+    linkedin_password: Optional[str]
+) -> int:
+    """
+    Process a single monitor. Returns exit code (0 for success, non-zero for failure).
+
+    Exit codes:
+        0  = Success
+        3  = Missing ANTHROPIC_API_KEY
+        4  = Screenshot capture failed
+        5  = AI comparison failed
+        10 = LinkedIn login failed
+    """
+    name = monitor.get("name", "Monitor")
+    url = monitor["url"]
+    headless = bool(monitor.get("headless", defaults.get("headless", False)))
+
+    # Get monitor-specific snapshot paths
+    screenshot1_path, screenshot2_path, text1_path, text2_path = get_snapshot_paths(name)
+
+    logging.info("-" * 60)
+    logging.info(f"Processing monitor: {name}")
+    logging.info(f"URL: {url[:80]}{'...' if len(url) > 80 else ''}")
+
+    # Check for Anthropic API key (only needed if baseline exists)
+    if screenshot1_path.exists() and not os.getenv("ANTHROPIC_API_KEY"):
+        logging.error(f"[{name}] ANTHROPIC_API_KEY not set (required for screenshot comparison)")
+        return 3
+
+    # -------------------------------------------------------------------------
+    # Monitor Logic
+    # -------------------------------------------------------------------------
+
+    if not screenshot1_path.exists():
+        # FIRST RUN: No previous screenshot exists
+        logging.info(f"[{name}] No existing screenshot found. Capturing initial screenshot...")
+
+        success, login_failed = capture_screenshot(
+            url=url,
+            output_path=screenshot1_path,
+            linkedin_username=linkedin_username,
+            linkedin_password=linkedin_password,
+            headless=headless
+        )
+
+        if login_failed:
+            logging.error(f"[{name}] LinkedIn login failed - sending alert")
+            body = (
+                f"LinkedIn login failed for '{name}'!\n\n"
+                f"URL: {url}\n"
+                f"Timestamp: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n"
+                f"The monitor job has been stopped.\n"
+                f"Please check your LinkedIn credentials or session."
+            )
+            send_alert(email_cfg, f"{subject_prefix} {name}: LOGIN FAILED - JOB STOPPED", body)
+            return 10
+
+        if not success:
+            logging.error(f"[{name}] Failed to capture initial screenshot")
+            return 4
+
+        # Send email with the initial screenshot
+        body = (
+            f"Initial screenshot captured for '{name}'.\n\n"
+            f"URL: {url}\n"
+            f"Timestamp: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n"
+            f"This is the baseline. Future runs will compare against this screenshot."
+        )
+
+        if send_alert(email_cfg, f"{subject_prefix} {name}: Initial Screenshot", body, screenshot1_path):
+            logging.info(f"[{name}] Initial screenshot email sent successfully")
+        else:
+            logging.warning(f"[{name}] Failed to send initial screenshot email")
+
+    else:
+        # SUBSEQUENT RUN: A previous screenshot exists
+        logging.info(f"[{name}] Existing screenshot found. Capturing new screenshot for comparison...")
+
+        success, login_failed = capture_screenshot(
+            url=url,
+            output_path=screenshot2_path,
+            linkedin_username=linkedin_username,
+            linkedin_password=linkedin_password,
+            headless=headless
+        )
+
+        if login_failed:
+            logging.error(f"[{name}] LinkedIn login failed - sending alert")
+            body = (
+                f"LinkedIn login failed for '{name}'!\n\n"
+                f"URL: {url}\n"
+                f"Timestamp: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n"
+                f"The monitor job has been stopped.\n"
+                f"Please check your LinkedIn credentials or session."
+            )
+            send_alert(email_cfg, f"{subject_prefix} {name}: LOGIN FAILED - JOB STOPPED", body)
+            return 10
+
+        if not success:
+            logging.error(f"[{name}] Failed to capture comparison screenshot")
+            return 4
+
+        # Check for "No matching jobs found" in screenshot2 (deterministic check)
+        if has_no_matching_jobs(text2_path):
+            logging.info(f"[{name}] No matching jobs found. Skipping email notification.")
+            # Clean up screenshot2 files
+            if screenshot2_path.exists():
+                screenshot2_path.unlink()
+            if text2_path.exists():
+                text2_path.unlink()
+            # Note if screenshot1 also had no matching jobs
+            if has_no_matching_jobs(text1_path):
+                logging.info(f"[{name}] Baseline also had no matching jobs.")
+        else:
+            # Check if screenshot1 had "No matching jobs found" but now there are jobs
+            if has_no_matching_jobs(text1_path):
+                logging.info(f"[{name}] New jobs appeared! Baseline had no matching jobs.")
+
+            # Use AI to compare the two screenshots
+            try:
+                is_same = compare_screenshots_with_ai(screenshot1_path, screenshot2_path)
+            except Exception as e:
+                logging.error(f"[{name}] AI comparison call to LLM failed: {e}")
+                logging.debug(traceback.format_exc())
+                if screenshot2_path.exists():
+                    screenshot2_path.unlink()
+                if text2_path.exists():
+                    text2_path.unlink()
+                return 5
+
+            if is_same:
+                # No change detected - discard the new screenshot
+                logging.info(f"[{name}] No meaningful change detected. Discarding new screenshot.")
+                screenshot2_path.unlink()
+                if text2_path.exists():
+                    text2_path.unlink()
+            else:
+                # Change detected - send alert and update the baseline
+                logging.info(f"[{name}] CHANGE DETECTED! Sending alert email...")
+
+                body = (
+                    f"Change detected for '{name}'!\n\n"
+                    f"URL: {url}\n"
+                    f"Timestamp: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n"
+                    f"The job listings have changed since the last check.\n"
+                    f"See attached screenshot for current state."
+                )
+
+                if send_alert(email_cfg, f"{subject_prefix} {name}: CHANGE DETECTED", body, screenshot2_path):
+                    logging.info(f"[{name}] Change alert email sent successfully")
+                else:
+                    logging.warning(f"[{name}] Failed to send change alert email")
+
+                # Replace the old screenshot with the new one
+                logging.info(f"[{name}] Rotating screenshots...")
+                screenshot1_path.unlink()
+                screenshot2_path.rename(screenshot1_path)
+                # Also rotate the text files
+                if text1_path.exists():
+                    text1_path.unlink()
+                if text2_path.exists():
+                    text2_path.rename(text1_path)
+                logging.info(f"[{name}] Screenshot rotation complete")
+
+    logging.info(f"[{name}] Monitor processing complete")
+    return 0
+
+
 def main():
     configure_logging()
     load_dotenv()
@@ -533,11 +716,8 @@ def main():
         logging.error("No monitors defined in monitors.yaml")
         sys.exit(1)
 
-    # Use the first monitor defined in the config
-    monitor = monitors[0]
-    url = monitor["url"]
-    name = monitor.get("name", "ScreenCompare")
-    headless = bool(monitor.get("headless", cfg.get("defaults", {}).get("headless", False)))
+    defaults = cfg.get("defaults", {})
+    logging.info(f"Found {len(monitors)} monitor(s) to process")
 
     # Load email settings from environment variables
     required_env = ["SMTP_HOST", "SMTP_PORT", "SMTP_USERNAME", "SMTP_PASSWORD", "FROM_ADDR", "TO_ADDRS"]
@@ -562,150 +742,37 @@ def main():
     linkedin_username = os.getenv("LINKEDIN_USERNAME")
     linkedin_password = os.getenv("LINKEDIN_PASSWORD")
 
-    # Check for Anthropic API key (only needed after first run)
-    if SCREENSHOT1_PATH.exists() and not os.getenv("ANTHROPIC_API_KEY"):
-        logging.error("ANTHROPIC_API_KEY environment variable not set (required for screenshot comparison)")
-        sys.exit(3)
-
     # -------------------------------------------------------------------------
-    # Main Logic
+    # Process all monitors
     # -------------------------------------------------------------------------
 
-    if not SCREENSHOT1_PATH.exists():
-        # FIRST RUN: No previous screenshot exists
-        # Take an initial screenshot to use as the baseline
-        logging.info("No existing screenshot found. Capturing initial screenshot...")
+    worst_exit_code = 0
 
-        success, login_failed = capture_screenshot(
-            url=url,
-            output_path=SCREENSHOT1_PATH,
+    for monitor in monitors:
+        exit_code = process_monitor(
+            monitor=monitor,
+            defaults=defaults,
+            email_cfg=email_cfg,
+            subject_prefix=subject_prefix,
             linkedin_username=linkedin_username,
-            linkedin_password=linkedin_password,
-            headless=headless
+            linkedin_password=linkedin_password
         )
 
-        if login_failed:
-            logging.error("LinkedIn login failed - sending alert and stopping")
-            body = (
-                f"LinkedIn login failed for '{name}'!\n\n"
-                f"URL: {url}\n"
-                f"Timestamp: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n"
-                f"The monitor job has been stopped.\n"
-                f"Please check your LinkedIn credentials or session."
-            )
-            send_alert(email_cfg, f"{subject_prefix} {name}: LOGIN FAILED - JOB STOPPED", body)
-            sys.exit(10)
+        # Track the worst exit code encountered
+        if exit_code != 0:
+            worst_exit_code = exit_code
 
-        if not success:
-            logging.error("Failed to capture initial screenshot")
-            sys.exit(4)
+        # Stop immediately on login failure (affects all monitors)
+        if exit_code == 10:
+            logging.error("LinkedIn login failed - stopping all monitors")
+            break
 
-        # Send email with the initial screenshot
-        body = (
-            f"Initial screenshot captured for '{name}'.\n\n"
-            f"URL: {url}\n"
-            f"Timestamp: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n"
-            f"This is the baseline. Future runs will compare against this screenshot."
-        )
-
-        if send_alert(email_cfg, f"{subject_prefix} {name}: Initial Screenshot", body, SCREENSHOT1_PATH):
-            logging.info("Initial screenshot email sent successfully")
-        else:
-            logging.warning("Failed to send initial screenshot email")
-
-    else:
-        # SUBSEQUENT RUN: A previous screenshot exists
-        # Take a new screenshot and compare it to the previous one
-        logging.info("Existing screenshot found. Capturing new screenshot for comparison...")
-
-        success, login_failed = capture_screenshot(
-            url=url,
-            output_path=SCREENSHOT2_PATH,
-            linkedin_username=linkedin_username,
-            linkedin_password=linkedin_password,
-            headless=headless
-        )
-
-        if login_failed:
-            logging.error("LinkedIn login failed - sending alert and stopping")
-            body = (
-                f"LinkedIn login failed for '{name}'!\n\n"
-                f"URL: {url}\n"
-                f"Timestamp: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n"
-                f"The monitor job has been stopped.\n"
-                f"Please check your LinkedIn credentials or session."
-            )
-            send_alert(email_cfg, f"{subject_prefix} {name}: LOGIN FAILED - JOB STOPPED", body)
-            sys.exit(10)
-
-        if not success:
-            logging.error("Failed to capture comparison screenshot")
-            sys.exit(4)
-
-        # Check for "No matching jobs found" in screenshot2 (deterministic check)
-        if has_no_matching_jobs(SCREENSHOT2_TEXT_PATH):
-            logging.info("No matching jobs found. Skipping email notification.")
-            # Clean up screenshot2 files
-            if SCREENSHOT2_PATH.exists():
-                SCREENSHOT2_PATH.unlink()
-            if SCREENSHOT2_TEXT_PATH.exists():
-                SCREENSHOT2_TEXT_PATH.unlink()
-            # Note if screenshot1 also had no matching jobs
-            if has_no_matching_jobs(SCREENSHOT1_TEXT_PATH):
-                logging.info("Baseline also had no matching jobs.")
-        else:
-            # Check if screenshot1 had "No matching jobs found" but now there are jobs
-            if has_no_matching_jobs(SCREENSHOT1_TEXT_PATH):
-                logging.info("New jobs appeared! Baseline had no matching jobs.")
-
-            # Use AI to compare the two screenshots
-            try:
-                is_same = compare_screenshots_with_ai(SCREENSHOT1_PATH, SCREENSHOT2_PATH)
-            except Exception as e:
-                logging.error(f"AI comparison call to LLM failed: {e}")
-                logging.debug(traceback.format_exc())
-                if SCREENSHOT2_PATH.exists():
-                    SCREENSHOT2_PATH.unlink()
-                if SCREENSHOT2_TEXT_PATH.exists():
-                    SCREENSHOT2_TEXT_PATH.unlink()
-                sys.exit(5)
-
-            if is_same:
-                # No change detected - discard the new screenshot
-                logging.info("No meaningful change detected. Discarding new screenshot.")
-                SCREENSHOT2_PATH.unlink()
-                if SCREENSHOT2_TEXT_PATH.exists():
-                    SCREENSHOT2_TEXT_PATH.unlink()
-            else:
-                # Change detected - send alert and update the baseline
-                logging.info("CHANGE DETECTED! Sending alert email...")
-
-                body = (
-                    f"Change detected for '{name}'!\n\n"
-                    f"URL: {url}\n"
-                    f"Timestamp: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n"
-                    f"The job listings have changed since the last check.\n"
-                    f"See attached screenshot for current state."
-                )
-
-                if send_alert(email_cfg, f"{subject_prefix} {name}: CHANGE DETECTED", body, SCREENSHOT2_PATH):
-                    logging.info("Change alert email sent successfully")
-                else:
-                    logging.warning("Failed to send change alert email")
-
-                # Replace the old screenshot with the new one
-                logging.info("Rotating screenshots...")
-                SCREENSHOT1_PATH.unlink()
-                SCREENSHOT2_PATH.rename(SCREENSHOT1_PATH)
-                # Also rotate the text files
-                if SCREENSHOT1_TEXT_PATH.exists():
-                    SCREENSHOT1_TEXT_PATH.unlink()
-                if SCREENSHOT2_TEXT_PATH.exists():
-                    SCREENSHOT2_TEXT_PATH.rename(SCREENSHOT1_TEXT_PATH)
-                logging.info("Screenshot rotation complete")
-
+    logging.info("=" * 60)
     logging.info("Screen Compare Monitor Finished")
     logging.info("=" * 60)
+
+    if worst_exit_code != 0:
+        sys.exit(worst_exit_code)
 
 
 if __name__ == "__main__":
