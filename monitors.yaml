@@ -4,7 +4,7 @@
 defaults:
   render_js: true
   wait_until: "load"
-  headless: false
+  headless: true
   wait_until: "domcontentloaded"       # Faster and more reliable - networkidle times out on LinkedIn
   compare_mode: "text"                  # diff visible text to reduce HTML noise (legacy mode)
   normalize_whitespace: true
