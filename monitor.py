@@ -25,12 +25,14 @@ EXIT CODES:
     2  = Missing email environment variables
     3  = Missing ANTHROPIC_API_KEY
     4  = Screenshot capture failed
-    5  = AI comparison failed
+    5  = AI comparison call to LLM failed
     10 = LinkedIn login failed (triggers job stop in run_monitor_job.ps1)
 
 FILES CREATED:
     - snapshots/screenshot1.png: The baseline screenshot for comparison
+    - snapshots/screenshot1.txt: Page text for baseline (for deterministic checks)
     - snapshots/screenshot2.png: Temporary screenshot (deleted after comparison)
+    - snapshots/screenshot2.txt: Temporary page text (deleted after comparison)
     - logs/screen_compare.log: Log file
     - linkedin_state.json: Saved LinkedIn session cookies (for faster login)
 """
@@ -70,6 +72,10 @@ except Exception:
 
 SCREENSHOT1_PATH = Path("snapshots/screenshot1.png")  # Baseline screenshot
 SCREENSHOT2_PATH = Path("snapshots/screenshot2.png")  # Temporary screenshot for comparison
+SCREENSHOT1_TEXT_PATH = Path("snapshots/screenshot1.txt")  # Page text for baseline
+SCREENSHOT2_TEXT_PATH = Path("snapshots/screenshot2.txt")  # Page text for comparison
+
+NO_MATCHING_JOBS_TEXT = "No matching jobs found"
 
 
 # =============================================================================
@@ -100,6 +106,19 @@ def load_yaml(path: str) -> Dict[str, Any]:
     """Load and parse a YAML configuration file."""
     with open(path, "r", encoding="utf-8") as f:
         return yaml.safe_load(f)
+
+
+def has_no_matching_jobs(text_path: Path) -> bool:
+    """Check if the page text file contains 'No matching jobs found'."""
+    if not text_path.exists():
+        return False
+    try:
+        with open(text_path, "r", encoding="utf-8") as f:
+            content = f.read()
+        return NO_MATCHING_JOBS_TEXT in content
+    except Exception as e:
+        logging.warning(f"Could not read {text_path}: {e}")
+        return False
 
 
 # =============================================================================
@@ -293,6 +312,16 @@ def capture_screenshot(
             # Take the screenshot
             logging.info(f"Capturing screenshot to {output_path}")
             page.screenshot(path=str(output_path), full_page=True)
+
+            # Extract and save page text for deterministic checks
+            text_output_path = output_path.with_suffix(".txt")
+            try:
+                page_text = page.inner_text("body")
+                with open(text_output_path, "w", encoding="utf-8") as f:
+                    f.write(page_text)
+                logging.info(f"Page text saved to {text_output_path}")
+            except Exception as e:
+                logging.warning(f"Could not extract page text: {e}")
 
             # Update the saved session cookies
             if needs_login and is_authenticated:
@@ -613,42 +642,67 @@ def main():
             logging.error("Failed to capture comparison screenshot")
             sys.exit(4)
 
-        # Use AI to compare the two screenshots
-        try:
-            is_same = compare_screenshots_with_ai(SCREENSHOT1_PATH, SCREENSHOT2_PATH)
-        except Exception as e:
-            logging.error(f"AI comparison failed: {e}")
-            logging.debug(traceback.format_exc())
+        # Check for "No matching jobs found" in screenshot2 (deterministic check)
+        if has_no_matching_jobs(SCREENSHOT2_TEXT_PATH):
+            logging.info("No matching jobs found. Skipping email notification.")
+            # Clean up screenshot2 files
             if SCREENSHOT2_PATH.exists():
                 SCREENSHOT2_PATH.unlink()
-            sys.exit(5)
-
-        if is_same:
-            # No change detected - discard the new screenshot
-            logging.info("No meaningful change detected. Discarding new screenshot.")
-            SCREENSHOT2_PATH.unlink()
+            if SCREENSHOT2_TEXT_PATH.exists():
+                SCREENSHOT2_TEXT_PATH.unlink()
+            # Note if screenshot1 also had no matching jobs
+            if has_no_matching_jobs(SCREENSHOT1_TEXT_PATH):
+                logging.info("Baseline also had no matching jobs.")
         else:
-            # Change detected - send alert and update the baseline
-            logging.info("CHANGE DETECTED! Sending alert email...")
+            # Check if screenshot1 had "No matching jobs found" but now there are jobs
+            if has_no_matching_jobs(SCREENSHOT1_TEXT_PATH):
+                logging.info("New jobs appeared! Baseline had no matching jobs.")
 
-            body = (
-                f"Change detected for '{name}'!\n\n"
-                f"URL: {url}\n"
-                f"Timestamp: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n"
-                f"The job listings have changed since the last check.\n"
-                f"See attached screenshot for current state."
-            )
+            # Use AI to compare the two screenshots
+            try:
+                is_same = compare_screenshots_with_ai(SCREENSHOT1_PATH, SCREENSHOT2_PATH)
+            except Exception as e:
+                logging.error(f"AI comparison call to LLM failed: {e}")
+                logging.debug(traceback.format_exc())
+                if SCREENSHOT2_PATH.exists():
+                    SCREENSHOT2_PATH.unlink()
+                if SCREENSHOT2_TEXT_PATH.exists():
+                    SCREENSHOT2_TEXT_PATH.unlink()
+                sys.exit(5)
 
-            if send_alert(email_cfg, f"{subject_prefix} {name}: CHANGE DETECTED", body, SCREENSHOT2_PATH):
-                logging.info("Change alert email sent successfully")
+            if is_same:
+                # No change detected - discard the new screenshot
+                logging.info("No meaningful change detected. Discarding new screenshot.")
+                SCREENSHOT2_PATH.unlink()
+                if SCREENSHOT2_TEXT_PATH.exists():
+                    SCREENSHOT2_TEXT_PATH.unlink()
             else:
-                logging.warning("Failed to send change alert email")
+                # Change detected - send alert and update the baseline
+                logging.info("CHANGE DETECTED! Sending alert email...")
 
-            # Replace the old screenshot with the new one
-            logging.info("Rotating screenshots...")
-            SCREENSHOT1_PATH.unlink()
-            SCREENSHOT2_PATH.rename(SCREENSHOT1_PATH)
-            logging.info("Screenshot rotation complete")
+                body = (
+                    f"Change detected for '{name}'!\n\n"
+                    f"URL: {url}\n"
+                    f"Timestamp: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n"
+                    f"The job listings have changed since the last check.\n"
+                    f"See attached screenshot for current state."
+                )
+
+                if send_alert(email_cfg, f"{subject_prefix} {name}: CHANGE DETECTED", body, SCREENSHOT2_PATH):
+                    logging.info("Change alert email sent successfully")
+                else:
+                    logging.warning("Failed to send change alert email")
+
+                # Replace the old screenshot with the new one
+                logging.info("Rotating screenshots...")
+                SCREENSHOT1_PATH.unlink()
+                SCREENSHOT2_PATH.rename(SCREENSHOT1_PATH)
+                # Also rotate the text files
+                if SCREENSHOT1_TEXT_PATH.exists():
+                    SCREENSHOT1_TEXT_PATH.unlink()
+                if SCREENSHOT2_TEXT_PATH.exists():
+                    SCREENSHOT2_TEXT_PATH.rename(SCREENSHOT1_TEXT_PATH)
+                logging.info("Screenshot rotation complete")
 
     logging.info("Screen Compare Monitor Finished")
     logging.info("=" * 60)
