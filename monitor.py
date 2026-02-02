@@ -283,6 +283,10 @@ def capture_screenshot(
 
             # Log in if we don't have a valid session
             if needs_login and not session_valid:
+                # Clear old cookies before re-login to avoid LinkedIn showing a different page
+                if has_saved_session:
+                    logging.info("Clearing expired cookies before re-login")
+                    context.clear_cookies()
                 login_success = login_to_linkedin(page, linkedin_username, linkedin_password)
                 if login_success:
                     is_authenticated = True
