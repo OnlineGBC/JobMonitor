@@ -19,6 +19,11 @@ CONFIGURATION:
     - monitors.yaml: Contains the LinkedIn search URL to monitor
     - .env file: Contains credentials (LinkedIn, SMTP, Anthropic API key)
 
+CLI OPTIONS:
+    --dry-run       Run without sending notifications (emails/webhooks)
+    --force-refresh Clear baseline screenshots and start fresh
+    --monitor NAME  Only process the specified monitor (by name)
+
 EXIT CODES:
     0  = Success
     1  = Cannot read config file
@@ -29,26 +34,32 @@ EXIT CODES:
     10 = LinkedIn login failed (triggers job stop in run_monitor_job.ps1)
 
 FILES CREATED:
-    - snapshots/screenshot1.png: The baseline screenshot for comparison
-    - snapshots/screenshot1.txt: Page text for baseline (for deterministic checks)
-    - snapshots/screenshot2.png: Temporary screenshot (deleted after comparison)
-    - snapshots/screenshot2.txt: Temporary page text (deleted after comparison)
-    - logs/screen_compare.log: Log file
-    - linkedin_state.json: Saved LinkedIn session cookies (for faster login)
+    - snapshots/<name>_screenshot1.png: The baseline screenshot for comparison
+    - snapshots/<name>_screenshot1.txt: Page text for baseline (for deterministic checks)
+    - snapshots/<name>_screenshot2.png: Temporary screenshot (deleted after comparison)
+    - snapshots/<name>_screenshot2.txt: Temporary page text (deleted after comparison)
+    - logs/screen_compare.log: Log file (with rotation, max 5MB x 3 backups)
+    - snapshots/<name>_linkedin_state.json: Saved LinkedIn session cookies
 """
 
 import os
 import sys
+import json
+import time
 import base64
 import smtplib
 import logging
+import argparse
 import traceback
 from datetime import datetime
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from email.mime.image import MIMEImage
+from logging.handlers import RotatingFileHandler
 from pathlib import Path
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, Callable
+from urllib.request import Request, urlopen
+from urllib.error import URLError, HTTPError
 
 import yaml
 from dotenv import load_dotenv
@@ -65,12 +76,26 @@ try:
 except Exception:
     HAS_ANTHROPIC = False
 
+try:
+    from PIL import Image
+    import imagehash
+    HAS_IMAGEHASH = True
+except Exception:
+    HAS_IMAGEHASH = False
+
 
 # =============================================================================
 # Configuration
 # =============================================================================
 
 NO_MATCHING_JOBS_TEXT = "No matching jobs found"
+
+# Retry configuration
+MAX_RETRIES = 3
+RETRY_BASE_DELAY = 2  # seconds, doubles each retry (exponential backoff)
+
+# Perceptual hash threshold - images with hash difference <= this are considered identical
+PHASH_THRESHOLD = 10
 
 
 def get_snapshot_paths(monitor_name: str) -> tuple:
@@ -100,17 +125,31 @@ def ensure_dirs():
 
 
 def configure_logging():
-    """Set up logging to both file and console."""
+    """Set up logging to both file and console with log rotation."""
     ensure_dirs()
     log_path = Path("logs/screen_compare.log")
-    logging.basicConfig(
-        level=logging.INFO,
-        format="%(asctime)s [%(levelname)s] %(message)s",
-        handlers=[
-            logging.FileHandler(log_path, encoding="utf-8"),
-            logging.StreamHandler(sys.stdout),
-        ],
+
+    # Create logger
+    logger = logging.getLogger()
+    logger.setLevel(logging.INFO)
+
+    # Clear any existing handlers
+    logger.handlers.clear()
+
+    # File handler with rotation (5MB max, keep 3 backups)
+    file_handler = RotatingFileHandler(
+        log_path,
+        maxBytes=5 * 1024 * 1024,  # 5 MB
+        backupCount=3,
+        encoding="utf-8"
     )
+    file_handler.setFormatter(logging.Formatter("%(asctime)s [%(levelname)s] %(message)s"))
+    logger.addHandler(file_handler)
+
+    # Console handler
+    console_handler = logging.StreamHandler(sys.stdout)
+    console_handler.setFormatter(logging.Formatter("%(asctime)s [%(levelname)s] %(message)s"))
+    logger.addHandler(console_handler)
 
 
 def load_yaml(path: str) -> Dict[str, Any]:
@@ -130,6 +169,72 @@ def has_no_matching_jobs(text_path: Path) -> bool:
     except Exception as e:
         logging.warning(f"Could not read {text_path}: {e}")
         return False
+
+
+def retry_with_backoff(
+    func: Callable,
+    max_retries: int = MAX_RETRIES,
+    base_delay: float = RETRY_BASE_DELAY,
+    operation_name: str = "operation"
+):
+    """
+    Execute a function with exponential backoff retry logic.
+
+    Args:
+        func: Function to execute (should raise exception on failure)
+        max_retries: Maximum number of retry attempts
+        base_delay: Initial delay between retries (doubles each attempt)
+        operation_name: Name for logging purposes
+
+    Returns:
+        The return value of func() if successful
+
+    Raises:
+        The last exception if all retries fail
+    """
+    last_exception = None
+    for attempt in range(max_retries + 1):
+        try:
+            return func()
+        except Exception as e:
+            last_exception = e
+            if attempt < max_retries:
+                delay = base_delay * (2 ** attempt)
+                logging.warning(
+                    f"{operation_name} failed (attempt {attempt + 1}/{max_retries + 1}): {e}. "
+                    f"Retrying in {delay}s..."
+                )
+                time.sleep(delay)
+            else:
+                logging.error(f"{operation_name} failed after {max_retries + 1} attempts: {e}")
+    raise last_exception
+
+
+def images_are_identical_phash(img1_path: Path, img2_path: Path, threshold: int = PHASH_THRESHOLD) -> Optional[bool]:
+    """
+    Compare two images using perceptual hashing.
+
+    This is a fast pre-check before calling the expensive AI comparison.
+    Returns True if images are perceptually identical (hash difference <= threshold).
+    Returns False if images are clearly different.
+    Returns None if imagehash is not available or comparison fails.
+    """
+    if not HAS_IMAGEHASH:
+        return None
+
+    try:
+        hash1 = imagehash.phash(Image.open(img1_path))
+        hash2 = imagehash.phash(Image.open(img2_path))
+        difference = hash1 - hash2
+        logging.info(f"Perceptual hash difference: {difference} (threshold: {threshold})")
+
+        if difference <= threshold:
+            logging.info("Images are perceptually identical (skipping AI comparison)")
+            return True
+        return False
+    except Exception as e:
+        logging.warning(f"Perceptual hash comparison failed: {e}")
+        return None
 
 
 # =============================================================================
@@ -503,9 +608,9 @@ def send_email_with_image(
 
 def send_alert(email_cfg: Dict[str, Any], subject: str, body: str, image_path: Optional[Path] = None) -> bool:
     """
-    Send an email alert. Returns True if successful, False otherwise.
+    Send an email alert with retry logic. Returns True if successful, False otherwise.
     """
-    try:
+    def _send():
         # Deduplicate email addresses while preserving order
         to_addrs_list = [addr.strip() for addr in email_cfg["to_addrs"].split(",") if addr.strip()]
         to_addrs_unique = list(dict.fromkeys(to_addrs_list))
@@ -514,6 +619,7 @@ def send_alert(email_cfg: Dict[str, Any], subject: str, body: str, image_path: O
             smtp_port=int(email_cfg["smtp_port"]),
             smtp_username=email_cfg["smtp_username"],
             smtp_password=email_cfg["smtp_password"],
+            # use_tls=True means STARTTLS (explicit TLS), False means SMTP_SSL (implicit TLS)
             use_tls=bool(int(email_cfg.get("smtp_use_tls", "1"))),
             from_addr=email_cfg["from_addr"],
             to_addrs=to_addrs_unique,
@@ -521,11 +627,150 @@ def send_alert(email_cfg: Dict[str, Any], subject: str, body: str, image_path: O
             body_text=body,
             image_path=image_path
         )
+
+    try:
+        retry_with_backoff(_send, operation_name="Email send")
         return True
     except Exception as e:
-        logging.error(f"Error sending email: {e}")
+        logging.error(f"Error sending email after retries: {e}")
         logging.debug(traceback.format_exc())
         return False
+
+
+# =============================================================================
+# Webhook Notifications (Slack/Discord)
+# =============================================================================
+
+def send_slack_webhook(webhook_url: str, subject: str, body: str, image_path: Optional[Path] = None) -> bool:
+    """
+    Send a notification to Slack via webhook.
+
+    Args:
+        webhook_url: Slack incoming webhook URL
+        subject: Message title
+        body: Message body text
+        image_path: Optional path to image (not directly supported, will add as note)
+
+    Returns:
+        True if successful, False otherwise
+    """
+    def _send():
+        # Build Slack message payload
+        blocks = [
+            {
+                "type": "header",
+                "text": {"type": "plain_text", "text": subject[:150], "emoji": True}
+            },
+            {
+                "type": "section",
+                "text": {"type": "mrkdwn", "text": body[:3000]}
+            }
+        ]
+
+        if image_path and image_path.exists():
+            blocks.append({
+                "type": "context",
+                "elements": [{"type": "mrkdwn", "text": f"📎 Screenshot attached: `{image_path.name}`"}]
+            })
+
+        payload = {"blocks": blocks, "text": subject}
+        data = json.dumps(payload).encode("utf-8")
+
+        req = Request(webhook_url, data=data, headers={"Content-Type": "application/json"})
+        with urlopen(req, timeout=30) as response:
+            if response.status != 200:
+                raise RuntimeError(f"Slack webhook returned status {response.status}")
+
+    try:
+        retry_with_backoff(_send, operation_name="Slack webhook")
+        logging.info("Slack notification sent successfully")
+        return True
+    except Exception as e:
+        logging.error(f"Error sending Slack notification: {e}")
+        logging.debug(traceback.format_exc())
+        return False
+
+
+def send_discord_webhook(webhook_url: str, subject: str, body: str, image_path: Optional[Path] = None) -> bool:
+    """
+    Send a notification to Discord via webhook.
+
+    Args:
+        webhook_url: Discord webhook URL
+        subject: Message title (used as embed title)
+        body: Message body text
+        image_path: Optional path to image (not directly supported, will add as note)
+
+    Returns:
+        True if successful, False otherwise
+    """
+    def _send():
+        # Build Discord embed payload
+        embed = {
+            "title": subject[:256],
+            "description": body[:4096],
+            "color": 0x0077B5,  # LinkedIn blue
+            "timestamp": datetime.utcnow().isoformat() + "Z"
+        }
+
+        if image_path and image_path.exists():
+            embed["footer"] = {"text": f"Screenshot: {image_path.name}"}
+
+        payload = {"embeds": [embed]}
+        data = json.dumps(payload).encode("utf-8")
+
+        req = Request(webhook_url, data=data, headers={"Content-Type": "application/json"})
+        with urlopen(req, timeout=30) as response:
+            if response.status not in (200, 204):
+                raise RuntimeError(f"Discord webhook returned status {response.status}")
+
+    try:
+        retry_with_backoff(_send, operation_name="Discord webhook")
+        logging.info("Discord notification sent successfully")
+        return True
+    except Exception as e:
+        logging.error(f"Error sending Discord notification: {e}")
+        logging.debug(traceback.format_exc())
+        return False
+
+
+def send_notifications(
+    email_cfg: Dict[str, Any],
+    subject: str,
+    body: str,
+    image_path: Optional[Path] = None,
+    dry_run: bool = False
+) -> bool:
+    """
+    Send notifications via all configured channels (email, Slack, Discord).
+
+    Returns True if at least one notification was sent successfully.
+    """
+    if dry_run:
+        logging.info(f"[DRY RUN] Would send notification: {subject}")
+        logging.info(f"[DRY RUN] Body: {body[:200]}...")
+        return True
+
+    success = False
+
+    # Send email
+    if email_cfg.get("to_addrs"):
+        if send_alert(email_cfg, subject, body, image_path):
+            success = True
+
+    # Send Slack webhook
+    slack_url = os.getenv("SLACK_WEBHOOK_URL")
+    if slack_url:
+        if send_slack_webhook(slack_url, subject, body, image_path):
+            success = True
+
+    # Send Discord webhook
+    discord_url = os.getenv("DISCORD_WEBHOOK_URL")
+    if discord_url:
+        if send_discord_webhook(discord_url, subject, body, image_path):
+            success = True
+
+    return success
 
 
 # =============================================================================
@@ -538,13 +783,24 @@ def process_monitor(
     email_cfg: Dict[str, Any],
     subject_prefix: str,
     linkedin_username: Optional[str],
-    linkedin_password: Optional[str]
+    linkedin_password: Optional[str],
+    dry_run: bool = False
 ) -> int:
     """
     Process a single monitor. Returns exit code (0 for success, non-zero for failure).
 
+    Args:
+        monitor: Monitor configuration dict
+        defaults: Default settings from config
+        email_cfg: Email configuration
+        subject_prefix: Prefix for email subjects
+        linkedin_username: LinkedIn username
+        linkedin_password: LinkedIn password
+        dry_run: If True, skip sending notifications
+
     Exit codes:
         0  = Success
+        1  = Missing required config
         3  = Missing ANTHROPIC_API_KEY
         4  = Screenshot capture failed
         5  = AI comparison failed
@@ -556,6 +812,9 @@ def process_monitor(
         return 1
     url = monitor["url"]
     headless = bool(monitor.get("headless", defaults.get("headless", False)))
+
+    if dry_run:
+        logging.info(f"[{name}] DRY RUN MODE - notifications will be skipped")
 
     # Get monitor-specific snapshot paths
     screenshot1_path, screenshot2_path, text1_path, text2_path, state_path = get_snapshot_paths(name)
@@ -595,14 +854,14 @@ def process_monitor(
                 f"The monitor job has been stopped.\n"
                 f"Please check your LinkedIn credentials or session."
             )
-            send_alert(email_cfg, f"{subject_prefix} {name}: LOGIN FAILED - JOB STOPPED", body)
+            send_notifications(email_cfg, f"{subject_prefix} {name}: LOGIN FAILED - JOB STOPPED", body, dry_run=dry_run)
             return 10
 
         if not success:
             logging.error(f"[{name}] Failed to capture initial screenshot")
             return 4
 
-        # Send email with the initial screenshot
+        # Send notification with the initial screenshot
         body = (
             f"Initial screenshot captured for '{name}'.\n\n"
             f"URL: {url}\n"
@@ -610,10 +869,10 @@ def process_monitor(
             f"This is the baseline. Future runs will compare against this screenshot."
         )
 
-        if send_alert(email_cfg, f"{subject_prefix} {name}: Initial Screenshot", body, screenshot1_path):
-            logging.info(f"[{name}] Initial screenshot email sent successfully")
+        if send_notifications(email_cfg, f"{subject_prefix} {name}: Initial Screenshot", body, screenshot1_path, dry_run=dry_run):
+            logging.info(f"[{name}] Initial screenshot notification sent successfully")
         else:
-            logging.warning(f"[{name}] Failed to send initial screenshot email")
+            logging.warning(f"[{name}] Failed to send initial screenshot notification")
 
     else:
         # SUBSEQUENT RUN: A previous screenshot exists
@@ -637,7 +896,7 @@ def process_monitor(
                 f"The monitor job has been stopped.\n"
                 f"Please check your LinkedIn credentials or session."
             )
-            send_alert(email_cfg, f"{subject_prefix} {name}: LOGIN FAILED - JOB STOPPED", body)
+            send_notifications(email_cfg, f"{subject_prefix} {name}: LOGIN FAILED - JOB STOPPED", body, dry_run=dry_run)
             return 10
 
         if not success:
@@ -662,17 +921,25 @@ def process_monitor(
                 logging.info(f"[{name}] New jobs appeared! Baseline had no matching jobs - skipping AI comparison.")
                 is_same = False  # Definitely different - jobs appeared
             else:
-                # Use AI to compare the two screenshots
-                try:
-                    is_same = compare_screenshots_with_ai(screenshot1_path, screenshot2_path)
-                except Exception as e:
-                    logging.error(f"[{name}] AI comparison call to LLM failed: {e}")
-                    logging.debug(traceback.format_exc())
-                    if screenshot2_path.exists():
-                        screenshot2_path.unlink()
-                    if text2_path.exists():
-                        text2_path.unlink()
-                    return 5
+                # Try perceptual hash comparison first (fast pre-check)
+                phash_result = images_are_identical_phash(screenshot1_path, screenshot2_path)
+                if phash_result is True:
+                    # Images are perceptually identical, skip expensive AI call
+                    is_same = True
+                else:
+                    # Use AI to compare the two screenshots (with retry logic)
+                    try:
+                        def _ai_compare():
+                            return compare_screenshots_with_ai(screenshot1_path, screenshot2_path)
+                        is_same = retry_with_backoff(_ai_compare, operation_name="AI comparison")
+                    except Exception as e:
+                        logging.error(f"[{name}] AI comparison call to LLM failed after retries: {e}")
+                        logging.debug(traceback.format_exc())
+                        if screenshot2_path.exists():
+                            screenshot2_path.unlink()
+                        if text2_path.exists():
+                            text2_path.unlink()
+                        return 5
 
             if is_same:
                 # No change detected - discard the new screenshot
@@ -682,7 +949,7 @@ def process_monitor(
                     text2_path.unlink()
             else:
                 # Change detected - send alert and update the baseline
-                logging.info(f"[{name}] CHANGE DETECTED! Sending alert email...")
+                logging.info(f"[{name}] CHANGE DETECTED! Sending notification...")
 
                 body = (
                     f"Change detected for '{name}'!\n\n"
@@ -692,15 +959,17 @@ def process_monitor(
                     f"See attached screenshot for current state."
                 )
 
-                email_sent = send_alert(email_cfg, f"{subject_prefix} {name}: CHANGE DETECTED", body, screenshot2_path)
-                if email_sent:
-                    logging.info(f"[{name}] Change alert email sent successfully")
+                notification_sent = send_notifications(
+                    email_cfg, f"{subject_prefix} {name}: CHANGE DETECTED", body, screenshot2_path, dry_run=dry_run
+                )
+                if notification_sent:
+                    logging.info(f"[{name}] Change alert notification sent successfully")
                 else:
-                    logging.warning(f"[{name}] Failed to send change alert email")
+                    logging.warning(f"[{name}] Failed to send change alert notification")
 
-                # Only rotate screenshots if email was sent successfully
+                # Only rotate screenshots if notification was sent successfully (or in dry-run mode)
                 # Otherwise keep the old baseline so we can retry notification next time
-                if email_sent:
+                if notification_sent:
                     # Replace the old screenshot with the new one (atomic-safe approach)
                     logging.info(f"[{name}] Rotating screenshots...")
                     temp_path = screenshot1_path.with_suffix('.old.png')
@@ -719,7 +988,7 @@ def process_monitor(
                     logging.info(f"[{name}] Screenshot rotation complete")
                 else:
                     # Clean up screenshot2 but keep screenshot1 as baseline
-                    logging.info(f"[{name}] Keeping old baseline for retry (email failed)")
+                    logging.info(f"[{name}] Keeping old baseline for retry (notification failed)")
                     if screenshot2_path.exists():
                         screenshot2_path.unlink()
                     if text2_path.exists():
@@ -729,13 +998,61 @@ def process_monitor(
     return 0
 
 
+def parse_args():
+    """Parse command line arguments."""
+    parser = argparse.ArgumentParser(
+        description="LinkedIn Job Monitor - Screenshot-based change detection",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Examples:
+  python monitor.py                    # Normal run
+  python monitor.py --dry-run          # Test without sending notifications
+  python monitor.py --force-refresh    # Clear baselines and start fresh
+  python monitor.py --monitor "MyJob"  # Only process monitor named "MyJob"
+        """
+    )
+    parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Run without sending notifications (emails/webhooks)"
+    )
+    parser.add_argument(
+        "--force-refresh",
+        action="store_true",
+        help="Clear baseline screenshots and start fresh"
+    )
+    parser.add_argument(
+        "--monitor",
+        type=str,
+        metavar="NAME",
+        help="Only process the specified monitor (by name)"
+    )
+    return parser.parse_args()
+
+
+def clear_baseline(monitor_name: str) -> None:
+    """Clear baseline files for a specific monitor."""
+    screenshot1, screenshot2, text1, text2, state = get_snapshot_paths(monitor_name)
+    for path in [screenshot1, screenshot2, text1, text2]:
+        if path.exists():
+            path.unlink()
+            logging.info(f"Deleted: {path}")
+
+
 def main():
+    # Parse command line arguments first
+    args = parse_args()
+
     configure_logging()
     load_dotenv()
     ensure_dirs()
 
     logging.info("=" * 60)
     logging.info("Screen Compare Monitor Started")
+    if args.dry_run:
+        logging.info("*** DRY RUN MODE - No notifications will be sent ***")
+    if args.force_refresh:
+        logging.info("*** FORCE REFRESH - Baselines will be cleared ***")
     logging.info("=" * 60)
 
     # Load the monitor configuration
@@ -751,14 +1068,24 @@ def main():
         logging.error("No monitors defined in monitors.yaml")
         sys.exit(1)
 
+    # Filter monitors if --monitor flag is specified
+    if args.monitor:
+        monitors = [m for m in monitors if m.get("name") == args.monitor]
+        if not monitors:
+            logging.error(f"No monitor found with name: {args.monitor}")
+            sys.exit(1)
+
     defaults = cfg.get("defaults", {})
     logging.info(f"Found {len(monitors)} monitor(s) to process")
 
-    # Load email settings from environment variables
-    required_env = ["SMTP_HOST", "SMTP_PORT", "SMTP_USERNAME", "SMTP_PASSWORD", "FROM_ADDR", "TO_ADDRS"]
-    missing = [k for k in required_env if not os.getenv(k)]
-    if missing:
-        logging.error(f"Missing required email environment variables: {missing}")
+    # Check for notification configuration
+    # Email is optional if webhooks are configured
+    has_email = all(os.getenv(k) for k in ["SMTP_HOST", "SMTP_PORT", "SMTP_USERNAME", "SMTP_PASSWORD", "FROM_ADDR", "TO_ADDRS"])
+    has_slack = bool(os.getenv("SLACK_WEBHOOK_URL"))
+    has_discord = bool(os.getenv("DISCORD_WEBHOOK_URL"))
+
+    if not has_email and not has_slack and not has_discord and not args.dry_run:
+        logging.error("No notification channels configured. Set email env vars or SLACK_WEBHOOK_URL or DISCORD_WEBHOOK_URL")
         sys.exit(2)
 
     email_cfg = {
@@ -768,7 +1095,7 @@ def main():
         "smtp_password": os.getenv("SMTP_PASSWORD"),
         "smtp_use_tls": os.getenv("SMTP_USE_TLS", "1"),
         "from_addr": os.getenv("FROM_ADDR"),
-        "to_addrs": os.getenv("TO_ADDRS"),
+        "to_addrs": os.getenv("TO_ADDRS", ""),
     }
 
     subject_prefix = os.getenv("SUBJECT_PREFIX", "[ScreenCompare]")
@@ -776,6 +1103,27 @@ def main():
     # Load LinkedIn credentials
     linkedin_username = os.getenv("LINKEDIN_USERNAME")
     linkedin_password = os.getenv("LINKEDIN_PASSWORD")
+
+    # Log configured notification channels
+    channels = []
+    if has_email:
+        channels.append("Email")
+    if has_slack:
+        channels.append("Slack")
+    if has_discord:
+        channels.append("Discord")
+    if channels:
+        logging.info(f"Notification channels: {', '.join(channels)}")
+
+    # -------------------------------------------------------------------------
+    # Handle force refresh
+    # -------------------------------------------------------------------------
+
+    if args.force_refresh:
+        for monitor in monitors:
+            name = monitor.get("name", "Monitor")
+            logging.info(f"Clearing baseline for: {name}")
+            clear_baseline(name)
 
     # -------------------------------------------------------------------------
     # Process all monitors
@@ -790,7 +1138,8 @@ def main():
             email_cfg=email_cfg,
             subject_prefix=subject_prefix,
             linkedin_username=linkedin_username,
-            linkedin_password=linkedin_password
+            linkedin_password=linkedin_password,
+            dry_run=args.dry_run
         )
 
         # Track the worst exit code encountered
