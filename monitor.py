@@ -467,6 +467,48 @@ def capture_screenshot(
 # AI-Powered Screenshot Comparison
 # =============================================================================
 
+def resize_image_for_api(img_path: Path, max_dimension: int = 7500) -> bytes:
+    """
+    Resize an image if it exceeds max dimensions (Claude API limit is 8000px).
+    Returns the image data as bytes (PNG format).
+    """
+    try:
+        from PIL import Image
+        import io
+
+        with Image.open(img_path) as img:
+            width, height = img.size
+
+            # Check if resizing is needed
+            if width <= max_dimension and height <= max_dimension:
+                # No resize needed, return original
+                with open(img_path, "rb") as f:
+                    return f.read()
+
+            # Calculate new dimensions maintaining aspect ratio
+            if width > height:
+                new_width = max_dimension
+                new_height = int(height * (max_dimension / width))
+            else:
+                new_height = max_dimension
+                new_width = int(width * (max_dimension / height))
+
+            logging.info(f"Resizing image from {width}x{height} to {new_width}x{new_height}")
+
+            # Resize using high-quality resampling
+            resized = img.resize((new_width, new_height), Image.Resampling.LANCZOS)
+
+            # Save to bytes
+            buffer = io.BytesIO()
+            resized.save(buffer, format="PNG", optimize=True)
+            return buffer.getvalue()
+
+    except ImportError:
+        logging.warning("PIL not available, returning original image (may fail API size limit)")
+        with open(img_path, "rb") as f:
+            return f.read()
+
+
 def compare_screenshots_with_ai(img1_path: Path, img2_path: Path) -> bool:
     """
     Use Claude AI to compare two screenshots and detect meaningful changes.
@@ -486,12 +528,12 @@ def compare_screenshots_with_ai(img1_path: Path, img2_path: Path) -> bool:
 
     logging.info("Comparing screenshots using Claude AI vision...")
 
-    # Read and encode both images as base64
-    with open(img1_path, "rb") as f:
-        img1_data = base64.standard_b64encode(f.read()).decode("utf-8")
+    # Read and resize images if needed (Claude API has 8000px limit)
+    img1_bytes = resize_image_for_api(img1_path)
+    img2_bytes = resize_image_for_api(img2_path)
 
-    with open(img2_path, "rb") as f:
-        img2_data = base64.standard_b64encode(f.read()).decode("utf-8")
+    img1_data = base64.standard_b64encode(img1_bytes).decode("utf-8")
+    img2_data = base64.standard_b64encode(img2_bytes).decode("utf-8")
 
     client = anthropic.Anthropic(api_key=api_key)
 
