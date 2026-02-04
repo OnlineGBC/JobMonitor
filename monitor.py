@@ -76,7 +76,7 @@ NO_MATCHING_JOBS_TEXT = "No matching jobs found"
 def get_snapshot_paths(monitor_name: str) -> tuple:
     """
     Get snapshot paths for a specific monitor.
-    Returns (screenshot1_path, screenshot2_path, text1_path, text2_path).
+    Returns (screenshot1_path, screenshot2_path, text1_path, text2_path, state_path).
     """
     # Sanitize monitor name for use in filenames
     safe_name = "".join(c if c.isalnum() or c in "-_" else "_" for c in monitor_name)
@@ -85,6 +85,7 @@ def get_snapshot_paths(monitor_name: str) -> tuple:
         Path(f"snapshots/{safe_name}_screenshot2.png"),
         Path(f"snapshots/{safe_name}_screenshot1.txt"),
         Path(f"snapshots/{safe_name}_screenshot2.txt"),
+        Path(f"snapshots/{safe_name}_linkedin_state.json"),
     )
 
 
@@ -212,7 +213,8 @@ def capture_screenshot(
     linkedin_username: Optional[str] = None,
     linkedin_password: Optional[str] = None,
     headless: bool = False,
-    timeout: int = 180
+    timeout: int = 180,
+    storage_state_path: Optional[Path] = None
 ) -> tuple:
     """
     Open a browser, navigate to the URL, and take a screenshot.
@@ -225,13 +227,14 @@ def capture_screenshot(
     if not HAS_PLAYWRIGHT:
         raise RuntimeError("Playwright not installed. Run: pip install playwright && playwright install chromium")
 
-    storage_state_path = "linkedin_state.json"
+    if storage_state_path is None:
+        storage_state_path = Path("linkedin_state.json")
     storage_state = None
     has_saved_session = False
 
     # Check if we have saved LinkedIn cookies from a previous session
-    if Path(storage_state_path).exists():
-        storage_state = storage_state_path
+    if storage_state_path.exists():
+        storage_state = str(storage_state_path)
         has_saved_session = True
         logging.info(f"Loading saved LinkedIn session from {storage_state_path}")
 
@@ -292,7 +295,7 @@ def capture_screenshot(
                     is_authenticated = True
                     # Save the session cookies for next time
                     try:
-                        context.storage_state(path=storage_state_path)
+                        context.storage_state(path=str(storage_state_path))
                         logging.info(f"Saved LinkedIn session to {storage_state_path}")
                     except Exception as e:
                         logging.warning(f"Could not save storage state: {e}")
@@ -340,7 +343,7 @@ def capture_screenshot(
             # Update the saved session cookies
             if needs_login and is_authenticated:
                 try:
-                    context.storage_state(path=storage_state_path)
+                    context.storage_state(path=str(storage_state_path))
                 except Exception:
                     pass
 
@@ -445,7 +448,8 @@ First image (previous screenshot):"""
     response_text = message.content[0].text.strip().upper()
     logging.info(f"AI comparison result: {response_text}")
 
-    return "SAME" in response_text
+    # Use exact match to avoid false positives like "NOT THE SAME"
+    return response_text == "SAME"
 
 
 # =============================================================================
@@ -502,6 +506,9 @@ def send_alert(email_cfg: Dict[str, Any], subject: str, body: str, image_path: O
     Send an email alert. Returns True if successful, False otherwise.
     """
     try:
+        # Deduplicate email addresses while preserving order
+        to_addrs_list = [addr.strip() for addr in email_cfg["to_addrs"].split(",") if addr.strip()]
+        to_addrs_unique = list(dict.fromkeys(to_addrs_list))
         send_email_with_image(
             smtp_host=email_cfg["smtp_host"],
             smtp_port=int(email_cfg["smtp_port"]),
@@ -509,7 +516,7 @@ def send_alert(email_cfg: Dict[str, Any], subject: str, body: str, image_path: O
             smtp_password=email_cfg["smtp_password"],
             use_tls=bool(int(email_cfg.get("smtp_use_tls", "1"))),
             from_addr=email_cfg["from_addr"],
-            to_addrs=[addr.strip() for addr in email_cfg["to_addrs"].split(",") if addr.strip()],
+            to_addrs=to_addrs_unique,
             subject=subject,
             body_text=body,
             image_path=image_path
@@ -544,11 +551,14 @@ def process_monitor(
         10 = LinkedIn login failed
     """
     name = monitor.get("name", "Monitor")
+    if "url" not in monitor:
+        logging.error(f"[{name}] Monitor is missing required 'url' field")
+        return 1
     url = monitor["url"]
     headless = bool(monitor.get("headless", defaults.get("headless", False)))
 
     # Get monitor-specific snapshot paths
-    screenshot1_path, screenshot2_path, text1_path, text2_path = get_snapshot_paths(name)
+    screenshot1_path, screenshot2_path, text1_path, text2_path, state_path = get_snapshot_paths(name)
 
     logging.info("-" * 60)
     logging.info(f"Processing monitor: {name}")
@@ -572,7 +582,8 @@ def process_monitor(
             output_path=screenshot1_path,
             linkedin_username=linkedin_username,
             linkedin_password=linkedin_password,
-            headless=headless
+            headless=headless,
+            storage_state_path=state_path
         )
 
         if login_failed:
@@ -613,7 +624,8 @@ def process_monitor(
             output_path=screenshot2_path,
             linkedin_username=linkedin_username,
             linkedin_password=linkedin_password,
-            headless=headless
+            headless=headless,
+            storage_state_path=state_path
         )
 
         if login_failed:
@@ -645,20 +657,22 @@ def process_monitor(
                 logging.info(f"[{name}] Baseline also had no matching jobs.")
         else:
             # Check if screenshot1 had "No matching jobs found" but now there are jobs
-            if has_no_matching_jobs(text1_path):
-                logging.info(f"[{name}] New jobs appeared! Baseline had no matching jobs.")
-
-            # Use AI to compare the two screenshots
-            try:
-                is_same = compare_screenshots_with_ai(screenshot1_path, screenshot2_path)
-            except Exception as e:
-                logging.error(f"[{name}] AI comparison call to LLM failed: {e}")
-                logging.debug(traceback.format_exc())
-                if screenshot2_path.exists():
-                    screenshot2_path.unlink()
-                if text2_path.exists():
-                    text2_path.unlink()
-                return 5
+            baseline_had_no_jobs = has_no_matching_jobs(text1_path)
+            if baseline_had_no_jobs:
+                logging.info(f"[{name}] New jobs appeared! Baseline had no matching jobs - skipping AI comparison.")
+                is_same = False  # Definitely different - jobs appeared
+            else:
+                # Use AI to compare the two screenshots
+                try:
+                    is_same = compare_screenshots_with_ai(screenshot1_path, screenshot2_path)
+                except Exception as e:
+                    logging.error(f"[{name}] AI comparison call to LLM failed: {e}")
+                    logging.debug(traceback.format_exc())
+                    if screenshot2_path.exists():
+                        screenshot2_path.unlink()
+                    if text2_path.exists():
+                        text2_path.unlink()
+                    return 5
 
             if is_same:
                 # No change detected - discard the new screenshot
@@ -678,21 +692,38 @@ def process_monitor(
                     f"See attached screenshot for current state."
                 )
 
-                if send_alert(email_cfg, f"{subject_prefix} {name}: CHANGE DETECTED", body, screenshot2_path):
+                email_sent = send_alert(email_cfg, f"{subject_prefix} {name}: CHANGE DETECTED", body, screenshot2_path)
+                if email_sent:
                     logging.info(f"[{name}] Change alert email sent successfully")
                 else:
                     logging.warning(f"[{name}] Failed to send change alert email")
 
-                # Replace the old screenshot with the new one
-                logging.info(f"[{name}] Rotating screenshots...")
-                screenshot1_path.unlink()
-                screenshot2_path.rename(screenshot1_path)
-                # Also rotate the text files
-                if text1_path.exists():
-                    text1_path.unlink()
-                if text2_path.exists():
-                    text2_path.rename(text1_path)
-                logging.info(f"[{name}] Screenshot rotation complete")
+                # Only rotate screenshots if email was sent successfully
+                # Otherwise keep the old baseline so we can retry notification next time
+                if email_sent:
+                    # Replace the old screenshot with the new one (atomic-safe approach)
+                    logging.info(f"[{name}] Rotating screenshots...")
+                    temp_path = screenshot1_path.with_suffix('.old.png')
+                    screenshot1_path.rename(temp_path)
+                    screenshot2_path.rename(screenshot1_path)
+                    temp_path.unlink()
+                    # Also rotate the text files
+                    if text1_path.exists():
+                        temp_text = text1_path.with_suffix('.old.txt')
+                        text1_path.rename(temp_text)
+                        if text2_path.exists():
+                            text2_path.rename(text1_path)
+                        temp_text.unlink()
+                    elif text2_path.exists():
+                        text2_path.rename(text1_path)
+                    logging.info(f"[{name}] Screenshot rotation complete")
+                else:
+                    # Clean up screenshot2 but keep screenshot1 as baseline
+                    logging.info(f"[{name}] Keeping old baseline for retry (email failed)")
+                    if screenshot2_path.exists():
+                        screenshot2_path.unlink()
+                    if text2_path.exists():
+                        text2_path.unlink()
 
     logging.info(f"[{name}] Monitor processing complete")
     return 0
@@ -710,7 +741,7 @@ def main():
     # Load the monitor configuration
     config_path = os.getenv("CONFIG_PATH", "monitors.yaml")
     try:
-        cfg = load_yaml(config_path)
+        cfg = load_yaml(config_path) or {}
     except Exception as e:
         logging.error(f"Cannot read {config_path}: {e}")
         sys.exit(1)
