@@ -167,12 +167,10 @@ def run_monitor_loop(custom_interval_minutes=None):
             if exit_code == 10:
                 logging.warning(f"Login failed (exit code 10) - will retry once after delay")
 
-                # Wait using the same randomized schedule
+                # Always wait 10-15 minutes for login retry (regardless of business hours)
+                # This is shorter than off-hours polling because LinkedIn issues are usually transient
                 et_now = get_eastern_time()
-                if custom_interval_minutes:
-                    sleep_seconds = custom_interval_minutes * 60
-                else:
-                    sleep_seconds = get_sleep_interval(et_now)
+                sleep_seconds = random.randint(600, 900)  # 10-15 minutes
                 sleep_minutes = sleep_seconds / 60
 
                 logging.info(
