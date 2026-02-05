@@ -137,6 +137,8 @@ def run_monitor_loop(custom_interval_minutes=None):
         custom_interval_minutes: If provided, use this fixed interval (in minutes)
                                  instead of the business hours schedule.
     """
+    import time
+
     logging.info("=" * 60)
     logging.info("Job Monitor Loop Started")
     if custom_interval_minutes:
@@ -160,9 +162,52 @@ def run_monitor_loop(custom_interval_minutes=None):
         # Check for errors
         if exit_code != 0:
             description = EXIT_CODE_DESCRIPTIONS.get(exit_code, "Unknown error")
-            logging.error(f"Monitor failed with exit code {exit_code} ({description}) - stopping loop")
-            send_error_alert(exit_code, description)
-            break
+
+            # Special handling for login failures (exit code 10) - retry once
+            if exit_code == 10:
+                logging.warning(f"Login failed (exit code 10) - will retry once after delay")
+
+                # Wait using the same randomized schedule
+                et_now = get_eastern_time()
+                if custom_interval_minutes:
+                    sleep_seconds = custom_interval_minutes * 60
+                else:
+                    sleep_seconds = get_sleep_interval(et_now)
+                sleep_minutes = sleep_seconds / 60
+
+                logging.info(
+                    f"[{et_now.strftime('%Y-%m-%d %H:%M:%S')} ET] "
+                    f"Waiting {sleep_seconds} seconds ({sleep_minutes:.1f} minutes) before retry..."
+                )
+
+                try:
+                    time.sleep(sleep_seconds)
+                except KeyboardInterrupt:
+                    logging.info("Received keyboard interrupt - stopping loop")
+                    break
+
+                # Retry once
+                logging.info("Retrying monitor.py after login failure...")
+                result = subprocess.run(
+                    [python_exe, str(monitor_script)],
+                    cwd=str(script_dir)
+                )
+                exit_code = result.returncode
+
+                if exit_code == 0:
+                    logging.info("Retry successful - continuing normal operation")
+                    # Continue to normal sleep and next iteration
+                else:
+                    # Retry also failed - now stop
+                    description = EXIT_CODE_DESCRIPTIONS.get(exit_code, "Unknown error")
+                    logging.error(f"Retry also failed with exit code {exit_code} ({description}) - stopping loop")
+                    send_error_alert(exit_code, f"{description} (after retry)")
+                    break
+            else:
+                # Non-login errors stop immediately
+                logging.error(f"Monitor failed with exit code {exit_code} ({description}) - stopping loop")
+                send_error_alert(exit_code, description)
+                break
 
         # Calculate sleep interval
         et_now = get_eastern_time()
@@ -178,7 +223,6 @@ def run_monitor_loop(custom_interval_minutes=None):
         )
 
         try:
-            import time
             time.sleep(sleep_seconds)
         except KeyboardInterrupt:
             logging.info("Received keyboard interrupt - stopping loop")
