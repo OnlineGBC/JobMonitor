@@ -1,11 +1,10 @@
 anthropic
-requests>=2.32
-beautifulsoup4>=4.12
+playwright>=1.47
 pyyaml
 python-dotenv>=1.0
-playwright>=1.47 ; extra == "js"  # optional; install only if you need JS rendering
-beautifulsoup4>=4.12
+Pillow>=10.0
+imagehash>=4.3
 tzdata
 
-# If you do need JS rendering, after installing requirements run:
+# After installing, run:
 # playwright install chromium
