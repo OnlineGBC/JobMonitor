@@ -119,6 +119,11 @@
         </div>
     </nav>
 
+    <!-- Company Logo Banner -->
+    <div class="logo-banner">
+        <img src="{{ url_for('static', filename='logo.jpg') }}" alt="GBC ai4org" class="logo-img">
+    </div>
+
     <div class="flash-container" id="flash-container">
         {% with messages = get_flashed_messages(with_categories=true) %}
             {% if messages %}
