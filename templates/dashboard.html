@@ -1,0 +1,228 @@
+{% extends "base.html" %}
+{% block title %}Dashboard - JobMonitor{% endblock %}
+
+{% block content %}
+<div class="row">
+    <!-- Scheduler Panel -->
+    <div class="col-lg-4 mb-3">
+        <div class="card scheduler-panel {{ 'running' if scheduler.running else 'stopped' }}" id="scheduler-panel">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h6 class="mb-0"><i class="bi bi-clock-history"></i> Scheduler</h6>
+                <span id="sched-status-badge">
+                    {% if scheduler.running %}
+                        <span class="badge bg-success">Running</span>
+                    {% else %}
+                        <span class="badge bg-secondary">Stopped</span>
+                    {% endif %}
+                </span>
+            </div>
+            <div class="card-body">
+                <div id="sched-details">
+                    {% if scheduler.running %}
+                        <p class="mb-1"><small class="text-muted">Next run in:</small></p>
+                        <p class="countdown mb-2" id="countdown">--:--</p>
+                        {% if scheduler.current_monitor %}
+                            <p class="mb-1"><small><span class="status-dot blue"></span>Running: {{ scheduler.current_monitor }}</small></p>
+                        {% endif %}
+                        {% if scheduler.last_run %}
+                            <p class="mb-0"><small class="text-muted">Last run: {{ scheduler.last_run }}</small></p>
+                        {% endif %}
+                    {% else %}
+                        <p class="text-muted mb-0">Scheduler is not running.</p>
+                    {% endif %}
+                </div>
+                <hr>
+                <div class="d-flex gap-2">
+                    {% if scheduler.running %}
+                        <button class="btn btn-outline-danger btn-sm" onclick="schedulerAction('stop')">
+                            <i class="bi bi-stop-circle"></i> Stop
+                        </button>
+                    {% else %}
+                        <button class="btn btn-success btn-sm" onclick="schedulerAction('start')">
+                            <i class="bi bi-play-circle"></i> Start
+                        </button>
+                    {% endif %}
+                    <button class="btn btn-outline-primary btn-sm" onclick="runAll()" id="btn-run-all">
+                        <i class="bi bi-lightning"></i> Run All Now
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Recent Runs -->
+        <div class="card mt-3">
+            <div class="card-header">
+                <h6 class="mb-0"><i class="bi bi-list-check"></i> Recent Runs</h6>
+            </div>
+            <div class="card-body" id="run-history" style="max-height: 400px; overflow-y: auto;">
+                {% if run_history %}
+                    {% for run in run_history[:20] %}
+                        <div class="run-history-item {{ 'success' if run.exit_code == 0 else ('running' if run.exit_code is none else 'failure') }}">
+                            <div class="d-flex justify-content-between">
+                                <strong>{{ run.monitor }}</strong>
+                                {% if run.exit_code == 0 %}
+                                    <span class="badge bg-success">OK</span>
+                                {% elif run.exit_code is none %}
+                                    <span class="badge bg-primary">Running</span>
+                                {% else %}
+                                    <span class="badge bg-danger">Exit {{ run.exit_code }}</span>
+                                {% endif %}
+                            </div>
+                            <small class="text-muted">{{ run.timestamp }}</small>
+                        </div>
+                    {% endfor %}
+                {% else %}
+                    <p class="text-muted mb-0">No runs recorded yet.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Monitor Cards -->
+    <div class="col-lg-8">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <h5 class="mb-0"><i class="bi bi-grid"></i> Monitors</h5>
+            <a href="{{ url_for('monitor_new') }}" class="btn btn-primary btn-sm">
+                <i class="bi bi-plus-lg"></i> Add Monitor
+            </a>
+        </div>
+        <div class="row">
+            {% for monitor in monitors %}
+            <div class="col-md-6 col-xl-4 mb-3">
+                <div class="card monitor-card h-100">
+                    <div class="card-body">
+                        <h6 class="card-title d-flex justify-content-between align-items-center">
+                            {{ monitor.name }}
+                            {% if monitor.has_baseline %}
+                                <span class="status-dot green" title="Baseline exists"></span>
+                            {% else %}
+                                <span class="status-dot gray" title="No baseline"></span>
+                            {% endif %}
+                        </h6>
+                        {% if monitor.thumbnail %}
+                            <a href="{{ url_for('screenshots', name=monitor.name) }}">
+                                <img src="{{ url_for('api_screenshot', name=monitor.name, filename=monitor.thumbnail) }}"
+                                     class="monitor-thumbnail mb-2" alt="Screenshot">
+                            </a>
+                        {% else %}
+                            <div class="text-center py-3 bg-light rounded mb-2">
+                                <i class="bi bi-image text-muted" style="font-size: 2rem;"></i>
+                                <p class="text-muted small mb-0">No screenshot yet</p>
+                            </div>
+                        {% endif %}
+                        {% if monitor.last_modified %}
+                            <p class="mb-1"><small class="text-muted">Last: {{ monitor.last_modified }}</small></p>
+                        {% endif %}
+                        <p class="url-display mb-2">{{ monitor.url[:80] }}{% if monitor.url|length > 80 %}...{% endif %}</p>
+                        <div class="d-flex gap-1 flex-wrap">
+                            <button class="btn btn-outline-primary btn-sm" onclick="runMonitor('{{ monitor.name }}')" id="btn-run-{{ monitor.name }}">
+                                <i class="bi bi-lightning"></i> Run
+                            </button>
+                            <a href="{{ url_for('monitor_edit', name=monitor.name) }}" class="btn btn-outline-secondary btn-sm">
+                                <i class="bi bi-pencil"></i>
+                            </a>
+                            <a href="{{ url_for('screenshots', name=monitor.name) }}" class="btn btn-outline-info btn-sm">
+                                <i class="bi bi-images"></i>
+                            </a>
+                            <button class="btn btn-outline-warning btn-sm" onclick="clearBaseline('{{ monitor.name }}')">
+                                <i class="bi bi-arrow-counterclockwise"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    function schedulerAction(action) {
+        fetch('/api/scheduler/' + action, {method: 'POST'})
+            .then(r => r.json())
+            .then(data => {
+                showFlash(data.message, data.status === 'ok' ? 'success' : 'warning');
+                setTimeout(() => location.reload(), 500);
+            })
+            .catch(() => showFlash('Request failed', 'error'));
+    }
+
+    function runMonitor(name) {
+        var btn = document.getElementById('btn-run-' + name);
+        if (btn) { btn.disabled = true; btn.innerHTML = '<i class="bi bi-hourglass-split"></i> Running...'; }
+        fetch('/api/monitors/' + encodeURIComponent(name) + '/run', {method: 'POST'})
+            .then(r => r.json())
+            .then(data => {
+                showFlash(data.message, data.status === 'ok' ? 'info' : 'warning');
+            })
+            .catch(() => showFlash('Request failed', 'error'));
+    }
+
+    function runAll() {
+        var btn = document.getElementById('btn-run-all');
+        if (btn) { btn.disabled = true; btn.innerHTML = '<i class="bi bi-hourglass-split"></i> Running...'; }
+        fetch('/api/monitors/all/run', {method: 'POST'})
+            .then(r => r.json())
+            .then(data => {
+                showFlash(data.message, data.status === 'ok' ? 'info' : 'warning');
+            })
+            .catch(() => showFlash('Request failed', 'error'));
+    }
+
+    function clearBaseline(name) {
+        if (!confirm('Clear baseline for "' + name + '"? The next run will capture a fresh screenshot.')) return;
+        fetch('/api/monitors/' + encodeURIComponent(name) + '/clear', {method: 'POST'})
+            .then(r => r.json())
+            .then(data => {
+                showFlash(data.message, data.status === 'ok' ? 'success' : 'warning');
+                setTimeout(() => location.reload(), 500);
+            })
+            .catch(() => showFlash('Request failed', 'error'));
+    }
+
+    // Auto-refresh dashboard data
+    function refreshDashboard() {
+        fetch('/api/scheduler/status')
+            .then(r => r.json())
+            .then(data => {
+                // Update countdown
+                var countdownEl = document.getElementById('countdown');
+                if (countdownEl && data.next_run_seconds > 0) {
+                    var mins = Math.floor(data.next_run_seconds / 60);
+                    var secs = data.next_run_seconds % 60;
+                    countdownEl.textContent = mins + ':' + String(secs).padStart(2, '0');
+                } else if (countdownEl) {
+                    countdownEl.textContent = '--:--';
+                }
+
+                // Update scheduler badge
+                var badge = document.getElementById('sched-status-badge');
+                if (badge) {
+                    if (data.running) {
+                        badge.innerHTML = '<span class="badge bg-success">Running</span>';
+                    } else {
+                        badge.innerHTML = '<span class="badge bg-secondary">Stopped</span>';
+                    }
+                }
+
+                // Re-enable run buttons if no run in progress
+                if (!data.run_in_progress) {
+                    document.querySelectorAll('[id^="btn-run-"]').forEach(function(btn) {
+                        if (btn.disabled) {
+                            btn.disabled = false;
+                            if (btn.id === 'btn-run-all') {
+                                btn.innerHTML = '<i class="bi bi-lightning"></i> Run All Now';
+                            } else {
+                                btn.innerHTML = '<i class="bi bi-lightning"></i> Run';
+                            }
+                        }
+                    });
+                }
+            })
+            .catch(() => {});
+    }
+    setInterval(refreshDashboard, 5000);
+</script>
+{% endblock %}

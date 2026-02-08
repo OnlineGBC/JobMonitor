@@ -1,0 +1,67 @@
+{% extends "base.html" %}
+{% block title %}{{ 'Edit' if monitor else 'Add' }} Monitor - JobMonitor{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-8">
+        <h4>
+            <i class="bi bi-{{ 'pencil' if monitor else 'plus-lg' }}"></i>
+            {{ 'Edit' if monitor else 'Add' }} Monitor
+        </h4>
+        <hr>
+        <form method="POST" action="{{ url_for('api_monitor_update', name=monitor.name) if monitor else url_for('api_monitor_create') }}">
+            <div class="mb-3">
+                <label class="form-label fw-bold">Name</label>
+                <input type="text" class="form-control" name="name" value="{{ monitor.name if monitor else '' }}"
+                       {% if monitor %}readonly{% endif %} required
+                       pattern="[A-Za-z0-9_-]+" title="Letters, numbers, hyphens and underscores only">
+                {% if not monitor %}
+                    <div class="form-text">Letters, numbers, hyphens and underscores only. Cannot be changed later.</div>
+                {% endif %}
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label fw-bold">URL</label>
+                <textarea class="form-control" name="url" rows="3" required>{{ monitor.url if monitor else '' }}</textarea>
+                <div class="form-text">The LinkedIn job search URL to monitor.</div>
+            </div>
+
+            <div class="mb-3 form-check form-switch">
+                <input class="form-check-input" type="checkbox" name="headless" id="headless"
+                       {% if monitor and monitor.get('headless', true) %}checked{% elif not monitor %}checked{% endif %}>
+                <label class="form-check-label" for="headless">Headless mode</label>
+                <div class="form-text">Run browser without visible window. Uncheck for first-time LinkedIn login.</div>
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label fw-bold">Wait Selector</label>
+                <input type="text" class="form-control" name="wait_selector"
+                       value="{{ monitor.wait_selector if monitor and monitor.wait_selector else 'ul.jobs-search__results-list' }}">
+                <div class="form-text">CSS selector to wait for before taking screenshot.</div>
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label fw-bold">CSS Selector</label>
+                <input type="text" class="form-control" name="css_selector"
+                       value="{{ monitor.css_selector if monitor and monitor.css_selector else 'ul.jobs-search__results-list' }}">
+                <div class="form-text">CSS selector for the content to compare.</div>
+            </div>
+
+            <div class="mb-3 form-check form-switch">
+                <input class="form-check-input" type="checkbox" name="email_on_first_snapshot" id="email_on_first"
+                       {% if monitor and monitor.get('email_on_first_snapshot', false) %}checked{% endif %}>
+                <label class="form-check-label" for="email_on_first">Email on first snapshot</label>
+                <div class="form-text">Send notification when the initial baseline screenshot is captured.</div>
+            </div>
+
+            <hr>
+            <div class="d-flex gap-2">
+                <button type="submit" class="btn btn-primary">
+                    <i class="bi bi-check-lg"></i> {{ 'Save Changes' if monitor else 'Create Monitor' }}
+                </button>
+                <a href="{{ url_for('monitors') }}" class="btn btn-outline-secondary">Cancel</a>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

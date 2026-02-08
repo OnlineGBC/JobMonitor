@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+{% block title %}Logs - JobMonitor{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h4><i class="bi bi-file-text"></i> Logs</h4>
+    <div class="d-flex gap-2 align-items-center">
+        <label class="form-label mb-0 me-1">Lines:</label>
+        <select class="form-select form-select-sm" style="width: auto;" id="log-lines" onchange="loadLogs()">
+            <option value="100">100</option>
+            <option value="300" selected>300</option>
+            <option value="500">500</option>
+            <option value="1000">1000</option>
+        </select>
+        <button class="btn btn-outline-primary btn-sm" onclick="loadLogs()">
+            <i class="bi bi-arrow-clockwise"></i> Refresh
+        </button>
+        <a href="{{ url_for('api_log_download') }}" class="btn btn-outline-secondary btn-sm">
+            <i class="bi bi-download"></i> Download
+        </a>
+    </div>
+</div>
+
+<div class="log-content" id="log-content">Loading...</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    function loadLogs() {
+        var lines = document.getElementById('log-lines').value;
+        fetch('/api/logs?lines=' + lines)
+            .then(r => r.json())
+            .then(data => {
+                var el = document.getElementById('log-content');
+                el.textContent = data.content || '(empty)';
+                el.scrollTop = el.scrollHeight;
+            })
+            .catch(() => {
+                document.getElementById('log-content').textContent = 'Failed to load logs.';
+            });
+    }
+    loadLogs();
+    // Auto-refresh logs every 15 seconds
+    setInterval(loadLogs, 15000);
+</script>
+{% endblock %}

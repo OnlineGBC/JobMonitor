@@ -1,0 +1,77 @@
+{% extends "base.html" %}
+{% block title %}Monitors - JobMonitor{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h4><i class="bi bi-collection"></i> Monitors</h4>
+    <a href="{{ url_for('monitor_new') }}" class="btn btn-primary">
+        <i class="bi bi-plus-lg"></i> Add Monitor
+    </a>
+</div>
+
+<div class="table-responsive">
+    <table class="table table-hover">
+        <thead>
+            <tr>
+                <th>Name</th>
+                <th>URL</th>
+                <th>Headless</th>
+                <th>Baseline</th>
+                <th>Last Modified</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for monitor in monitors %}
+            <tr>
+                <td><strong>{{ monitor.name }}</strong></td>
+                <td class="url-display" style="max-width: 300px;">{{ monitor.url[:100] }}{% if monitor.url|length > 100 %}...{% endif %}</td>
+                <td>
+                    {% if monitor.headless %}
+                        <span class="badge bg-success">Yes</span>
+                    {% else %}
+                        <span class="badge bg-warning text-dark">No</span>
+                    {% endif %}
+                </td>
+                <td>
+                    {% if monitor.has_baseline %}
+                        <span class="status-dot green"></span> Yes
+                    {% else %}
+                        <span class="status-dot gray"></span> No
+                    {% endif %}
+                </td>
+                <td>{{ monitor.last_modified or '—' }}</td>
+                <td>
+                    <div class="btn-group btn-group-sm">
+                        <a href="{{ url_for('monitor_edit', name=monitor.name) }}" class="btn btn-outline-primary" title="Edit">
+                            <i class="bi bi-pencil"></i>
+                        </a>
+                        <a href="{{ url_for('screenshots', name=monitor.name) }}" class="btn btn-outline-info" title="Screenshots">
+                            <i class="bi bi-images"></i>
+                        </a>
+                        <button class="btn btn-outline-danger" title="Delete" onclick="deleteMonitor('{{ monitor.name }}')">
+                            <i class="bi bi-trash"></i>
+                        </button>
+                    </div>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    function deleteMonitor(name) {
+        if (!confirm('Delete monitor "' + name + '"? This will also remove its snapshot files.')) return;
+        fetch('/api/monitors/' + encodeURIComponent(name) + '/delete', {method: 'POST'})
+            .then(r => r.json())
+            .then(data => {
+                showFlash(data.message, data.status === 'ok' ? 'success' : 'error');
+                setTimeout(() => location.reload(), 500);
+            })
+            .catch(() => showFlash('Request failed', 'error'));
+    }
+</script>
+{% endblock %}

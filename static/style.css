@@ -1,0 +1,114 @@
+/* JobMonitor Web UI - Custom Styles */
+
+body {
+    background-color: #f8f9fa;
+}
+
+.navbar-brand {
+    font-weight: 600;
+}
+
+/* Monitor cards */
+.monitor-card {
+    transition: box-shadow 0.2s;
+}
+.monitor-card:hover {
+    box-shadow: 0 0.25rem 0.5rem rgba(0,0,0,0.1);
+}
+
+.monitor-thumbnail {
+    max-height: 120px;
+    object-fit: cover;
+    width: 100%;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+/* Scheduler panel */
+.scheduler-panel {
+    border-left: 4px solid #0d6efd;
+}
+.scheduler-panel.running {
+    border-left-color: #198754;
+}
+.scheduler-panel.stopped {
+    border-left-color: #6c757d;
+}
+
+/* Run history */
+.run-history-item {
+    border-left: 3px solid #dee2e6;
+    padding-left: 12px;
+    margin-bottom: 8px;
+}
+.run-history-item.success {
+    border-left-color: #198754;
+}
+.run-history-item.failure {
+    border-left-color: #dc3545;
+}
+.run-history-item.running {
+    border-left-color: #0d6efd;
+}
+
+/* Log viewer */
+.log-content {
+    background: #1e1e1e;
+    color: #d4d4d4;
+    font-family: 'Consolas', 'Monaco', monospace;
+    font-size: 0.8rem;
+    padding: 1rem;
+    border-radius: 4px;
+    max-height: 600px;
+    overflow-y: auto;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+}
+
+/* Screenshot gallery */
+.screenshot-img {
+    max-width: 100%;
+    border: 1px solid #dee2e6;
+    border-radius: 4px;
+}
+
+/* Settings form */
+.password-field {
+    font-family: 'Consolas', monospace;
+}
+
+/* Status badges */
+.status-dot {
+    display: inline-block;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    margin-right: 6px;
+}
+.status-dot.green { background-color: #198754; }
+.status-dot.red { background-color: #dc3545; }
+.status-dot.gray { background-color: #6c757d; }
+.status-dot.blue { background-color: #0d6efd; }
+
+/* Flash messages */
+.flash-container {
+    position: fixed;
+    top: 70px;
+    right: 20px;
+    z-index: 1050;
+    max-width: 400px;
+}
+
+/* Countdown timer */
+.countdown {
+    font-size: 1.5rem;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+}
+
+/* URL display */
+.url-display {
+    word-break: break-all;
+    font-size: 0.8rem;
+    color: #6c757d;
+}

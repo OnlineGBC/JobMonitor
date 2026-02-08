@@ -5,6 +5,8 @@ python-dotenv>=1.0
 Pillow>=10.0
 imagehash>=4.3
 tzdata
+flask>=3.0
+ruamel.yaml>=0.18
 
 # After installing, run:
 # playwright install chromium
