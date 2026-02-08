@@ -49,31 +49,40 @@
             </div>
         </div>
 
-        <!-- Recent Runs -->
+        <!-- Recent Runs (collapsible) -->
         <div class="card mt-3">
-            <div class="card-header">
-                <h6 class="mb-0"><i class="bi bi-list-check"></i> Recent Runs</h6>
+            <div class="card-header p-0">
+                <button class="btn w-100 text-start d-flex justify-content-between align-items-center px-3 py-2 collapsed"
+                        type="button" data-bs-toggle="collapse" data-bs-target="#recentRunsBody"
+                        aria-expanded="false" aria-controls="recentRunsBody">
+                    <h6 class="mb-0"><i class="bi bi-list-check"></i> Recent Runs
+                        {% if run_history %}<span class="badge bg-secondary ms-2">{{ run_history[:20]|length }}</span>{% endif %}
+                    </h6>
+                    <i class="bi bi-chevron-down collapse-chevron"></i>
+                </button>
             </div>
-            <div class="card-body" id="run-history" style="max-height: 400px; overflow-y: auto;">
-                {% if run_history %}
-                    {% for run in run_history[:20] %}
-                        <div class="run-history-item {{ 'success' if run.exit_code == 0 else ('running' if run.exit_code is none else 'failure') }}">
-                            <div class="d-flex justify-content-between">
-                                <strong>{{ run.monitor }}</strong>
-                                {% if run.exit_code == 0 %}
-                                    <span class="badge bg-success">OK</span>
-                                {% elif run.exit_code is none %}
-                                    <span class="badge bg-primary">Running</span>
-                                {% else %}
-                                    <span class="badge bg-danger">Exit {{ run.exit_code }}</span>
-                                {% endif %}
+            <div class="collapse" id="recentRunsBody">
+                <div class="card-body" id="run-history" style="max-height: 400px; overflow-y: auto;">
+                    {% if run_history %}
+                        {% for run in run_history[:20] %}
+                            <div class="run-history-item {{ 'success' if run.exit_code == 0 else ('running' if run.exit_code is none else 'failure') }}">
+                                <div class="d-flex justify-content-between">
+                                    <strong>{{ run.monitor }}</strong>
+                                    {% if run.exit_code == 0 %}
+                                        <span class="badge bg-success">OK</span>
+                                    {% elif run.exit_code is none %}
+                                        <span class="badge bg-primary">Running</span>
+                                    {% else %}
+                                        <span class="badge bg-danger">Exit {{ run.exit_code }}</span>
+                                    {% endif %}
+                                </div>
+                                <small class="text-muted">{{ run.timestamp }}</small>
                             </div>
-                            <small class="text-muted">{{ run.timestamp }}</small>
-                        </div>
-                    {% endfor %}
-                {% else %}
-                    <p class="text-muted mb-0">No runs recorded yet.</p>
-                {% endif %}
+                        {% endfor %}
+                    {% else %}
+                        <p class="text-muted mb-0">No runs recorded yet.</p>
+                    {% endif %}
+                </div>
             </div>
         </div>
     </div>

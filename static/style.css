@@ -234,6 +234,15 @@ body {
     border-left-color: var(--jm-text-muted);
 }
 
+/* ── Collapsible chevron ── */
+.collapse-chevron {
+    transition: transform 0.25s ease;
+}
+
+[aria-expanded="true"] .collapse-chevron {
+    transform: rotate(180deg);
+}
+
 /* ── Run history ── */
 .run-history-item {
     border-left: 3px solid var(--jm-border);
