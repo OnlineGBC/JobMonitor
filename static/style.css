@@ -71,7 +71,7 @@ body {
 }
 
 .logo-img {
-    max-height: 52px;
+    max-height: 104px;
     width: auto;
     border-radius: 8px;
     box-shadow: var(--jm-card-shadow);
