@@ -30,29 +30,29 @@
 
 /* ── Dark theme ── */
 [data-bs-theme="dark"] {
-    --jm-primary: #6d83f2;
-    --jm-primary-hover: #5a72e0;
-    --jm-accent: #a855f7;
-    --jm-bg: #0f172a;
-    --jm-card-bg: #1e293b;
-    --jm-card-border: rgba(255, 255, 255, 0.06);
-    --jm-card-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
-    --jm-card-shadow-hover: 0 4px 12px rgba(0, 0, 0, 0.4);
-    --jm-text: #e2e8f0;
-    --jm-text-muted: #94a3b8;
-    --jm-border: #334155;
-    --jm-navbar-bg: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
-    --jm-navbar-text: #e2e8f0;
-    --jm-success: #22c55e;
-    --jm-danger: #ef4444;
-    --jm-info: #38bdf8;
-    --jm-warning: #facc15;
-    --jm-log-bg: #0d1117;
-    --jm-log-text: #c9d1d9;
-    --jm-screenshot-border: #334155;
+    --jm-primary: #7c93f5;
+    --jm-primary-hover: #6a84ed;
+    --jm-accent: #b07cf7;
+    --jm-bg: #1e2433;
+    --jm-card-bg: #2a3042;
+    --jm-card-border: rgba(255, 255, 255, 0.08);
+    --jm-card-shadow: 0 1px 4px rgba(0, 0, 0, 0.2);
+    --jm-card-shadow-hover: 0 4px 14px rgba(0, 0, 0, 0.28);
+    --jm-text: #e8ecf4;
+    --jm-text-muted: #a3adc2;
+    --jm-border: #3d4556;
+    --jm-navbar-bg: linear-gradient(135deg, #252b3d 0%, #2f3649 100%);
+    --jm-navbar-text: #e8ecf4;
+    --jm-success: #34d472;
+    --jm-danger: #f06060;
+    --jm-info: #4ec8f8;
+    --jm-warning: #fad54e;
+    --jm-log-bg: #1a1f2e;
+    --jm-log-text: #d0d7e2;
+    --jm-screenshot-border: #3d4556;
     --jm-scheduler-border: var(--jm-primary);
-    --jm-input-bg: #1e293b;
-    --jm-input-border: #475569;
+    --jm-input-bg: #2a3042;
+    --jm-input-border: #4f5868;
 }
 
 /* ── Base styles ── */
