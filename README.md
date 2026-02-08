@@ -17,6 +17,7 @@ JobMonitor uses Claude AI's vision capabilities to intelligently compare screens
 - **Multiple Notification Channels**: Email, Slack, and Discord webhooks
 - **Windows-Friendly**: Designed to work seamlessly with Windows Task Scheduler
 - **Interactive Menu**: User-friendly command-line interface for easy management
+- **Web Management UI**: Browser-based dashboard for monitoring, configuration, and control
 
 ## 🚀 Quick Start
 
@@ -152,7 +153,22 @@ See [Configuration Guide](#-configuration-guide) below for detailed options.
 
 ### 5. Run the Monitor
 
-**Interactive Menu (Recommended for first-time users):**
+**Web UI (Recommended):**
+
+```bash
+python web_monitor_menu.py
+```
+
+Open `http://localhost:5000` in your browser. The web dashboard lets you:
+- View all monitors with status and screenshot thumbnails
+- Start/stop the scheduler, run monitors on demand
+- Edit monitors and settings directly in the browser
+- View logs and screenshots
+- Clear baselines and trigger fresh captures
+
+See [Web Management UI](#-web-management-ui) below for details including background mode.
+
+**Interactive CLI Menu (Alternative):**
 
 ```bash
 python monitor_menu.py
@@ -351,6 +367,81 @@ SLACK_WEBHOOK_URL=https://hooks.slack.com/services/YOUR/WEBHOOK/URL
 DISCORD_WEBHOOK_URL=https://discord.com/api/webhooks/YOUR/WEBHOOK/URL
 ```
 
+## 🌐 Web Management UI
+
+The web UI provides a browser-based dashboard for managing all aspects of JobMonitor.
+
+### Starting the Web UI
+
+```bash
+# Start on default port 5000
+python web_monitor_menu.py
+
+# Start on a custom port
+python web_monitor_menu.py --port 8080
+```
+
+Then open `http://localhost:5000` in your browser.
+
+### Running in the Background (PowerShell)
+
+```powershell
+# Start web_monitor_menu.py in the background (saves PID for later)
+$proc = Start-Process python -ArgumentList "web_monitor_menu.py" -WindowStyle Hidden -RedirectStandardOutput "logs\web.log" -RedirectStandardError "logs\web_error.log" -PassThru
+$proc.Id | Out-File "data\web.pid"
+Write-Host "Started with PID: $($proc.Id)"
+```
+
+```powershell
+# Check if it's still running
+$pid = Get-Content "data\web.pid"
+Get-Process -Id $pid -ErrorAction SilentlyContinue
+```
+
+```powershell
+# Stop it using the saved PID
+$pid = Get-Content "data\web.pid"
+Stop-Process -Id $pid
+Write-Host "Stopped PID: $pid"
+```
+
+### Running in the Background (Git Bash / Linux / Mac)
+
+```bash
+# Start in the background with output redirected to a log file
+nohup python web_monitor_menu.py > logs/web.log 2>&1 &
+
+# Check if it's running
+ps aux | grep web_monitor_menu
+
+# Stop it
+kill $(ps aux | grep web_monitor_menu | grep -v grep | awk '{print $2}')
+```
+
+### Web UI Features
+
+| Page | Description |
+|------|-------------|
+| **Dashboard** | Monitor cards with screenshot thumbnails, scheduler control panel, recent run history |
+| **Monitors** | List all monitors, add/edit/delete with form-based YAML editing (preserves comments) |
+| **Settings** | Edit `.env` variables grouped by category, passwords masked with toggle |
+| **Logs** | View `screen_compare.log` with configurable line count, auto-refresh, download |
+| **Screenshots** | Browse screenshots per monitor with file size and timestamp |
+
+### Web UI Routes
+
+| Action | How |
+|--------|-----|
+| Start scheduler | Dashboard → "Start" button |
+| Stop scheduler | Dashboard → "Stop" button |
+| Run a single monitor now | Dashboard → "Run" button on monitor card |
+| Run all monitors now | Dashboard → "Run All Now" button |
+| Clear a monitor's baseline | Dashboard → reset button on monitor card |
+| Add a new monitor | Monitors → "Add Monitor" |
+| Edit a monitor | Monitors → pencil icon |
+| Delete a monitor | Monitors → trash icon (with confirmation) |
+| Edit settings | Settings page → edit fields → "Save Settings" |
+
 ## ⏰ Automation & Scheduling
 
 ### Intelligent Scheduling (Recommended)
@@ -426,13 +517,28 @@ crontab -e
 
 ```
 JobMonitor/
-├── monitor.py                 # Main monitoring script (screenshot + AI comparison)
-├── monitor_menu.py            # Interactive menu interface
-├── run_monitor.py             # Scheduling loop with smart timing
+├── monitor.py                 # Core monitoring engine (screenshot + AI comparison)
+├── monitor_menu.py            # Interactive CLI menu interface
+├── run_monitor.py             # CLI scheduling loop with smart timing
+├── web_monitor_menu.py        # Web UI (Flask app — browser-based management)
+├── web_run_monitor.py         # Web scheduler (background thread for the web UI)
 ├── monitors.yaml              # Monitor configurations
 ├── requirements.txt           # Python dependencies
 ├── .env                       # Environment variables (create this - see example above)
 ├── README.md                  # This file
+├── templates/                 # Jinja2 HTML templates for web UI
+│   ├── base.html              # Shared layout (navbar, Bootstrap CDN, flash messages)
+│   ├── dashboard.html         # Dashboard with monitor cards and scheduler panel
+│   ├── monitors.html          # Monitor list with CRUD actions
+│   ├── monitor_edit.html      # Add/edit monitor form
+│   ├── settings.html          # Environment variable editor
+│   ├── logs.html              # Log viewer
+│   └── screenshots.html       # Screenshot gallery per monitor
+├── static/
+│   └── style.css              # Custom styles for web UI
+├── data/
+│   ├── run_history.json       # Structured run history (auto-created, capped at 500)
+│   └── web.pid                # Web UI process ID (when running in background)
 ├── snapshots/                 # Screenshot storage
 │   ├── RemoteUSA_screenshot1.png       # Baseline screenshot
 │   ├── RemoteUSA_screenshot1.txt       # Baseline page text
@@ -443,7 +549,9 @@ JobMonitor/
 │   ├── HybridNYC_screenshot1.txt
 │   └── HybridNYC_linkedin_state.json
 ├── logs/                      # Log files
-│   └── screen_compare.log    # Main log file (rotated at 5MB, keeps 3 backups)
+│   ├── screen_compare.log     # Main log file (rotated at 5MB, keeps 3 backups)
+│   ├── web.log                # Web UI stdout (when running in background)
+│   └── web_error.log          # Web UI stderr (when running in background)
 └── JobMonitor.venv/           # Virtual environment
 ```
 
@@ -488,6 +596,18 @@ python monitor_menu.py
 2. **Run as scheduled job** - Run with intelligent scheduling (Ctrl+C to stop)
 3. **Test custom schedule** - Run with custom interval (5-59 minutes)
 4. **Exit** - Exit the program
+
+### web_monitor_menu.py (Web UI)
+
+```bash
+# Start web UI on default port
+python web_monitor_menu.py
+
+# Start on custom port
+python web_monitor_menu.py --port 8080
+```
+
+The web UI provides a browser-based alternative to the CLI with dashboard, monitor management, settings editor, log viewer, and scheduler control. See [Web Management UI](#-web-management-ui) for full details.
 
 ### run_monitor.py (Scheduling Loop)
 
@@ -811,6 +931,8 @@ The AI comparison works on any website with visual changes.
 - **PIL/Pillow**: Image processing (for resizing and perceptual hashing)
 - **imagehash**: Perceptual hashing (for cost optimization)
 - **tzdata**: Timezone support (Windows)
+- **flask**: Web UI framework
+- **ruamel.yaml**: YAML editing that preserves comments (used by web UI)
 
 Install all dependencies with:
 ```bash
