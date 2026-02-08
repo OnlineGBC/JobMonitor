@@ -55,6 +55,7 @@ scheduler = MonitorScheduler()
 # ruamel.yaml instance for reading/writing monitors.yaml with comments
 ryaml = YAML()
 ryaml.preserve_quotes = True
+ryaml.allow_duplicate_keys = True
 
 MONITORS_YAML = Path("monitors.yaml")
 
