@@ -458,6 +458,15 @@ def main():
     args = parser.parse_args()
 
     configure_logging()
+
+    # Suppress repetitive /api/scheduler/status request logs
+    class _QuietSchedulerPoll(logging.Filter):
+        def filter(self, record):
+            msg = record.getMessage()
+            return "/api/scheduler/status" not in msg
+
+    logging.getLogger("werkzeug").addFilter(_QuietSchedulerPoll())
+
     logging.info(f"Starting JobMonitor Web UI on http://127.0.0.1:{args.port}")
 
     # Ensure data directory exists
