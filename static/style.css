@@ -1,83 +1,267 @@
 /* JobMonitor Web UI - Custom Styles */
+/* Theme: CSS Custom Properties with Light/Dark/Custom support */
 
+/* ── Light theme (default) ── */
+[data-bs-theme="light"] {
+    --jm-primary: #4361ee;
+    --jm-primary-hover: #3a56d4;
+    --jm-accent: #7209b7;
+    --jm-bg: #f0f2f5;
+    --jm-card-bg: #ffffff;
+    --jm-card-border: rgba(0, 0, 0, 0.08);
+    --jm-card-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+    --jm-card-shadow-hover: 0 4px 12px rgba(0, 0, 0, 0.1);
+    --jm-text: #212529;
+    --jm-text-muted: #6c757d;
+    --jm-border: #dee2e6;
+    --jm-navbar-bg: linear-gradient(135deg, #1e293b 0%, #334155 100%);
+    --jm-navbar-text: #f8f9fa;
+    --jm-success: #198754;
+    --jm-danger: #dc3545;
+    --jm-info: #0dcaf0;
+    --jm-warning: #ffc107;
+    --jm-log-bg: #1e1e1e;
+    --jm-log-text: #d4d4d4;
+    --jm-screenshot-border: #dee2e6;
+    --jm-scheduler-border: var(--jm-primary);
+    --jm-input-bg: #ffffff;
+    --jm-input-border: #ced4da;
+}
+
+/* ── Dark theme ── */
+[data-bs-theme="dark"] {
+    --jm-primary: #6d83f2;
+    --jm-primary-hover: #5a72e0;
+    --jm-accent: #a855f7;
+    --jm-bg: #0f172a;
+    --jm-card-bg: #1e293b;
+    --jm-card-border: rgba(255, 255, 255, 0.06);
+    --jm-card-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+    --jm-card-shadow-hover: 0 4px 12px rgba(0, 0, 0, 0.4);
+    --jm-text: #e2e8f0;
+    --jm-text-muted: #94a3b8;
+    --jm-border: #334155;
+    --jm-navbar-bg: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+    --jm-navbar-text: #e2e8f0;
+    --jm-success: #22c55e;
+    --jm-danger: #ef4444;
+    --jm-info: #38bdf8;
+    --jm-warning: #facc15;
+    --jm-log-bg: #0d1117;
+    --jm-log-text: #c9d1d9;
+    --jm-screenshot-border: #334155;
+    --jm-scheduler-border: var(--jm-primary);
+    --jm-input-bg: #1e293b;
+    --jm-input-border: #475569;
+}
+
+/* ── Base styles ── */
 body {
-    background-color: #f8f9fa;
+    background-color: var(--jm-bg);
+    color: var(--jm-text);
+    transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+/* ── Navbar ── */
+.navbar {
+    background: var(--jm-navbar-bg) !important;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
 }
 
 .navbar-brand {
-    font-weight: 600;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+    color: var(--jm-navbar-text) !important;
 }
 
-/* Monitor cards */
-.monitor-card {
-    transition: box-shadow 0.2s;
+.navbar .nav-link {
+    color: rgba(255, 255, 255, 0.75) !important;
+    font-weight: 500;
+    padding: 0.5rem 0.85rem !important;
+    border-radius: 6px;
+    transition: color 0.2s ease, background-color 0.2s ease;
+    margin: 0 2px;
 }
+
+.navbar .nav-link:hover {
+    color: #ffffff !important;
+    background-color: rgba(255, 255, 255, 0.08);
+}
+
+.navbar .nav-link.active {
+    color: #ffffff !important;
+    background-color: rgba(255, 255, 255, 0.12);
+}
+
+/* ── Theme switcher ── */
+.theme-switcher .dropdown-toggle {
+    color: rgba(255, 255, 255, 0.75) !important;
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    border-radius: 8px;
+    padding: 0.35rem 0.65rem;
+    font-size: 0.9rem;
+    transition: all 0.2s ease;
+    background: transparent;
+}
+
+.theme-switcher .dropdown-toggle:hover {
+    color: #ffffff !important;
+    border-color: rgba(255, 255, 255, 0.3);
+    background-color: rgba(255, 255, 255, 0.08);
+}
+
+.theme-switcher .dropdown-toggle::after {
+    display: none;
+}
+
+.theme-switcher .dropdown-menu {
+    min-width: 220px;
+    padding: 0.5rem;
+    border-radius: 10px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+    border: 1px solid var(--jm-card-border);
+    background-color: var(--jm-card-bg);
+}
+
+.theme-switcher .dropdown-item {
+    border-radius: 6px;
+    padding: 0.5rem 0.75rem;
+    font-size: 0.875rem;
+    transition: background-color 0.15s ease;
+}
+
+.theme-switcher .dropdown-item.active,
+.theme-switcher .dropdown-item:active {
+    background-color: var(--jm-primary);
+    color: #fff;
+}
+
+.theme-switcher .dropdown-item:hover:not(.active) {
+    background-color: rgba(0, 0, 0, 0.05);
+}
+
+[data-bs-theme="dark"] .theme-switcher .dropdown-item:hover:not(.active) {
+    background-color: rgba(255, 255, 255, 0.08);
+}
+
+/* Custom color pickers */
+.custom-theme-colors {
+    padding: 0.5rem 0.75rem;
+    border-top: 1px solid var(--jm-border);
+    margin-top: 0.25rem;
+}
+
+.custom-theme-colors label {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--jm-text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    margin-bottom: 0.15rem;
+}
+
+.custom-theme-colors input[type="color"] {
+    width: 32px;
+    height: 26px;
+    padding: 1px;
+    border: 1px solid var(--jm-input-border);
+    border-radius: 4px;
+    cursor: pointer;
+    background: var(--jm-input-bg);
+}
+
+/* ── Cards ── */
+.card {
+    background-color: var(--jm-card-bg);
+    border: 1px solid var(--jm-card-border);
+    border-radius: 10px;
+    box-shadow: var(--jm-card-shadow);
+    transition: box-shadow 0.25s ease, transform 0.25s ease, background-color 0.3s ease;
+}
+
+.monitor-card {
+    transition: box-shadow 0.25s ease, transform 0.25s ease;
+}
+
 .monitor-card:hover {
-    box-shadow: 0 0.25rem 0.5rem rgba(0,0,0,0.1);
+    box-shadow: var(--jm-card-shadow-hover);
+    transform: translateY(-2px);
 }
 
 .monitor-thumbnail {
     max-height: 120px;
     object-fit: cover;
     width: 100%;
-    border-radius: 4px;
+    border-radius: 6px;
     cursor: pointer;
 }
 
-/* Scheduler panel */
+/* ── Scheduler panel ── */
 .scheduler-panel {
-    border-left: 4px solid #0d6efd;
-}
-.scheduler-panel.running {
-    border-left-color: #198754;
-}
-.scheduler-panel.stopped {
-    border-left-color: #6c757d;
+    border-left: 4px solid var(--jm-scheduler-border);
 }
 
-/* Run history */
+.scheduler-panel.running {
+    border-left-color: var(--jm-success);
+}
+
+.scheduler-panel.stopped {
+    border-left-color: var(--jm-text-muted);
+}
+
+/* ── Run history ── */
 .run-history-item {
-    border-left: 3px solid #dee2e6;
+    border-left: 3px solid var(--jm-border);
     padding-left: 12px;
     margin-bottom: 8px;
 }
+
 .run-history-item.success {
-    border-left-color: #198754;
-}
-.run-history-item.failure {
-    border-left-color: #dc3545;
-}
-.run-history-item.running {
-    border-left-color: #0d6efd;
+    border-left-color: var(--jm-success);
 }
 
-/* Log viewer */
+.run-history-item.failure {
+    border-left-color: var(--jm-danger);
+}
+
+.run-history-item.running {
+    border-left-color: var(--jm-primary);
+}
+
+/* ── Log viewer ── */
 .log-content {
-    background: #1e1e1e;
-    color: #d4d4d4;
-    font-family: 'Consolas', 'Monaco', monospace;
+    background: var(--jm-log-bg);
+    color: var(--jm-log-text);
+    font-family: 'Consolas', 'Monaco', 'Fira Code', monospace;
     font-size: 0.8rem;
     padding: 1rem;
-    border-radius: 4px;
+    border-radius: 8px;
     max-height: 600px;
     overflow-y: auto;
     white-space: pre-wrap;
     word-wrap: break-word;
+    border: 1px solid var(--jm-card-border);
 }
 
-/* Screenshot gallery */
+/* ── Screenshot gallery ── */
 .screenshot-img {
     max-width: 100%;
-    border: 1px solid #dee2e6;
-    border-radius: 4px;
+    border: 1px solid var(--jm-screenshot-border);
+    border-radius: 6px;
+    transition: border-color 0.2s ease;
 }
 
-/* Settings form */
+.screenshot-img:hover {
+    border-color: var(--jm-primary);
+}
+
+/* ── Settings form ── */
 .password-field {
     font-family: 'Consolas', monospace;
 }
 
-/* Status badges */
+/* ── Status badges ── */
 .status-dot {
     display: inline-block;
     width: 10px;
@@ -85,12 +269,13 @@ body {
     border-radius: 50%;
     margin-right: 6px;
 }
-.status-dot.green { background-color: #198754; }
-.status-dot.red { background-color: #dc3545; }
-.status-dot.gray { background-color: #6c757d; }
-.status-dot.blue { background-color: #0d6efd; }
 
-/* Flash messages */
+.status-dot.green { background-color: var(--jm-success); }
+.status-dot.red { background-color: var(--jm-danger); }
+.status-dot.gray { background-color: var(--jm-text-muted); }
+.status-dot.blue { background-color: var(--jm-primary); }
+
+/* ── Flash messages ── */
 .flash-container {
     position: fixed;
     top: 70px;
@@ -99,16 +284,37 @@ body {
     max-width: 400px;
 }
 
-/* Countdown timer */
+/* ── Countdown timer ── */
 .countdown {
     font-size: 1.5rem;
     font-weight: 600;
     font-variant-numeric: tabular-nums;
 }
 
-/* URL display */
+/* ── URL display ── */
 .url-display {
     word-break: break-all;
     font-size: 0.8rem;
-    color: #6c757d;
+    color: var(--jm-text-muted);
+}
+
+/* ── General polish ── */
+.btn-primary {
+    background-color: var(--jm-primary);
+    border-color: var(--jm-primary);
+}
+
+.btn-primary:hover {
+    background-color: var(--jm-primary-hover);
+    border-color: var(--jm-primary-hover);
+}
+
+.badge {
+    font-weight: 600;
+    letter-spacing: 0.02em;
+}
+
+/* Smooth transitions for theme-aware elements */
+.card, .btn, .badge, .form-control, .form-select, .alert, .navbar {
+    transition: background-color 0.3s ease, border-color 0.3s ease, color 0.3s ease, box-shadow 0.3s ease;
 }
