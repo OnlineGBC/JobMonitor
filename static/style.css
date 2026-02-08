@@ -5,7 +5,7 @@
 [data-bs-theme="light"] {
     --jm-primary: #4361ee;
     --jm-primary-hover: #3a56d4;
-    --jm-accent: #7209b7;
+
     --jm-bg: #f0f2f5;
     --jm-card-bg: #ffffff;
     --jm-card-border: rgba(0, 0, 0, 0.08);
@@ -32,7 +32,7 @@
 [data-bs-theme="dark"] {
     --jm-primary: #7c93f5;
     --jm-primary-hover: #6a84ed;
-    --jm-accent: #b07cf7;
+
     --jm-bg: #1e2433;
     --jm-card-bg: #2a3042;
     --jm-card-border: rgba(255, 255, 255, 0.08);

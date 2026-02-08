@@ -17,7 +17,7 @@
                     root.setProperty('--jm-primary', colors.primary);
                     root.setProperty('--jm-primary-hover', colors.primary);
                 }
-                if (colors.accent) root.setProperty('--jm-accent', colors.accent);
+                if (colors.bg) root.setProperty('--jm-bg', colors.bg);
                 if (colors.navbar) root.setProperty('--jm-navbar-bg', colors.navbar);
             }
         })();
@@ -97,8 +97,8 @@
                                     <input type="color" id="colorPrimary" value="#4361ee" onchange="updateCustomColor('primary', this.value)">
                                 </div>
                                 <div class="d-flex align-items-center justify-content-between mb-2">
-                                    <label for="colorAccent" class="mb-0">Accent</label>
-                                    <input type="color" id="colorAccent" value="#7209b7" onchange="updateCustomColor('accent', this.value)">
+                                    <label for="colorBg" class="mb-0">Background</label>
+                                    <input type="color" id="colorBg" value="#1e2433" onchange="updateCustomColor('bg', this.value)">
                                 </div>
                                 <div class="d-flex align-items-center justify-content-between mb-2">
                                     <label for="colorNavbar" class="mb-0">Navbar</label>
@@ -175,7 +175,7 @@
                 var base = localStorage.getItem('jm-custom-base') || 'light';
                 document.getElementById('customBase').value = base;
                 if (colors.primary) document.getElementById('colorPrimary').value = colors.primary;
-                if (colors.accent) document.getElementById('colorAccent').value = colors.accent;
+                if (colors.bg) document.getElementById('colorBg').value = colors.bg;
                 if (colors.navbar) document.getElementById('colorNavbar').value = colors.navbar;
             }
         }
@@ -200,7 +200,7 @@
                 root.setProperty('--jm-primary', colors.primary);
                 root.setProperty('--jm-primary-hover', colors.primary);
             }
-            if (colors.accent) root.setProperty('--jm-accent', colors.accent);
+            if (colors.bg) root.setProperty('--jm-bg', colors.bg);
             if (colors.navbar) root.setProperty('--jm-navbar-bg', colors.navbar);
         }
 
@@ -208,7 +208,7 @@
             var root = document.documentElement.style;
             root.removeProperty('--jm-primary');
             root.removeProperty('--jm-primary-hover');
-            root.removeProperty('--jm-accent');
+            root.removeProperty('--jm-bg');
             root.removeProperty('--jm-navbar-bg');
         }
 
@@ -219,7 +219,7 @@
             document.documentElement.setAttribute('data-bs-theme', 'light');
             document.getElementById('customBase').value = 'light';
             document.getElementById('colorPrimary').value = '#4361ee';
-            document.getElementById('colorAccent').value = '#7209b7';
+            document.getElementById('colorBg').value = '#1e2433';
             document.getElementById('colorNavbar').value = '#1e293b';
             applyCustomColors();
         }
