@@ -5,17 +5,17 @@
 <div class="row">
     <!-- Scheduler Panel -->
     <div class="col-lg-4 mb-3">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <h5 class="mb-0"><i class="bi bi-clock-history"></i> Scheduler</h5>
+            <span id="sched-status-badge">
+                {% if scheduler.running %}
+                    <span class="badge bg-success">Running</span>
+                {% else %}
+                    <span class="badge bg-secondary">Stopped</span>
+                {% endif %}
+            </span>
+        </div>
         <div class="card scheduler-panel {{ 'running' if scheduler.running else 'stopped' }}" id="scheduler-panel">
-            <div class="card-header d-flex justify-content-between align-items-center">
-                <h6 class="mb-0"><i class="bi bi-clock-history"></i> Scheduler</h6>
-                <span id="sched-status-badge">
-                    {% if scheduler.running %}
-                        <span class="badge bg-success">Running</span>
-                    {% else %}
-                        <span class="badge bg-secondary">Stopped</span>
-                    {% endif %}
-                </span>
-            </div>
             <div class="card-body">
                 <div id="sched-details">
                     {% if scheduler.running %}
