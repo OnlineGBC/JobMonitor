@@ -1,20 +1,21 @@
 # JobMonitor - LinkedIn Job Search Monitor
 
-A sophisticated Python-based monitoring tool that tracks changes on LinkedIn job search pages using **AI-powered screenshot comparison** and sends email notifications when new jobs are posted. Perfect for staying ahead of the competition and never missing important job opportunities.
+A sophisticated Python-based monitoring tool that tracks changes on LinkedIn job search pages using **perceptual hash (phash) screenshot comparison** and sends email notifications when new jobs are posted. Perfect for staying ahead of the competition and never missing important job opportunities.
 
 ## 🎯 Overview
 
-JobMonitor uses Claude AI's vision capabilities to intelligently compare screenshots of LinkedIn job search pages, detecting meaningful changes (new or removed jobs) while ignoring irrelevant changes like timestamps, applicant counts, and visual styling. This AI-powered approach is far more reliable than traditional text-based comparison methods.
+JobMonitor uses perceptual hashing to compare screenshots of LinkedIn job search pages, detecting any visual changes and sending email notifications so you can review them. This approach is fast, free (no API costs), and reliable.
 
 ### Key Highlights
 
-- **AI-Powered Comparison**: Uses Claude Sonnet 4 vision model to intelligently detect meaningful job listing changes
+- **Perceptual Hash Comparison**: Uses phash to detect any visual difference between screenshots — no API costs
 - **Screenshot-Based**: Takes full-page screenshots for accurate visual comparison
-- **Smart Detection**: Ignores timestamps, applicant counts, and UI changes - only detects actual job listing changes
+- **Human Review**: Any detected change triggers an email with the screenshot — you decide if it's meaningful
 - **LinkedIn Authentication**: Automatically handles LinkedIn login with session persistence
 - **Multiple Monitors**: Track multiple job searches simultaneously
 - **Flexible Scheduling**: Smart timing that checks more frequently during business hours
 - **Multiple Notification Channels**: Email, Slack, and Discord webhooks
+- **Light/Dark/Custom Themes**: Client-side theme switcher with custom color pickers
 - **Windows-Friendly**: Designed to work seamlessly with Windows Task Scheduler
 - **Interactive Menu**: User-friendly command-line interface for easy management
 - **Web Management UI**: Browser-based dashboard for monitoring, configuration, and control
@@ -25,7 +26,7 @@ JobMonitor uses Claude AI's vision capabilities to intelligently compare screens
 
 - Python 3.9 or higher
 - Playwright (for browser automation)
-- Anthropic API key (for Claude AI)
+- Anthropic API key (optional — only needed as fallback if `imagehash` library is unavailable)
 - SMTP credentials for email notifications (Gmail, Outlook, Brevo, etc.)
 - LinkedIn account (optional but recommended for authenticated access)
 
@@ -58,10 +59,7 @@ playwright install chromium
 3. Create a new API key
 4. Copy the key (it starts with `sk-ant-...`)
 
-**Note**: Claude API usage is pay-as-you-go. Typical costs:
-- Each screenshot comparison costs approximately $0.02-0.05
-- Running every 15 minutes = ~4 comparisons/hour = ~$0.15-0.30 per day
-- Most users spend $5-15 per month depending on monitoring frequency
+**Note**: The Anthropic API key is optional. By default, JobMonitor uses perceptual hashing (free, no API calls) for screenshot comparison. Claude AI is only used as a fallback if the `imagehash` Python library is not installed.
 
 ### 3. Configure Environment Variables
 
@@ -211,18 +209,17 @@ python monitor.py --monitor "RemoteUSA"
 ### Subsequent Runs (Change Detection)
 
 1. Takes a new screenshot (`snapshots/<name>_screenshot2.png`)
-2. **Fast Pre-Check**: Uses perceptual hashing to quickly compare images
-   - If images are identical, skips expensive AI comparison
-3. **AI Comparison**: If pre-check shows differences, uses Claude AI to analyze:
-   - Are there NEW job listings?
-   - Are there REMOVED job listings?
-   - Has job content changed significantly?
-   - Ignores: timestamps, applicant counts, visual styling, order changes
-4. **If NO meaningful changes**: Discards new screenshot, keeps baseline
-5. **If changes detected**: 
+2. **Perceptual Hash Comparison**: Compares new screenshot against baseline using phash
+   - `PHASH_THRESHOLD = 0` — any visual difference triggers an email
+   - phash = 0 means identical → no email
+   - phash > 0 means different → send email with screenshot for human review
+   - If `imagehash` library is unavailable, falls back to Claude AI vision comparison
+3. **If NO changes detected**: Discards new screenshot, keeps baseline
+4. **If changes detected**:
    - Sends email notification with new screenshot
    - Replaces baseline with new screenshot
    - Continues monitoring
+   - You can increase `PHASH_THRESHOLD` in `monitor.py` if too many false-positive emails
 
 ### LinkedIn Authentication
 
@@ -429,11 +426,14 @@ kill $(ps aux | grep web_monitor_menu | grep -v grep | awk '{print $2}')
 
 | Action | How |
 |--------|-----|
-| Start scheduler | Dashboard → "Start" button |
-| Stop scheduler | Dashboard → "Stop" button |
+| Start scheduler | Dashboard → "Start Scheduler" button |
+| Start custom schedule | Dashboard → enter interval (5-120 min) → "Custom Schedule" button |
+| Stop scheduler | Dashboard → "Stop Scheduler" button |
 | Run a single monitor now | Dashboard → "Run" button on monitor card |
-| Run all monitors now | Dashboard → "Run All Now" button |
-| Clear a monitor's baseline | Dashboard → reset button on monitor card |
+| Run all monitors now | Dashboard → "Run All Once" button |
+| Edit a monitor | Dashboard → "Edit" button on monitor card |
+| View screenshots | Dashboard → "Screenshots" button on monitor card |
+| Clear a monitor's baseline | Dashboard → "Clear Baseline" button on monitor card |
 | Add a new monitor | Monitors → "Add Monitor" |
 | Edit a monitor | Monitors → pencil icon |
 | Delete a monitor | Monitors → trash icon (with confirmation) |
@@ -514,7 +514,7 @@ crontab -e
 
 ```
 JobMonitor/
-├── monitor.py                 # Core monitoring engine (screenshot + AI comparison)
+├── monitor.py                 # Core monitoring engine (screenshot + phash comparison)
 ├── monitor_menu.py            # Interactive CLI menu interface
 ├── run_monitor.py             # CLI scheduling loop with smart timing
 ├── web_monitor_menu.py        # Web UI (Flask app — browser-based management)
@@ -523,8 +523,9 @@ JobMonitor/
 ├── requirements.txt           # Python dependencies
 ├── .env                       # Environment variables (create this - see example above)
 ├── README.md                  # This file
+├── GBC-ai4org.jpg             # Company logo source file
 ├── templates/                 # Jinja2 HTML templates for web UI
-│   ├── base.html              # Shared layout (navbar, Bootstrap CDN, flash messages)
+│   ├── base.html              # Shared layout (navbar, theme switcher, logo banner)
 │   ├── dashboard.html         # Dashboard with monitor cards and scheduler panel
 │   ├── monitors.html          # Monitor list with CRUD actions
 │   ├── monitor_edit.html      # Add/edit monitor form
@@ -532,7 +533,8 @@ JobMonitor/
 │   ├── logs.html              # Log viewer
 │   └── screenshots.html       # Screenshot gallery per monitor
 ├── static/
-│   └── style.css              # Custom styles for web UI
+│   ├── style.css              # Custom styles with CSS variables for light/dark/custom themes
+│   └── logo.jpg               # Company logo (served by Flask, copied from GBC-ai4org.jpg)
 ├── data/
 │   ├── run_history.json       # Structured run history (auto-created, capped at 500)
 │   └── web.pid                # Web UI process ID (when running in background)
@@ -577,9 +579,9 @@ python monitor.py --dry-run --monitor "RemoteUSA"
 - `0` - Success
 - `1` - Configuration error (cannot read monitors.yaml)
 - `2` - Missing email/notification configuration
-- `3` - Missing ANTHROPIC_API_KEY
+- `3` - Missing ANTHROPIC_API_KEY (only when AI fallback is needed)
 - `4` - Screenshot capture failed
-- `5` - AI comparison failed
+- `5` - AI comparison failed (only when AI fallback is used)
 - `10` - LinkedIn login failed (triggers job stop in automation)
 
 ### monitor_menu.py (Interactive Menu)
@@ -682,9 +684,9 @@ playwright install chromium
 **Symptoms**: Getting notifications even when jobs haven't changed
 
 **Solutions**:
-- Check `logs/screen_compare.log` for AI comparison details
-- LinkedIn UI changes can sometimes trigger false positives
-- Wait a few runs - AI learns patterns over time
+- Increase `PHASH_THRESHOLD` in `monitor.py` (default is 0, try 2-3 to absorb minor visual noise)
+- Check `logs/screen_compare.log` for the "Perceptual hash difference: X" line to see how close the images are
+- LinkedIn UI changes (timestamps, counters) can sometimes trigger false positives with threshold 0
 - Use `--dry-run` to test without sending notifications
 
 #### 7. No Notifications Received
@@ -700,11 +702,7 @@ playwright install chromium
 
 **Symptoms**: Claude API bills higher than expected
 
-**Solutions**:
-- Reduce check frequency (use run_monitor.py's intelligent scheduling)
-- Use perceptual hashing (automatically enabled) to skip AI calls when possible
-- Monitor only essential job searches
-- Check logs to see how often AI comparisons are triggered
+**Note**: With the default phash-only comparison, there are **no API costs** for screenshot comparison. API calls only happen if the `imagehash` library is not installed and the system falls back to Claude AI. Ensure `imagehash` is installed (`pip install imagehash`) to avoid API costs.
 
 ### Debugging Steps
 
@@ -767,40 +765,37 @@ playwright install chromium
    playwright install chromium  # Update browser
    ```
 
-## 📊 Understanding AI Comparison
+## 📊 Understanding Screenshot Comparison
 
-### How Claude AI Analyzes Screenshots
+### Perceptual Hash (phash) Comparison
 
-The monitor sends both screenshots to Claude with specific instructions:
+JobMonitor uses perceptual hashing as the primary comparison method:
 
-**What Claude Looks For:**
-- ✅ New job listings that weren't present before
-- ✅ Removed job listings that disappeared
-- ✅ Significant content changes (job title, company, description)
+1. Generates a visual "fingerprint" (64-bit hash) of each screenshot
+2. Compares fingerprints — the difference score indicates how visually different the images are
+3. **`PHASH_THRESHOLD = 0`** — any difference at all triggers an email notification
+4. You review the emailed screenshot and decide if the change is meaningful
 
-**What Claude Ignores:**
-- ❌ Timestamps ("posted 2 hours ago" → "posted 3 hours ago")
-- ❌ Applicant counts (23 applicants → 25 applicants)
-- ❌ View counts
-- ❌ Order/position changes of the same jobs
-- ❌ Visual differences (colors, fonts, spacing)
-- ❌ UI elements (buttons, menus, ads)
+**Why phash instead of AI?**
+- **Free**: No API costs per comparison
+- **Fast**: Instant comparison (no network call)
+- **Reliable**: LinkedIn pages with the same layout but different jobs produce measurably different hashes
 
-### Perceptual Hash Pre-Check
+**Tuning the threshold:**
+- `0` = most sensitive — any visual change triggers email (current default)
+- `1-3` = absorbs minor pixel noise (timestamps, counters) but catches real changes
+- `>5` = risk of missing real changes on similarly-structured pages
 
-Before calling Claude AI (which costs money), the monitor uses a fast perceptual hash comparison:
+Edit `PHASH_THRESHOLD` in `monitor.py` to adjust sensitivity.
 
-1. Generates a "fingerprint" of each image
-2. Compares fingerprints (difference score)
-3. If difference ≤ 10: Images are identical, skip AI call
-4. If difference > 10: Images differ, use AI for detailed analysis
+### AI Fallback
 
-This can reduce AI calls by 50-70%, saving costs while maintaining accuracy.
+If the `imagehash` Python library is not installed, JobMonitor falls back to Claude AI vision comparison. This requires an `ANTHROPIC_API_KEY` in `.env`.
 
 ### Cost Optimization
 
-- **Perceptual hash** is free and instant
-- **Claude API** only used when needed
+- **Perceptual hash** is free and instant (no API calls)
+- **AI fallback** only used if imagehash library unavailable
 - **Smart scheduling** reduces unnecessary checks
 - **Session persistence** reduces page load time
 
