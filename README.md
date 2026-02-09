@@ -146,7 +146,6 @@ monitors:
     url: "https://www.linkedin.com/jobs/search/?keywords=..."
     wait_selector: "ul.jobs-search__results-list"  # Wait for results to load
     css_selector: "ul.jobs-search__results-list"   # Focus on job results
-    email_on_first_snapshot: false   # Don't email on first run
 ```
 
 See [Configuration Guide](#-configuration-guide) below for detailed options.
@@ -254,7 +253,6 @@ monitors:
     css_selector: "ul.jobs-search__results-list"   # Focus comparison on this element
     
     # Behavior options
-    email_on_first_snapshot: false   # Send email on first run (baseline creation)
     headless: true                   # Override default headless setting
     
     # Additional options (currently unused by screenshot comparison, kept for reference)
@@ -292,7 +290,6 @@ monitors:
 | `wait_selector` | string | null | CSS selector to wait for before taking screenshot |
 | `css_selector` | string | null | Focus comparison on this element only |
 | `timeout_seconds` | integer | 180 | Maximum time to wait for page load |
-| `email_on_first_snapshot` | boolean | true | Send email notification on first run |
 
 ## 📧 Email Provider Setup
 
@@ -705,7 +702,6 @@ playwright install chromium
 
 **Solutions**:
 - Reduce check frequency (use run_monitor.py's intelligent scheduling)
-- Disable `email_on_first_snapshot: false` to avoid baseline emails
 - Use perceptual hashing (automatically enabled) to skip AI calls when possible
 - Monitor only essential job searches
 - Check logs to see how often AI comparisons are triggered
@@ -829,7 +825,6 @@ This can reduce AI calls by 50-70%, saving costs while maintaining accuracy.
 1. **Smart scheduling**: Use `run_monitor.py` for intelligent timing
 2. **Consolidate searches**: Fewer, broader searches vs. many narrow ones
 3. **Business hours only**: Monitor when jobs are most likely posted
-4. **Disable first snapshot emails**: Set `email_on_first_snapshot: false`
 
 ### Improving Reliability
 
@@ -844,15 +839,12 @@ This can reduce AI calls by 50-70%, saving costs while maintaining accuracy.
 monitors:
   - name: "Remote-Senior"
     url: "..."
-    email_on_first_snapshot: false
-    
+
   - name: "Remote-Director"
     url: "..."
-    email_on_first_snapshot: false
-    
+
   - name: "NYC-Hybrid"
     url: "..."
-    email_on_first_snapshot: false
 ```
 
 Each monitor runs independently and maintains its own baseline.
@@ -908,7 +900,6 @@ monitors:
   - name: "CompanyCareerPage"
     url: "https://company.com/careers"
     css_selector: ".job-listings"
-    email_on_first_snapshot: true
 ```
 
 The AI comparison works on any website with visual changes.
