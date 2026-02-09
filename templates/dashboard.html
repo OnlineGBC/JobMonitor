@@ -65,15 +65,24 @@
                         type="button" data-bs-toggle="collapse" data-bs-target="#recentRunsBody"
                         aria-expanded="false" aria-controls="recentRunsBody">
                     <h5 class="mb-0"><i class="bi bi-list-check"></i> Recent Runs
-                        {% if run_history %}<span class="badge bg-secondary ms-2">{{ run_history[:20]|length }}</span>{% endif %}
+                        {% if total_runs %}<span class="badge bg-secondary ms-2">{{ show_runs }} of {{ total_runs }}</span>{% endif %}
                     </h5>
                     <i class="bi bi-chevron-down collapse-chevron"></i>
                 </button>
             </div>
             <div class="collapse" id="recentRunsBody">
                 <div class="card-body" id="run-history" style="max-height: 400px; overflow-y: auto;">
+                    {% if total_runs %}
+                    <div class="d-flex align-items-center gap-2 mb-2">
+                        <label for="runsCount" class="form-label mb-0 small text-muted">Show:</label>
+                        <input type="number" class="form-control form-control-sm" id="runsCount"
+                               min="1" max="{{ total_runs }}" value="{{ show_runs }}"
+                               style="width: 70px;" onchange="changeRunsCount(this.value)">
+                        <span class="small text-muted">of {{ total_runs }}</span>
+                    </div>
+                    {% endif %}
                     {% if run_history %}
-                        {% for run in run_history[:20] %}
+                        {% for run in run_history %}
                             <div class="run-history-item {{ 'success' if run.exit_code == 0 else ('running' if run.exit_code is none else 'failure') }}">
                                 <div class="d-flex justify-content-between">
                                     <strong>{{ run.monitor }}</strong>
@@ -219,6 +228,14 @@
                 setTimeout(() => location.reload(), 500);
             })
             .catch(() => showFlash('Request failed', 'error'));
+    }
+
+    function changeRunsCount(val) {
+        var count = parseInt(val);
+        if (isNaN(count) || count < 1) count = 1;
+        var max = {{ total_runs or 0 }};
+        if (count > max) count = max;
+        window.location.href = '{{ url_for("dashboard") }}?runs=' + count;
     }
 
     // Auto-refresh dashboard data

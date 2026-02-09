@@ -265,3 +265,9 @@ def get_run_history(limit=50):
     """Get recent run history entries."""
     history = _load_history()
     return list(reversed(history[-limit:]))
+
+
+def get_total_run_count():
+    """Get total number of run history entries."""
+    history = _load_history()
+    return len(history)

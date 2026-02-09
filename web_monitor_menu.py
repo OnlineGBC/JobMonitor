@@ -39,7 +39,7 @@ from flask import (
 from ruamel.yaml import YAML
 
 from monitor import clear_baseline, configure_logging, get_snapshot_paths
-from web_run_monitor import MonitorScheduler, get_run_history
+from web_run_monitor import MonitorScheduler, get_run_history, get_total_run_count
 
 # ---------------------------------------------------------------------------
 # App setup
@@ -207,11 +207,16 @@ def dashboard():
     cfg = _load_monitors_yaml()
     monitors_list = cfg.get("monitors", [])
     monitors = [_get_monitor_info(m) for m in monitors_list]
+    total_runs = get_total_run_count()
+    show_runs = request.args.get("runs", 20, type=int)
+    show_runs = max(1, min(show_runs, total_runs)) if total_runs > 0 else 0
     return render_template(
         "dashboard.html",
         monitors=monitors,
         scheduler=scheduler.get_status(),
-        run_history=get_run_history(20),
+        run_history=get_run_history(show_runs),
+        total_runs=total_runs,
+        show_runs=show_runs,
     )
 
 
