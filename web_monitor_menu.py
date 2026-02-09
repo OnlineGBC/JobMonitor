@@ -392,8 +392,18 @@ def api_monitor_clear(name):
 
 @app.route("/api/scheduler/start", methods=["POST"])
 def api_scheduler_start():
-    if scheduler.start():
-        return jsonify({"status": "ok", "message": "Scheduler started."})
+    custom_interval = None
+    if request.is_json:
+        custom_interval = request.json.get("custom_interval_minutes")
+        if custom_interval is not None:
+            custom_interval = int(custom_interval)
+            if not (5 <= custom_interval <= 120):
+                return jsonify({"status": "error", "message": "Interval must be between 5 and 120 minutes."})
+    if scheduler.start(custom_interval_minutes=custom_interval):
+        msg = "Scheduler started."
+        if custom_interval:
+            msg = f"Scheduler started with custom interval: every {custom_interval} minutes."
+        return jsonify({"status": "ok", "message": msg})
     return jsonify({"status": "warning", "message": "Scheduler is already running."})
 
 

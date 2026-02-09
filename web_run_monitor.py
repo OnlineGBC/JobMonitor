@@ -53,6 +53,7 @@ class MonitorScheduler:
         self._next_run_time = None
         self._run_in_progress = False
         self._on_demand_threads = []
+        self._custom_interval_minutes = None
 
     @property
     def running(self):
@@ -70,17 +71,22 @@ class MonitorScheduler:
             "last_run": self._last_run,
             "next_run_seconds": next_run_seconds,
             "run_in_progress": self._run_in_progress or self._current_monitor is not None,
+            "custom_interval_minutes": self._custom_interval_minutes,
         }
 
-    def start(self):
-        """Start the scheduler loop."""
+    def start(self, custom_interval_minutes=None):
+        """Start the scheduler loop. Optionally pass a custom interval in minutes."""
         if self.running:
             return False
         self._stop_event.clear()
         self._running = True
+        self._custom_interval_minutes = custom_interval_minutes
         self._thread = threading.Thread(target=self._loop, daemon=True, name="monitor-scheduler")
         self._thread.start()
-        logging.info("Scheduler started")
+        if custom_interval_minutes:
+            logging.info(f"Scheduler started with custom interval: {custom_interval_minutes} min")
+        else:
+            logging.info("Scheduler started")
         return True
 
     def stop(self):
@@ -199,12 +205,19 @@ class MonitorScheduler:
 
             # Sleep until next cycle
             et_now = get_eastern_time()
-            sleep_seconds = get_sleep_interval(et_now)
-            logging.info(
-                f"Scheduler sleeping for {sleep_seconds}s "
-                f"({sleep_seconds / 60:.1f} min) "
-                f"[{'business hours' if is_business_hours(et_now) else 'off-hours'}]"
-            )
+            if self._custom_interval_minutes:
+                sleep_seconds = self._custom_interval_minutes * 60
+                logging.info(
+                    f"Scheduler sleeping for {sleep_seconds}s "
+                    f"({self._custom_interval_minutes} min) [custom interval]"
+                )
+            else:
+                sleep_seconds = get_sleep_interval(et_now)
+                logging.info(
+                    f"Scheduler sleeping for {sleep_seconds}s "
+                    f"({sleep_seconds / 60:.1f} min) "
+                    f"[{'business hours' if is_business_hours(et_now) else 'off-hours'}]"
+                )
             if not self._sleep_interruptible(sleep_seconds):
                 break
 
