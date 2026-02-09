@@ -206,7 +206,7 @@ python monitor.py --monitor "RemoteUSA"
 2. Logs in with your credentials (if provided)
 3. Takes a full-page screenshot
 4. Saves screenshot as baseline (`snapshots/<name>_screenshot1.png`)
-5. Sends email notification with the initial screenshot
+5. Sends email notification with the initial screenshot (subject prefixed with "Initial Baseline Email")
 
 ### Subsequent Runs (Change Detection)
 
