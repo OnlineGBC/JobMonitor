@@ -95,7 +95,7 @@ MAX_RETRIES = 3
 RETRY_BASE_DELAY = 2  # seconds, doubles each retry (exponential backoff)
 
 # Perceptual hash threshold - images with hash difference <= this are considered identical
-PHASH_THRESHOLD = 3
+PHASH_THRESHOLD = 0
 
 
 def get_snapshot_paths(monitor_name: str) -> tuple:
