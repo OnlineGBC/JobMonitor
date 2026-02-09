@@ -963,13 +963,18 @@ def process_monitor(
                 logging.info(f"[{name}] New jobs appeared! Baseline had no matching jobs - skipping AI comparison.")
                 is_same = False  # Definitely different - jobs appeared
             else:
-                # Try perceptual hash comparison first (fast pre-check)
+                # Use perceptual hash to decide if screenshots changed
                 phash_result = images_are_identical_phash(screenshot1_path, screenshot2_path)
                 if phash_result is True:
-                    # Images are perceptually identical, skip expensive AI call
+                    # Images are perceptually identical (within threshold)
                     is_same = True
+                elif phash_result is False:
+                    # Images differ — skip AI, let the human review the email
+                    logging.info(f"[{name}] phash says images differ — treating as changed")
+                    is_same = False
                 else:
-                    # Use AI to compare the two screenshots (with retry logic)
+                    # imagehash unavailable or failed — fall back to AI comparison
+                    logging.warning(f"[{name}] phash unavailable, falling back to AI comparison")
                     try:
                         def _ai_compare():
                             return compare_screenshots_with_ai(screenshot1_path, screenshot2_path)
