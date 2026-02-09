@@ -903,22 +903,7 @@ def process_monitor(
             logging.error(f"[{name}] Failed to capture initial screenshot")
             return 4
 
-        # Send notification with the initial screenshot (if configured)
-        email_on_first = monitor.get("email_on_first_snapshot", defaults.get("email_on_first_snapshot", True))
-        if email_on_first:
-            body = (
-                f"Initial screenshot captured for '{name}'.\n\n"
-                f"URL: {url}\n"
-                f"Timestamp: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n"
-                f"This is the baseline. Future runs will compare against this screenshot."
-            )
-
-            if send_notifications(email_cfg, f"{subject_prefix} {name}: Initial Screenshot", body, screenshot1_path, dry_run=dry_run):
-                logging.info(f"[{name}] Initial screenshot notification sent successfully")
-            else:
-                logging.warning(f"[{name}] Failed to send initial screenshot notification")
-        else:
-            logging.info(f"[{name}] Initial screenshot captured. email_on_first_snapshot=false, skipping notification.")
+        logging.info(f"[{name}] Initial screenshot captured (baseline). No notification on first run.")
 
     else:
         # SUBSEQUENT RUN: A previous screenshot exists

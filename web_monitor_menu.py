@@ -305,7 +305,6 @@ def api_monitor_create():
         "headless": "headless" in request.form,
         "wait_selector": request.form.get("wait_selector", "").strip() or "ul.jobs-search__results-list",
         "css_selector": request.form.get("css_selector", "").strip() or "ul.jobs-search__results-list",
-        "email_on_first_snapshot": "email_on_first_snapshot" in request.form,
     }
     monitors_list.append(new_monitor)
     cfg["monitors"] = monitors_list
@@ -326,7 +325,6 @@ def api_monitor_update(name):
             m["headless"] = "headless" in request.form
             m["wait_selector"] = request.form.get("wait_selector", "").strip() or "ul.jobs-search__results-list"
             m["css_selector"] = request.form.get("css_selector", "").strip() or "ul.jobs-search__results-list"
-            m["email_on_first_snapshot"] = "email_on_first_snapshot" in request.form
             found = True
             break
 
