@@ -142,7 +142,7 @@
                         {% endif %}
                         <p class="url-display mb-2">{{ monitor.url[:80] }}{% if monitor.url|length > 80 %}...{% endif %}</p>
                         <div class="d-flex gap-1 flex-wrap">
-                            <button class="btn btn-outline-primary btn-sm" onclick="runMonitor('{{ monitor.name }}')" id="btn-run-{{ monitor.name }}">
+                            <button class="btn btn-success btn-sm" onclick="runMonitor('{{ monitor.name }}')" id="btn-run-{{ monitor.name }}">
                                 <i class="bi bi-lightning"></i> Run
                             </button>
                             <a href="{{ url_for('monitor_edit', name=monitor.name) }}" class="btn btn-outline-secondary btn-sm">
