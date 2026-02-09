@@ -112,9 +112,6 @@
                     </ul>
                 </div>
 
-                <span class="navbar-text" id="scheduler-badge">
-                    <!-- Updated by JS -->
-                </span>
             </div>
         </div>
     </nav>
@@ -252,22 +249,6 @@
             }, 5000);
         }
 
-        // ── Scheduler Badge ──
-        function updateSchedulerBadge() {
-            fetch('/api/scheduler/status')
-                .then(r => r.json())
-                .then(data => {
-                    var badge = document.getElementById('scheduler-badge');
-                    if (data.running) {
-                        badge.innerHTML = '<span class="badge bg-success"><i class="bi bi-play-circle"></i> Scheduler Running</span>';
-                    } else {
-                        badge.innerHTML = '<span class="badge bg-secondary"><i class="bi bi-stop-circle"></i> Scheduler Stopped</span>';
-                    }
-                })
-                .catch(() => {});
-        }
-        updateSchedulerBadge();
-        setInterval(updateSchedulerBadge, 10000);
     </script>
     {% block scripts %}{% endblock %}
 </body>
