@@ -146,13 +146,13 @@
                                 <i class="bi bi-lightning"></i> Run
                             </button>
                             <a href="{{ url_for('monitor_edit', name=monitor.name) }}" class="btn btn-success btn-sm">
-                                <i class="bi bi-pencil"></i>
+                                <i class="bi bi-pencil"></i> Edit
                             </a>
                             <a href="{{ url_for('screenshots', name=monitor.name) }}" class="btn btn-success btn-sm">
-                                <i class="bi bi-images"></i>
+                                <i class="bi bi-images"></i> Screenshots
                             </a>
                             <button class="btn btn-success btn-sm" onclick="clearBaseline('{{ monitor.name }}')">
-                                <i class="bi bi-arrow-counterclockwise"></i>
+                                <i class="bi bi-arrow-counterclockwise"></i> Clear Baseline
                             </button>
                         </div>
                     </div>
