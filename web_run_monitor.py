@@ -174,7 +174,7 @@ class MonitorScheduler:
             self._run_in_progress = True
 
             # Run each monitor
-            for name in monitor_names:
+            for idx, name in enumerate(monitor_names):
                 if self._stop_event.is_set():
                     break
 
@@ -185,6 +185,12 @@ class MonitorScheduler:
 
                 et_now = get_eastern_time()
                 self._last_run = et_now.strftime("%Y-%m-%d %H:%M:%S ET")
+
+                # 2-minute delay between monitors (skip after last one)
+                if idx < len(monitor_names) - 1 and not self._stop_event.is_set():
+                    logging.info(f"Waiting 2 minutes before next monitor...")
+                    if not self._sleep_interruptible(120):
+                        break
 
                 # Handle login failure with retry
                 if exit_code == 10:
@@ -245,13 +251,17 @@ class MonitorScheduler:
                         cfg = yaml.safe_load(f) or {}
                     names = [m["name"] for m in cfg.get("monitors", []) if "name" in m]
 
-                for name in names:
+                for idx, name in enumerate(names):
                     start_time = time.time()
                     exit_code = self._run_single_monitor(name)
                     duration = time.time() - start_time
                     self._record_run(name, exit_code, duration)
                     et_now = get_eastern_time()
                     self._last_run = et_now.strftime("%Y-%m-%d %H:%M:%S ET")
+                    # 2-minute delay between monitors (skip after last one)
+                    if idx < len(names) - 1:
+                        logging.info(f"Waiting 2 minutes before next monitor...")
+                        time.sleep(120)
             finally:
                 self._run_in_progress = False
 
