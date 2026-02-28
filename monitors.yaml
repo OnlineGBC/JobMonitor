@@ -127,8 +127,3 @@ monitors:
   - "\\b\\d{1,2}:\\d{2}(?:am|pm)\\b"
   - "\\b\\d{4}-\\d{2}-\\d{2}\\b"
 
-- name: TestUSA
-  url: 
-    https://www.linkedin.com/jobs/search/?currentJobId=4349076185&distance=25&f_TPR=r86400&f_WT=1%2C3%2C2&geoId=103644278&keywords=(title%3A%22Director%22%20OR%20title%3A%22VP%22%20OR%20title%3A%22Vice%20President%22%20OR%20title%3A%22Vice-President%22%20OR%20title%3A%22Head%22%20OR%20title%3A%22Leader%22%20OR%20title%3A%22Fractional%20CTO%22%20OR%20title%3A%22Fractional%20CIO%22%20)%20AND%20(title%3A%22AI%22%20OR%20title%3A%22Artificial%20Intelligence%22)%20AND%20NOT%20(%22Crossover%22%20OR%20%22Get%20IT%22%20OR%20%22Talentify%22%20OR%20%22Toptal%22%20OR%20%22Stealth%20Stanford%20AI%20Startup%22%20OR%20%22Lensa%22%20OR%20%22Tempus%22%20OR%20%22Harnham%22%20OR%20%22Swooped%22%20OR%20%22Jobgether%22)&origin=JOB_SEARCH_PAGE_JOB_FILTER&refresh=true&sortBy=R&spellCorrectionEnabled=true
-  wait_selector: ul.jobs-search__results-list
-  css_selector: ul.jobs-search__results-list

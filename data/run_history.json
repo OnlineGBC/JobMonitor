@@ -1,0 +1,3502 @@
+[
+  {
+    "monitor": "RemoteUSA",
+    "timestamp": "2026-02-19 09:52:23 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 75.5
+  },
+  {
+    "monitor": "HybridNYC",
+    "timestamp": "2026-02-19 09:55:39 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 76.0
+  },
+  {
+    "monitor": "HybridRDU",
+    "timestamp": "2026-02-19 09:58:52 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 73.2
+  },
+  {
+    "monitor": "RemoteUSA",
+    "timestamp": "2026-02-19 10:13:36 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 82.2
+  },
+  {
+    "monitor": "HybridNYC",
+    "timestamp": "2026-02-19 10:16:51 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 74.0
+  },
+  {
+    "monitor": "HybridRDU",
+    "timestamp": "2026-02-19 10:20:04 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 73.2
+  },
+  {
+    "monitor": "RemoteUSA",
+    "timestamp": "2026-02-19 10:33:55 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 79.6
+  },
+  {
+    "monitor": "HybridNYC",
+    "timestamp": "2026-02-19 10:37:10 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 74.9
+  },
+  {
+    "monitor": "HybridRDU",
+    "timestamp": "2026-02-19 10:40:25 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 74.1
+  },
+  {
+    "monitor": "RemoteUSA",
+    "timestamp": "2026-02-19 10:54:40 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 78.3
+  },
+  {
+    "monitor": "HybridNYC",
+    "timestamp": "2026-02-19 10:57:56 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 75.8
+  },
+  {
+    "monitor": "HybridRDU",
+    "timestamp": "2026-02-19 11:01:10 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 73.8
+  },
+  {
+    "monitor": "RemoteUSA",
+    "timestamp": "2026-02-19 11:16:15 ET",
+    "exit_code": 10,
+    "description": "LinkedIn login failed",
+    "duration_seconds": 19.8
+  },
+  {
+    "monitor": "RemoteUSA",
+    "timestamp": "2026-02-19 11:29:34 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 77.2
+  },
+  {
+    "monitor": "HybridNYC",
+    "timestamp": "2026-02-19 11:30:49 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 74.7
+  },
+  {
+    "monitor": "HybridRDU",
+    "timestamp": "2026-02-19 11:34:03 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 73.9
+  },
+  {
+    "monitor": "RemoteUSA",
+    "timestamp": "2026-02-19 11:47:52 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 79.4
+  },
+  {
+    "monitor": "HybridNYC",
+    "timestamp": "2026-02-19 11:51:11 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 79.7
+  },
+  {
+    "monitor": "HybridRDU",
+    "timestamp": "2026-02-19 11:54:25 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 73.3
+  },
+  {
+    "monitor": "RemoteUSA",
+    "timestamp": "2026-02-19 12:09:11 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 76.6
+  },
+  {
+    "monitor": "HybridNYC",
+    "timestamp": "2026-02-19 12:12:27 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 75.8
+  },
+  {
+    "monitor": "HybridRDU",
+    "timestamp": "2026-02-19 12:15:42 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 74.0
+  },
+  {
+    "monitor": "RemoteUSA",
+    "timestamp": "2026-02-19 12:30:45 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 79.2
+  },
+  {
+    "monitor": "HybridNYC",
+    "timestamp": "2026-02-19 12:34:03 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 77.5
+  },
+  {
+    "monitor": "HybridRDU",
+    "timestamp": "2026-02-19 12:37:17 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 73.9
+  },
+  {
+    "monitor": "RemoteUSA",
+    "timestamp": "2026-02-19 12:52:06 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 78.6
+  },
+  {
+    "monitor": "HybridNYC",
+    "timestamp": "2026-02-19 12:55:20 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 73.3
+  },
+  {
+    "monitor": "HybridRDU",
+    "timestamp": "2026-02-19 12:58:34 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 74.2
+  },
+  {
+    "monitor": "RemoteUSA",
+    "timestamp": "2026-02-19 13:11:38 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 84.7
+  },
+  {
+    "monitor": "HybridNYC",
+    "timestamp": "2026-02-19 13:14:54 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 75.4
+  },
+  {
+    "monitor": "HybridRDU",
+    "timestamp": "2026-02-19 13:18:07 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 73.3
+  },
+  {
+    "monitor": "RemoteUSA",
+    "timestamp": "2026-02-19 13:31:42 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 80.4
+  },
+  {
+    "monitor": "HybridNYC",
+    "timestamp": "2026-02-19 13:35:03 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 79.8
+  },
+  {
+    "monitor": "HybridRDU",
+    "timestamp": "2026-02-19 13:38:18 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 73.5
+  },
+  {
+    "monitor": "RemoteUSA",
+    "timestamp": "2026-02-19 13:50:26 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 79.7
+  },
+  {
+    "monitor": "HybridNYC",
+    "timestamp": "2026-02-19 13:53:42 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 75.2
+  },
+  {
+    "monitor": "HybridRDU",
+    "timestamp": "2026-02-19 13:56:56 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 73.5
+  },
+  {
+    "monitor": "RemoteUSA",
+    "timestamp": "2026-02-19 14:09:31 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 92.4
+  },
+  {
+    "monitor": "HybridNYC",
+    "timestamp": "2026-02-19 14:12:44 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 73.5
+  },
+  {
+    "monitor": "HybridRDU",
+    "timestamp": "2026-02-19 14:15:59 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 74.4
+  },
+  {
+    "monitor": "RemoteUSA",
+    "timestamp": "2026-02-19 14:31:21 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 78.9
+  },
+  {
+    "monitor": "HybridNYC",
+    "timestamp": "2026-02-19 14:34:35 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 73.8
+  },
+  {
+    "monitor": "HybridRDU",
+    "timestamp": "2026-02-19 14:37:49 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 74.1
+  },
+  {
+    "monitor": "RemoteUSA",
+    "timestamp": "2026-02-19 14:50:05 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 81.8
+  },
+  {
+    "monitor": "HybridNYC",
+    "timestamp": "2026-02-19 14:53:19 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 74.1
+  },
+  {
+    "monitor": "HybridRDU",
+    "timestamp": "2026-02-19 14:56:34 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 74.1
+  },
+  {
+    "monitor": "RemoteUSA",
+    "timestamp": "2026-02-19 15:11:50 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 81.9
+  },
+  {
+    "monitor": "HybridNYC",
+    "timestamp": "2026-02-19 15:15:11 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 79.6
+  },
+  {
+    "monitor": "HybridRDU",
+    "timestamp": "2026-02-19 15:18:31 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 79.7
+  },
+  {
+    "monitor": "RemoteUSA",
+    "timestamp": "2026-02-19 15:30:15 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 78.8
+  },
+  {
+    "monitor": "HybridNYC",
+    "timestamp": "2026-02-19 15:33:30 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 74.9
+  },
+  {
+    "monitor": "HybridRDU",
+    "timestamp": "2026-02-19 15:36:44 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 72.9
+  },
+  {
+    "monitor": "RemoteUSA",
+    "timestamp": "2026-02-20 20:09:31 ET",
+    "exit_code": 10,
+    "description": "LinkedIn login failed",
+    "duration_seconds": 100008.7
+  },
+  {
+    "monitor": "RemoteUSA",
+    "timestamp": "2026-02-20 20:23:00 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 86.7
+  },
+  {
+    "monitor": "HybridNYC",
+    "timestamp": "2026-02-20 20:24:12 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 72.5
+  },
+  {
+    "monitor": "HybridRDU",
+    "timestamp": "2026-02-20 20:27:25 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 71.7
+  },
+  {
+    "monitor": "RemoteUSA",
+    "timestamp": "2026-02-20 22:31:33 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 88.3
+  },
+  {
+    "monitor": "HybridNYC",
+    "timestamp": "2026-02-20 22:34:48 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 75.0
+  },
+  {
+    "monitor": "HybridRDU",
+    "timestamp": "2026-02-20 22:38:03 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 74.2
+  },
+  {
+    "monitor": "RemoteUSA",
+    "timestamp": "2026-02-23 00:19:35 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 88.2
+  },
+  {
+    "monitor": "HybridNYC",
+    "timestamp": "2026-02-23 00:22:51 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 75.2
+  },
+  {
+    "monitor": "HybridRDU",
+    "timestamp": "2026-02-23 00:26:04 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 72.0
+  },
+  {
+    "monitor": "RemoteUSA",
+    "timestamp": "2026-02-23 02:27:23 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 75.9
+  },
+  {
+    "monitor": "HybridNYC",
+    "timestamp": "2026-02-23 02:30:40 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 76.4
+  },
+  {
+    "monitor": "HybridRDU",
+    "timestamp": "2026-02-23 02:33:51 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 71.1
+  },
+  {
+    "monitor": "RemoteUSA",
+    "timestamp": "2026-02-23 04:30:52 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 75.4
+  },
+  {
+    "monitor": "HybridNYC",
+    "timestamp": "2026-02-23 04:34:03 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 71.1
+  },
+  {
+    "monitor": "HybridRDU",
+    "timestamp": "2026-02-23 04:37:14 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 71.1
+  },
+  {
+    "monitor": "RemoteUSA",
+    "timestamp": "2026-02-23 06:42:46 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 75.2
+  },
+  {
+    "monitor": "HybridNYC",
+    "timestamp": "2026-02-23 06:45:58 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 71.6
+  },
+  {
+    "monitor": "HybridRDU",
+    "timestamp": "2026-02-23 06:49:09 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 71.0
+  },
+  {
+    "monitor": "RemoteUSA",
+    "timestamp": "2026-02-23 08:54:48 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 82.9
+  },
+  {
+    "monitor": "HybridNYC",
+    "timestamp": "2026-02-23 08:58:02 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 72.8
+  },
+  {
+    "monitor": "HybridRDU",
+    "timestamp": "2026-02-23 09:01:14 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 71.8
+  },
+  {
+    "monitor": "RemoteUSA",
+    "timestamp": "2026-02-23 09:13:53 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 75.9
+  },
+  {
+    "monitor": "HybridNYC",
+    "timestamp": "2026-02-23 09:16:12 ET",
+    "exit_code": 10,
+    "description": "LinkedIn login failed",
+    "duration_seconds": 18.1
+  },
+  {
+    "monitor": "HybridNYC",
+    "timestamp": "2026-02-23 09:29:26 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 73.4
+  },
+  {
+    "monitor": "HybridRDU",
+    "timestamp": "2026-02-23 09:30:37 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 70.7
+  },
+  {
+    "monitor": "RemoteUSA",
+    "timestamp": "2026-02-23 09:44:52 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 76.0
+  },
+  {
+    "monitor": "HybridNYC",
+    "timestamp": "2026-02-23 09:48:03 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 71.1
+  },
+  {
+    "monitor": "HybridRDU",
+    "timestamp": "2026-02-23 09:51:15 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 71.3
+  },
+  {
+    "monitor": "RemoteUSA",
+    "timestamp": "2026-02-23 10:03:44 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 75.9
+  },
+  {
+    "monitor": "HybridNYC",
+    "timestamp": "2026-02-23 10:06:56 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 72.6
+  },
+  {
+    "monitor": "HybridRDU",
+    "timestamp": "2026-02-23 10:10:08 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 71.0
+  },
+  {
+    "monitor": "RemoteUSA",
+    "timestamp": "2026-02-23 10:25:24 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 86.8
+  },
+  {
+    "monitor": "HybridNYC",
+    "timestamp": "2026-02-23 10:28:36 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 72.3
+  },
+  {
+    "monitor": "HybridRDU",
+    "timestamp": "2026-02-23 10:31:47 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 70.9
+  },
+  {
+    "monitor": "RemoteUSA",
+    "timestamp": "2026-02-23 10:47:40 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 75.0
+  },
+  {
+    "monitor": "HybridNYC",
+    "timestamp": "2026-02-23 10:50:57 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 76.8
+  },
+  {
+    "monitor": "HybridRDU",
+    "timestamp": "2026-02-23 10:54:08 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 71.2
+  },
+  {
+    "monitor": "RemoteUSA",
+    "timestamp": "2026-02-23 11:09:02 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 74.7
+  },
+  {
+    "monitor": "RemoteUSA",
+    "timestamp": "2026-02-23 11:12:00 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 76.6
+  },
+  {
+    "monitor": "HybridNYC",
+    "timestamp": "2026-02-23 11:15:12 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 72.3
+  },
+  {
+    "monitor": "HybridRDU",
+    "timestamp": "2026-02-23 11:18:24 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 71.5
+  },
+  {
+    "monitor": "RemoteUSA",
+    "timestamp": "2026-02-23 11:33:35 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 74.0
+  },
+  {
+    "monitor": "HybridNYC",
+    "timestamp": "2026-02-23 11:36:48 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 72.9
+  },
+  {
+    "monitor": "HybridRDU",
+    "timestamp": "2026-02-23 11:40:00 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 71.2
+  },
+  {
+    "monitor": "RemoteUSA",
+    "timestamp": "2026-02-23 11:53:01 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 75.0
+  },
+  {
+    "monitor": "HybridNYC",
+    "timestamp": "2026-02-23 11:56:14 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 72.9
+  },
+  {
+    "monitor": "RemoteUSA",
+    "timestamp": "2026-02-23 23:29:31 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 89.9
+  },
+  {
+    "monitor": "HybridNYC",
+    "timestamp": "2026-02-23 23:32:44 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 71.6
+  },
+  {
+    "monitor": "HybridRDU",
+    "timestamp": "2026-02-23 23:35:56 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 72.6
+  },
+  {
+    "monitor": "RemoteUSA",
+    "timestamp": "2026-02-24 01:32:25 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 78.1
+  },
+  {
+    "monitor": "HybridNYC",
+    "timestamp": "2026-02-24 01:35:40 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 73.9
+  },
+  {
+    "monitor": "HybridRDU",
+    "timestamp": "2026-02-24 01:38:55 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 73.6
+  },
+  {
+    "monitor": "RemoteUSA",
+    "timestamp": "2026-02-24 03:38:19 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 79.0
+  },
+  {
+    "monitor": "HybridNYC",
+    "timestamp": "2026-02-24 03:41:34 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 74.6
+  },
+  {
+    "monitor": "HybridRDU",
+    "timestamp": "2026-02-24 03:44:48 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 73.1
+  },
+  {
+    "monitor": "RemoteUSA",
+    "timestamp": "2026-02-24 05:49:43 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 77.8
+  },
+  {
+    "monitor": "HybridNYC",
+    "timestamp": "2026-02-24 05:52:56 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 72.3
+  },
+  {
+    "monitor": "HybridRDU",
+    "timestamp": "2026-02-24 05:56:11 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 73.5
+  },
+  {
+    "monitor": "RemoteUSA",
+    "timestamp": "2026-02-24 07:57:54 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 79.2
+  },
+  {
+    "monitor": "HybridNYC",
+    "timestamp": "2026-02-24 08:01:10 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 74.3
+  },
+  {
+    "monitor": "HybridRDU",
+    "timestamp": "2026-02-24 08:04:24 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 73.1
+  },
+  {
+    "monitor": "RemoteUSA",
+    "timestamp": "2026-02-24 08:20:19 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 75.8
+  },
+  {
+    "monitor": "HybridNYC",
+    "timestamp": "2026-02-24 08:23:34 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 74.3
+  },
+  {
+    "monitor": "HybridRDU",
+    "timestamp": "2026-02-24 08:26:52 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 76.8
+  },
+  {
+    "monitor": "RemoteUSA",
+    "timestamp": "2026-02-24 08:40:30 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 77.2
+  },
+  {
+    "monitor": "HybridNYC",
+    "timestamp": "2026-02-24 08:43:45 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 73.4
+  },
+  {
+    "monitor": "HybridRDU",
+    "timestamp": "2026-02-24 08:46:56 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 71.2
+  },
+  {
+    "monitor": "RemoteUSA",
+    "timestamp": "2026-02-24 09:00:53 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 77.0
+  },
+  {
+    "monitor": "HybridNYC",
+    "timestamp": "2026-02-24 09:04:08 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 74.8
+  },
+  {
+    "monitor": "HybridRDU",
+    "timestamp": "2026-02-24 09:07:20 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 71.7
+  },
+  {
+    "monitor": "RemoteUSA",
+    "timestamp": "2026-02-24 09:23:12 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 85.5
+  },
+  {
+    "monitor": "HybridNYC",
+    "timestamp": "2026-02-24 09:26:27 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 74.2
+  },
+  {
+    "monitor": "HybridRDU",
+    "timestamp": "2026-02-24 09:29:40 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 72.6
+  },
+  {
+    "monitor": "RemoteUSA",
+    "timestamp": "2026-02-24 09:42:52 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 75.5
+  },
+  {
+    "monitor": "HybridNYC",
+    "timestamp": "2026-02-24 09:46:05 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 73.0
+  },
+  {
+    "monitor": "HybridRDU",
+    "timestamp": "2026-02-24 09:49:17 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 71.4
+  },
+  {
+    "monitor": "RemoteUSA",
+    "timestamp": "2026-02-24 10:03:33 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 77.0
+  },
+  {
+    "monitor": "HybridNYC",
+    "timestamp": "2026-02-24 10:06:45 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 71.7
+  },
+  {
+    "monitor": "HybridRDU",
+    "timestamp": "2026-02-24 10:09:57 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 71.8
+  },
+  {
+    "monitor": "RemoteUSA",
+    "timestamp": "2026-02-24 10:22:03 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 76.4
+  },
+  {
+    "monitor": "HybridNYC",
+    "timestamp": "2026-02-24 10:25:15 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 71.9
+  },
+  {
+    "monitor": "HybridRDU",
+    "timestamp": "2026-02-24 10:28:27 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 71.8
+  },
+  {
+    "monitor": "RemoteUSA",
+    "timestamp": "2026-02-24 10:44:09 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 76.5
+  },
+  {
+    "monitor": "HybridNYC",
+    "timestamp": "2026-02-24 10:47:20 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 71.4
+  },
+  {
+    "monitor": "HybridRDU",
+    "timestamp": "2026-02-24 10:50:33 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 72.0
+  },
+  {
+    "monitor": "RemoteUSA",
+    "timestamp": "2026-02-24 11:06:41 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 76.4
+  },
+  {
+    "monitor": "HybridNYC",
+    "timestamp": "2026-02-24 11:09:53 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 72.3
+  },
+  {
+    "monitor": "HybridRDU",
+    "timestamp": "2026-02-24 11:13:06 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 71.2
+  },
+  {
+    "monitor": "RemoteUSA",
+    "timestamp": "2026-02-24 11:26:38 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 76.2
+  },
+  {
+    "monitor": "HybridNYC",
+    "timestamp": "2026-02-24 11:29:50 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 71.3
+  },
+  {
+    "monitor": "HybridRDU",
+    "timestamp": "2026-02-24 11:33:02 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 71.1
+  },
+  {
+    "monitor": "RemoteUSA",
+    "timestamp": "2026-02-24 11:47:42 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 75.6
+  },
+  {
+    "monitor": "HybridNYC",
+    "timestamp": "2026-02-24 11:50:54 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 71.8
+  },
+  {
+    "monitor": "HybridRDU",
+    "timestamp": "2026-02-24 11:54:08 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 72.1
+  },
+  {
+    "monitor": "RemoteUSA",
+    "timestamp": "2026-02-24 12:09:13 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 76.7
+  },
+  {
+    "monitor": "HybridNYC",
+    "timestamp": "2026-02-24 12:12:34 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 80.8
+  },
+  {
+    "monitor": "HybridRDU",
+    "timestamp": "2026-02-24 12:15:46 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 71.7
+  },
+  {
+    "monitor": "RemoteUSA",
+    "timestamp": "2026-02-24 12:29:20 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 77.6
+  },
+  {
+    "monitor": "HybridNYC",
+    "timestamp": "2026-02-24 12:32:38 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 78.5
+  },
+  {
+    "monitor": "HybridRDU",
+    "timestamp": "2026-02-24 12:35:53 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 74.1
+  },
+  {
+    "monitor": "RemoteUSA",
+    "timestamp": "2026-02-24 12:49:08 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 75.6
+  },
+  {
+    "monitor": "HybridNYC",
+    "timestamp": "2026-02-24 12:52:22 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 73.9
+  },
+  {
+    "monitor": "HybridRDU",
+    "timestamp": "2026-02-24 12:55:35 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 72.5
+  },
+  {
+    "monitor": "RemoteUSA",
+    "timestamp": "2026-02-24 13:11:18 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 76.3
+  },
+  {
+    "monitor": "HybridNYC",
+    "timestamp": "2026-02-24 13:14:32 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 73.0
+  },
+  {
+    "monitor": "HybridRDU",
+    "timestamp": "2026-02-24 13:17:45 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 71.6
+  },
+  {
+    "monitor": "RemoteUSA",
+    "timestamp": "2026-02-24 13:30:40 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 78.0
+  },
+  {
+    "monitor": "HybridNYC",
+    "timestamp": "2026-02-24 13:33:56 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 75.4
+  },
+  {
+    "monitor": "HybridRDU",
+    "timestamp": "2026-02-24 13:37:09 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 71.6
+  },
+  {
+    "monitor": "RemoteUSA",
+    "timestamp": "2026-02-24 13:49:27 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 75.9
+  },
+  {
+    "monitor": "HybridNYC",
+    "timestamp": "2026-02-24 13:52:41 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 73.1
+  },
+  {
+    "monitor": "HybridRDU",
+    "timestamp": "2026-02-24 13:55:53 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 71.2
+  },
+  {
+    "monitor": "RemoteUSA",
+    "timestamp": "2026-02-24 14:09:50 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 76.4
+  },
+  {
+    "monitor": "HybridNYC",
+    "timestamp": "2026-02-24 14:13:04 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 73.4
+  },
+  {
+    "monitor": "HybridRDU",
+    "timestamp": "2026-02-24 14:16:16 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 71.6
+  },
+  {
+    "monitor": "RemoteUSA",
+    "timestamp": "2026-02-24 14:32:19 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 76.6
+  },
+  {
+    "monitor": "HybridNYC",
+    "timestamp": "2026-02-24 14:35:32 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 72.4
+  },
+  {
+    "monitor": "HybridRDU",
+    "timestamp": "2026-02-24 14:38:44 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 71.3
+  },
+  {
+    "monitor": "RemoteUSA",
+    "timestamp": "2026-02-24 14:52:14 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 75.7
+  },
+  {
+    "monitor": "HybridNYC",
+    "timestamp": "2026-02-24 14:55:26 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 72.5
+  },
+  {
+    "monitor": "HybridRDU",
+    "timestamp": "2026-02-24 14:58:39 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 71.7
+  },
+  {
+    "monitor": "RemoteUSA",
+    "timestamp": "2026-02-24 15:10:39 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 74.3
+  },
+  {
+    "monitor": "HybridNYC",
+    "timestamp": "2026-02-24 15:13:51 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 72.5
+  },
+  {
+    "monitor": "HybridRDU",
+    "timestamp": "2026-02-24 15:17:16 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 83.6
+  },
+  {
+    "monitor": "RemoteUSA",
+    "timestamp": "2026-02-24 15:33:33 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 81.9
+  },
+  {
+    "monitor": "HybridNYC",
+    "timestamp": "2026-02-24 15:36:48 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 73.8
+  },
+  {
+    "monitor": "HybridRDU",
+    "timestamp": "2026-02-24 15:40:00 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 71.9
+  },
+  {
+    "monitor": "RemoteUSA",
+    "timestamp": "2026-02-24 15:55:32 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 77.2
+  },
+  {
+    "monitor": "HybridNYC",
+    "timestamp": "2026-02-24 15:58:46 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 73.6
+  },
+  {
+    "monitor": "HybridRDU",
+    "timestamp": "2026-02-24 16:02:00 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 72.8
+  },
+  {
+    "monitor": "RemoteUSA",
+    "timestamp": "2026-02-24 16:14:04 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 76.2
+  },
+  {
+    "monitor": "HybridNYC",
+    "timestamp": "2026-02-24 16:17:18 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 73.8
+  },
+  {
+    "monitor": "HybridRDU",
+    "timestamp": "2026-02-24 16:20:32 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 72.7
+  },
+  {
+    "monitor": "RemoteUSA",
+    "timestamp": "2026-02-24 16:36:24 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 76.7
+  },
+  {
+    "monitor": "HybridNYC",
+    "timestamp": "2026-02-24 16:39:36 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 72.3
+  },
+  {
+    "monitor": "HybridRDU",
+    "timestamp": "2026-02-24 16:42:48 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 71.9
+  },
+  {
+    "monitor": "RemoteUSA",
+    "timestamp": "2026-02-24 16:58:24 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 79.9
+  },
+  {
+    "monitor": "HybridNYC",
+    "timestamp": "2026-02-24 17:01:43 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 79.2
+  },
+  {
+    "monitor": "HybridRDU",
+    "timestamp": "2026-02-24 17:04:57 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 73.7
+  },
+  {
+    "monitor": "RemoteUSA",
+    "timestamp": "2026-02-24 17:17:02 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 81.1
+  },
+  {
+    "monitor": "HybridNYC",
+    "timestamp": "2026-02-24 17:20:16 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 74.5
+  },
+  {
+    "monitor": "HybridRDU",
+    "timestamp": "2026-02-24 17:23:29 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 72.9
+  },
+  {
+    "monitor": "RemoteUSA",
+    "timestamp": "2026-02-24 17:36:18 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 77.6
+  },
+  {
+    "monitor": "HybridNYC",
+    "timestamp": "2026-02-24 17:39:31 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 73.3
+  },
+  {
+    "monitor": "HybridRDU",
+    "timestamp": "2026-02-24 17:42:45 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 72.8
+  },
+  {
+    "monitor": "RemoteUSA",
+    "timestamp": "2026-02-24 17:55:11 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 95.7
+  },
+  {
+    "monitor": "HybridNYC",
+    "timestamp": "2026-02-24 17:58:26 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 74.3
+  },
+  {
+    "monitor": "HybridRDU",
+    "timestamp": "2026-02-24 18:01:38 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 72.4
+  },
+  {
+    "monitor": "RemoteUSA",
+    "timestamp": "2026-02-24 18:15:28 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 76.9
+  },
+  {
+    "monitor": "HybridNYC",
+    "timestamp": "2026-02-24 18:18:42 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 73.1
+  },
+  {
+    "monitor": "HybridRDU",
+    "timestamp": "2026-02-24 18:21:54 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 71.9
+  },
+  {
+    "monitor": "RemoteUSA",
+    "timestamp": "2026-02-24 18:35:31 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 77.1
+  },
+  {
+    "monitor": "HybridNYC",
+    "timestamp": "2026-02-24 18:38:47 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 74.6
+  },
+  {
+    "monitor": "HybridRDU",
+    "timestamp": "2026-02-24 18:41:59 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 72.1
+  },
+  {
+    "monitor": "RemoteUSA",
+    "timestamp": "2026-02-24 18:54:59 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 77.7
+  },
+  {
+    "monitor": "HybridNYC",
+    "timestamp": "2026-02-24 18:58:21 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 82.0
+  },
+  {
+    "monitor": "HybridRDU",
+    "timestamp": "2026-02-24 19:01:35 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 73.4
+  },
+  {
+    "monitor": "RemoteUSA",
+    "timestamp": "2026-02-24 19:16:17 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 78.6
+  },
+  {
+    "monitor": "HybridNYC",
+    "timestamp": "2026-02-24 19:19:32 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 73.7
+  },
+  {
+    "monitor": "HybridRDU",
+    "timestamp": "2026-02-24 19:22:45 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 73.0
+  },
+  {
+    "monitor": "RemoteUSA",
+    "timestamp": "2026-02-24 19:36:28 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 77.1
+  },
+  {
+    "monitor": "HybridNYC",
+    "timestamp": "2026-02-24 19:39:42 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 72.7
+  },
+  {
+    "monitor": "HybridRDU",
+    "timestamp": "2026-02-24 19:42:56 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 72.7
+  },
+  {
+    "monitor": "RemoteUSA",
+    "timestamp": "2026-02-24 19:59:03 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 76.5
+  },
+  {
+    "monitor": "HybridNYC",
+    "timestamp": "2026-02-24 20:02:15 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 72.3
+  },
+  {
+    "monitor": "HybridRDU",
+    "timestamp": "2026-02-24 20:05:27 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 72.0
+  },
+  {
+    "monitor": "RemoteUSA",
+    "timestamp": "2026-02-24 22:08:54 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 85.7
+  },
+  {
+    "monitor": "HybridNYC",
+    "timestamp": "2026-02-24 22:12:07 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 72.1
+  },
+  {
+    "monitor": "HybridRDU",
+    "timestamp": "2026-02-24 22:15:21 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 73.5
+  },
+  {
+    "monitor": "RemoteUSA",
+    "timestamp": "2026-02-25 00:13:28 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 85.9
+  },
+  {
+    "monitor": "HybridNYC",
+    "timestamp": "2026-02-25 00:16:43 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 73.9
+  },
+  {
+    "monitor": "HybridRDU",
+    "timestamp": "2026-02-25 00:19:57 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 72.7
+  },
+  {
+    "monitor": "RemoteUSA",
+    "timestamp": "2026-02-25 02:22:31 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 76.1
+  },
+  {
+    "monitor": "HybridNYC",
+    "timestamp": "2026-02-25 02:25:46 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 75.8
+  },
+  {
+    "monitor": "HybridRDU",
+    "timestamp": "2026-02-25 02:29:05 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 78.1
+  },
+  {
+    "monitor": "RemoteUSA",
+    "timestamp": "2026-02-25 04:30:41 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 77.6
+  },
+  {
+    "monitor": "HybridNYC",
+    "timestamp": "2026-02-25 04:33:55 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 72.6
+  },
+  {
+    "monitor": "HybridRDU",
+    "timestamp": "2026-02-25 04:37:07 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 71.3
+  },
+  {
+    "monitor": "RemoteUSA",
+    "timestamp": "2026-02-25 06:36:15 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 76.4
+  },
+  {
+    "monitor": "HybridNYC",
+    "timestamp": "2026-02-25 06:39:28 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 72.0
+  },
+  {
+    "monitor": "HybridRDU",
+    "timestamp": "2026-02-25 06:42:40 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 71.5
+  },
+  {
+    "monitor": "RemoteUSA",
+    "timestamp": "2026-02-25 08:46:53 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 76.9
+  },
+  {
+    "monitor": "HybridNYC",
+    "timestamp": "2026-02-25 08:50:06 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 72.1
+  },
+  {
+    "monitor": "HybridRDU",
+    "timestamp": "2026-02-25 08:53:19 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 72.1
+  },
+  {
+    "monitor": "RemoteUSA",
+    "timestamp": "2026-02-25 09:07:55 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 76.3
+  },
+  {
+    "monitor": "HybridNYC",
+    "timestamp": "2026-02-25 09:11:08 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 72.1
+  },
+  {
+    "monitor": "HybridRDU",
+    "timestamp": "2026-02-25 09:14:20 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 71.9
+  },
+  {
+    "monitor": "RemoteUSA",
+    "timestamp": "2026-02-25 09:26:54 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 76.1
+  },
+  {
+    "monitor": "HybridNYC",
+    "timestamp": "2026-02-25 09:30:07 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 73.0
+  },
+  {
+    "monitor": "HybridRDU",
+    "timestamp": "2026-02-25 09:33:19 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 71.6
+  },
+  {
+    "monitor": "RemoteUSA",
+    "timestamp": "2026-02-25 09:46:42 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 86.8
+  },
+  {
+    "monitor": "HybridNYC",
+    "timestamp": "2026-02-25 09:49:55 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 73.1
+  },
+  {
+    "monitor": "HybridRDU",
+    "timestamp": "2026-02-25 09:53:08 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 72.3
+  },
+  {
+    "monitor": "RemoteUSA",
+    "timestamp": "2026-02-25 10:08:34 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 76.4
+  },
+  {
+    "monitor": "HybridNYC",
+    "timestamp": "2026-02-25 10:11:49 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 73.8
+  },
+  {
+    "monitor": "HybridRDU",
+    "timestamp": "2026-02-25 10:15:02 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 71.9
+  },
+  {
+    "monitor": "RemoteUSA",
+    "timestamp": "2026-02-25 10:28:00 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 76.8
+  },
+  {
+    "monitor": "HybridNYC",
+    "timestamp": "2026-02-25 10:31:14 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 73.0
+  },
+  {
+    "monitor": "HybridRDU",
+    "timestamp": "2026-02-25 10:34:26 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 71.9
+  },
+  {
+    "monitor": "RemoteUSA",
+    "timestamp": "2026-02-25 10:47:47 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 76.5
+  },
+  {
+    "monitor": "HybridNYC",
+    "timestamp": "2026-02-25 10:51:01 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 72.2
+  },
+  {
+    "monitor": "HybridRDU",
+    "timestamp": "2026-02-25 10:54:15 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 73.7
+  },
+  {
+    "monitor": "RemoteUSA",
+    "timestamp": "2026-02-25 11:06:43 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 77.6
+  },
+  {
+    "monitor": "HybridNYC",
+    "timestamp": "2026-02-25 11:10:04 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 79.7
+  },
+  {
+    "monitor": "HybridRDU",
+    "timestamp": "2026-02-25 11:13:17 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 71.7
+  },
+  {
+    "monitor": "RemoteUSA",
+    "timestamp": "2026-02-25 11:27:54 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 77.7
+  },
+  {
+    "monitor": "HybridNYC",
+    "timestamp": "2026-02-25 11:31:12 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 76.9
+  },
+  {
+    "monitor": "HybridRDU",
+    "timestamp": "2026-02-25 11:34:27 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 73.8
+  },
+  {
+    "monitor": "RemoteUSA",
+    "timestamp": "2026-02-25 11:46:58 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 81.3
+  },
+  {
+    "monitor": "HybridNYC",
+    "timestamp": "2026-02-25 11:50:10 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 72.0
+  },
+  {
+    "monitor": "HybridRDU",
+    "timestamp": "2026-02-25 11:53:23 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 72.5
+  },
+  {
+    "monitor": "RemoteUSA",
+    "timestamp": "2026-02-25 12:07:42 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 76.4
+  },
+  {
+    "monitor": "HybridNYC",
+    "timestamp": "2026-02-25 12:10:57 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 75.0
+  },
+  {
+    "monitor": "HybridRDU",
+    "timestamp": "2026-02-25 12:14:19 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 81.4
+  },
+  {
+    "monitor": "RemoteUSA",
+    "timestamp": "2026-02-25 12:27:40 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 81.2
+  },
+  {
+    "monitor": "HybridNYC",
+    "timestamp": "2026-02-25 12:30:51 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 71.8
+  },
+  {
+    "monitor": "HybridRDU",
+    "timestamp": "2026-02-25 12:34:05 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 72.1
+  },
+  {
+    "monitor": "RemoteUSA",
+    "timestamp": "2026-02-25 12:46:35 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 77.0
+  },
+  {
+    "monitor": "HybridNYC",
+    "timestamp": "2026-02-25 12:50:00 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 84.1
+  },
+  {
+    "monitor": "HybridRDU",
+    "timestamp": "2026-02-25 12:53:13 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 72.4
+  },
+  {
+    "monitor": "RemoteUSA",
+    "timestamp": "2026-02-25 13:05:17 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 73.8
+  },
+  {
+    "monitor": "HybridNYC",
+    "timestamp": "2026-02-25 13:08:31 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 72.9
+  },
+  {
+    "monitor": "HybridRDU",
+    "timestamp": "2026-02-25 13:11:44 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 71.7
+  },
+  {
+    "monitor": "RemoteUSA",
+    "timestamp": "2026-02-25 13:24:22 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 76.5
+  },
+  {
+    "monitor": "HybridNYC",
+    "timestamp": "2026-02-25 13:27:36 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 72.7
+  },
+  {
+    "monitor": "HybridRDU",
+    "timestamp": "2026-02-25 13:30:48 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 71.8
+  },
+  {
+    "monitor": "RemoteUSA",
+    "timestamp": "2026-02-25 13:43:58 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 76.0
+  },
+  {
+    "monitor": "HybridNYC",
+    "timestamp": "2026-02-25 13:47:11 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 72.1
+  },
+  {
+    "monitor": "HybridRDU",
+    "timestamp": "2026-02-25 13:50:24 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 72.1
+  },
+  {
+    "monitor": "RemoteUSA",
+    "timestamp": "2026-02-25 14:04:07 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 76.3
+  },
+  {
+    "monitor": "HybridNYC",
+    "timestamp": "2026-02-25 14:07:22 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 74.2
+  },
+  {
+    "monitor": "HybridRDU",
+    "timestamp": "2026-02-25 14:10:35 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 72.4
+  },
+  {
+    "monitor": "RemoteUSA",
+    "timestamp": "2026-02-25 14:23:30 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 88.2
+  },
+  {
+    "monitor": "HybridNYC",
+    "timestamp": "2026-02-25 14:26:43 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 73.4
+  },
+  {
+    "monitor": "HybridRDU",
+    "timestamp": "2026-02-25 14:29:56 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 71.7
+  },
+  {
+    "monitor": "RemoteUSA",
+    "timestamp": "2026-02-25 14:43:14 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 77.5
+  },
+  {
+    "monitor": "HybridNYC",
+    "timestamp": "2026-02-25 14:46:27 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 72.9
+  },
+  {
+    "monitor": "HybridRDU",
+    "timestamp": "2026-02-25 14:49:43 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 75.4
+  },
+  {
+    "monitor": "RemoteUSA",
+    "timestamp": "2026-02-25 15:02:08 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 76.7
+  },
+  {
+    "monitor": "HybridNYC",
+    "timestamp": "2026-02-25 15:05:22 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 74.6
+  },
+  {
+    "monitor": "HybridRDU",
+    "timestamp": "2026-02-25 15:08:37 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 74.1
+  },
+  {
+    "monitor": "RemoteUSA",
+    "timestamp": "2026-02-25 15:20:44 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 77.5
+  },
+  {
+    "monitor": "HybridNYC",
+    "timestamp": "2026-02-25 15:24:00 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 76.0
+  },
+  {
+    "monitor": "HybridRDU",
+    "timestamp": "2026-02-25 15:27:14 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 72.8
+  },
+  {
+    "monitor": "RemoteUSA",
+    "timestamp": "2026-02-25 15:42:16 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 77.5
+  },
+  {
+    "monitor": "HybridNYC",
+    "timestamp": "2026-02-25 15:45:32 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 75.8
+  },
+  {
+    "monitor": "HybridRDU",
+    "timestamp": "2026-02-25 15:48:46 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 72.6
+  },
+  {
+    "monitor": "RemoteUSA",
+    "timestamp": "2026-02-25 16:02:37 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 76.7
+  },
+  {
+    "monitor": "HybridNYC",
+    "timestamp": "2026-02-25 16:05:50 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 73.5
+  },
+  {
+    "monitor": "HybridRDU",
+    "timestamp": "2026-02-25 16:09:02 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 72.1
+  },
+  {
+    "monitor": "RemoteUSA",
+    "timestamp": "2026-02-25 16:25:13 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 77.0
+  },
+  {
+    "monitor": "HybridNYC",
+    "timestamp": "2026-02-25 16:28:26 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 72.8
+  },
+  {
+    "monitor": "HybridRDU",
+    "timestamp": "2026-02-25 16:31:40 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 73.5
+  },
+  {
+    "monitor": "RemoteUSA",
+    "timestamp": "2026-02-25 16:44:49 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 80.1
+  },
+  {
+    "monitor": "HybridNYC",
+    "timestamp": "2026-02-25 16:48:06 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 75.7
+  },
+  {
+    "monitor": "HybridRDU",
+    "timestamp": "2026-02-25 16:51:21 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 73.8
+  },
+  {
+    "monitor": "RemoteUSA",
+    "timestamp": "2026-02-25 17:04:35 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 78.6
+  },
+  {
+    "monitor": "HybridNYC",
+    "timestamp": "2026-02-25 17:07:49 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 73.5
+  },
+  {
+    "monitor": "HybridRDU",
+    "timestamp": "2026-02-25 17:11:04 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 74.2
+  },
+  {
+    "monitor": "RemoteUSA",
+    "timestamp": "2026-02-25 17:25:58 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 82.0
+  },
+  {
+    "monitor": "HybridNYC",
+    "timestamp": "2026-02-25 17:29:16 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 77.0
+  },
+  {
+    "monitor": "HybridRDU",
+    "timestamp": "2026-02-25 17:32:31 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 73.8
+  },
+  {
+    "monitor": "RemoteUSA",
+    "timestamp": "2026-02-25 17:45:52 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 77.1
+  },
+  {
+    "monitor": "HybridNYC",
+    "timestamp": "2026-02-25 17:49:06 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 72.8
+  },
+  {
+    "monitor": "HybridRDU",
+    "timestamp": "2026-02-25 17:52:24 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 77.5
+  },
+  {
+    "monitor": "RemoteUSA",
+    "timestamp": "2026-02-25 18:05:29 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 78.1
+  },
+  {
+    "monitor": "HybridNYC",
+    "timestamp": "2026-02-25 18:08:43 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 72.6
+  },
+  {
+    "monitor": "HybridRDU",
+    "timestamp": "2026-02-25 18:11:57 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 72.5
+  },
+  {
+    "monitor": "RemoteUSA",
+    "timestamp": "2026-02-25 18:27:42 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 76.1
+  },
+  {
+    "monitor": "HybridNYC",
+    "timestamp": "2026-02-25 18:30:53 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 71.6
+  },
+  {
+    "monitor": "HybridRDU",
+    "timestamp": "2026-02-25 18:34:05 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 72.0
+  },
+  {
+    "monitor": "RemoteUSA",
+    "timestamp": "2026-02-25 18:49:19 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 76.6
+  },
+  {
+    "monitor": "HybridNYC",
+    "timestamp": "2026-02-25 18:52:32 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 72.0
+  },
+  {
+    "monitor": "HybridRDU",
+    "timestamp": "2026-02-25 18:55:46 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 73.0
+  },
+  {
+    "monitor": "RemoteUSA",
+    "timestamp": "2026-02-25 19:10:46 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 76.8
+  },
+  {
+    "monitor": "HybridNYC",
+    "timestamp": "2026-02-25 19:13:59 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 72.9
+  },
+  {
+    "monitor": "HybridRDU",
+    "timestamp": "2026-02-25 19:17:11 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 72.0
+  },
+  {
+    "monitor": "RemoteUSA",
+    "timestamp": "2026-02-25 19:32:16 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 76.3
+  },
+  {
+    "monitor": "HybridNYC",
+    "timestamp": "2026-02-25 19:35:30 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 74.7
+  },
+  {
+    "monitor": "HybridRDU",
+    "timestamp": "2026-02-25 19:38:43 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 72.1
+  },
+  {
+    "monitor": "RemoteUSA",
+    "timestamp": "2026-02-25 19:52:04 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 76.9
+  },
+  {
+    "monitor": "HybridNYC",
+    "timestamp": "2026-02-25 19:55:17 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 72.8
+  },
+  {
+    "monitor": "HybridRDU",
+    "timestamp": "2026-02-25 19:58:30 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 72.5
+  },
+  {
+    "monitor": "RemoteUSA",
+    "timestamp": "2026-02-25 20:13:57 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 74.5
+  },
+  {
+    "monitor": "HybridNYC",
+    "timestamp": "2026-02-25 20:17:10 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 71.5
+  },
+  {
+    "monitor": "HybridRDU",
+    "timestamp": "2026-02-25 20:20:23 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 72.6
+  },
+  {
+    "monitor": "RemoteUSA",
+    "timestamp": "2026-02-25 22:23:18 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 88.5
+  },
+  {
+    "monitor": "HybridNYC",
+    "timestamp": "2026-02-25 22:26:33 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 74.2
+  },
+  {
+    "monitor": "HybridRDU",
+    "timestamp": "2026-02-25 22:29:45 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 72.3
+  },
+  {
+    "monitor": "RemoteUSA",
+    "timestamp": "2026-02-26 00:30:31 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 76.9
+  },
+  {
+    "monitor": "HybridNYC",
+    "timestamp": "2026-02-26 00:33:44 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 73.7
+  },
+  {
+    "monitor": "HybridRDU",
+    "timestamp": "2026-02-26 00:36:58 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 72.9
+  },
+  {
+    "monitor": "RemoteUSA",
+    "timestamp": "2026-02-26 02:39:37 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 84.5
+  },
+  {
+    "monitor": "HybridNYC",
+    "timestamp": "2026-02-26 02:42:50 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 73.4
+  },
+  {
+    "monitor": "HybridRDU",
+    "timestamp": "2026-02-26 02:46:01 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 71.1
+  },
+  {
+    "monitor": "RemoteUSA",
+    "timestamp": "2026-02-26 04:45:31 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 76.4
+  },
+  {
+    "monitor": "HybridNYC",
+    "timestamp": "2026-02-26 04:48:45 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 73.4
+  },
+  {
+    "monitor": "HybridRDU",
+    "timestamp": "2026-02-26 04:51:59 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 72.4
+  },
+  {
+    "monitor": "RemoteUSA",
+    "timestamp": "2026-02-26 06:53:29 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 76.9
+  },
+  {
+    "monitor": "HybridNYC",
+    "timestamp": "2026-02-26 06:56:43 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 73.4
+  },
+  {
+    "monitor": "HybridRDU",
+    "timestamp": "2026-02-26 06:59:55 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 72.2
+  },
+  {
+    "monitor": "RemoteUSA",
+    "timestamp": "2026-02-26 09:01:15 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 76.9
+  },
+  {
+    "monitor": "HybridNYC",
+    "timestamp": "2026-02-26 09:04:30 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 74.2
+  },
+  {
+    "monitor": "HybridRDU",
+    "timestamp": "2026-02-26 09:07:47 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 77.9
+  },
+  {
+    "monitor": "RemoteUSA",
+    "timestamp": "2026-02-26 09:20:49 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 76.5
+  },
+  {
+    "monitor": "HybridNYC",
+    "timestamp": "2026-02-26 09:24:03 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 72.9
+  },
+  {
+    "monitor": "HybridRDU",
+    "timestamp": "2026-02-26 09:27:14 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 71.1
+  },
+  {
+    "monitor": "RemoteUSA",
+    "timestamp": "2026-02-26 09:40:43 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 83.5
+  },
+  {
+    "monitor": "HybridNYC",
+    "timestamp": "2026-02-26 09:43:57 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 73.3
+  },
+  {
+    "monitor": "HybridRDU",
+    "timestamp": "2026-02-26 09:47:11 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 73.5
+  },
+  {
+    "monitor": "RemoteUSA",
+    "timestamp": "2026-02-26 10:00:37 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 82.7
+  },
+  {
+    "monitor": "HybridNYC",
+    "timestamp": "2026-02-26 10:04:00 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 82.2
+  },
+  {
+    "monitor": "HybridRDU",
+    "timestamp": "2026-02-26 10:07:46 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 106.0
+  },
+  {
+    "monitor": "RemoteUSA",
+    "timestamp": "2026-02-26 10:26:47 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 248.9
+  },
+  {
+    "monitor": "HybridNYC",
+    "timestamp": "2026-02-26 10:32:53 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 244.4
+  },
+  {
+    "monitor": "HybridRDU",
+    "timestamp": "2026-02-26 10:37:56 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 182.5
+  },
+  {
+    "monitor": "RemoteUSA",
+    "timestamp": "2026-02-26 10:52:40 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 257.6
+  },
+  {
+    "monitor": "HybridNYC",
+    "timestamp": "2026-02-26 11:00:45 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 364.8
+  },
+  {
+    "monitor": "HybridRDU",
+    "timestamp": "2026-02-26 11:08:47 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 360.8
+  },
+  {
+    "monitor": "RemoteUSA",
+    "timestamp": "2026-02-26 11:25:48 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 394.8
+  },
+  {
+    "monitor": "HybridNYC",
+    "timestamp": "2026-02-26 11:33:23 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 333.1
+  },
+  {
+    "monitor": "HybridRDU",
+    "timestamp": "2026-02-26 11:42:12 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 408.7
+  },
+  {
+    "monitor": "RemoteUSA",
+    "timestamp": "2026-02-26 11:54:28 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 85.2
+  },
+  {
+    "monitor": "HybridNYC",
+    "timestamp": "2026-02-26 11:57:59 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 89.1
+  },
+  {
+    "monitor": "HybridRDU",
+    "timestamp": "2026-02-26 12:02:11 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 131.1
+  },
+  {
+    "monitor": "RemoteUSA",
+    "timestamp": "2026-02-26 12:19:16 ET",
+    "exit_code": 10,
+    "description": "LinkedIn login failed",
+    "duration_seconds": 274.7
+  },
+  {
+    "monitor": "RemoteUSA",
+    "timestamp": "2026-02-26 12:36:01 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 284.8
+  },
+  {
+    "monitor": "HybridNYC",
+    "timestamp": "2026-02-26 12:38:37 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 155.6
+  },
+  {
+    "monitor": "HybridRDU",
+    "timestamp": "2026-02-26 12:44:50 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 251.9
+  },
+  {
+    "monitor": "RemoteUSA",
+    "timestamp": "2026-02-26 13:03:42 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 267.1
+  },
+  {
+    "monitor": "HybridNYC",
+    "timestamp": "2026-02-26 13:10:29 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 285.2
+  },
+  {
+    "monitor": "HybridRDU",
+    "timestamp": "2026-02-26 13:20:34 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 484.2
+  },
+  {
+    "monitor": "RemoteUSA",
+    "timestamp": "2026-02-26 13:41:37 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 389.2
+  },
+  {
+    "monitor": "HybridNYC",
+    "timestamp": "2026-02-26 13:45:19 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 101.6
+  },
+  {
+    "monitor": "HybridRDU",
+    "timestamp": "2026-02-26 13:48:42 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 82.2
+  },
+  {
+    "monitor": "RemoteUSA",
+    "timestamp": "2026-02-26 14:03:55 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 81.9
+  },
+  {
+    "monitor": "HybridNYC",
+    "timestamp": "2026-02-26 14:07:17 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 81.2
+  },
+  {
+    "monitor": "HybridRDU",
+    "timestamp": "2026-02-26 14:10:33 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 76.0
+  },
+  {
+    "monitor": "RemoteUSA",
+    "timestamp": "2026-02-26 14:23:50 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 117.2
+  },
+  {
+    "monitor": "HybridNYC",
+    "timestamp": "2026-02-26 14:27:56 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 125.5
+  },
+  {
+    "monitor": "HybridRDU",
+    "timestamp": "2026-02-26 14:31:25 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 88.5
+  },
+  {
+    "monitor": "RemoteUSA",
+    "timestamp": "2026-02-26 14:46:29 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 90.8
+  },
+  {
+    "monitor": "HybridNYC",
+    "timestamp": "2026-02-26 14:49:56 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 86.5
+  },
+  {
+    "monitor": "HybridRDU",
+    "timestamp": "2026-02-26 14:53:08 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 71.5
+  },
+  {
+    "monitor": "RemoteUSA",
+    "timestamp": "2026-02-26 15:09:18 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 90.1
+  },
+  {
+    "monitor": "HybridNYC",
+    "timestamp": "2026-02-26 15:12:43 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 84.1
+  },
+  {
+    "monitor": "HybridRDU",
+    "timestamp": "2026-02-26 15:16:10 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 86.3
+  },
+  {
+    "monitor": "RemoteUSA",
+    "timestamp": "2026-02-26 15:28:02 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 97.0
+  },
+  {
+    "monitor": "HybridNYC",
+    "timestamp": "2026-02-26 15:31:16 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 74.1
+  },
+  {
+    "monitor": "HybridRDU",
+    "timestamp": "2026-02-26 15:34:30 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 73.6
+  },
+  {
+    "monitor": "RemoteUSA",
+    "timestamp": "2026-02-26 15:48:58 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 88.0
+  },
+  {
+    "monitor": "HybridNYC",
+    "timestamp": "2026-02-26 15:52:17 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 78.3
+  },
+  {
+    "monitor": "HybridRDU",
+    "timestamp": "2026-02-26 15:55:41 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 83.2
+  },
+  {
+    "monitor": "RemoteUSA",
+    "timestamp": "2026-02-26 16:09:49 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 86.5
+  },
+  {
+    "monitor": "HybridNYC",
+    "timestamp": "2026-02-26 16:13:15 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 85.0
+  },
+  {
+    "monitor": "HybridRDU",
+    "timestamp": "2026-02-26 16:16:31 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 74.8
+  },
+  {
+    "monitor": "RemoteUSA",
+    "timestamp": "2026-02-26 16:32:54 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 87.1
+  },
+  {
+    "monitor": "HybridNYC",
+    "timestamp": "2026-02-26 16:36:09 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 74.0
+  },
+  {
+    "monitor": "HybridRDU",
+    "timestamp": "2026-02-26 16:39:22 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 71.6
+  },
+  {
+    "monitor": "RemoteUSA",
+    "timestamp": "2026-02-26 16:54:38 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 76.4
+  },
+  {
+    "monitor": "HybridNYC",
+    "timestamp": "2026-02-26 16:57:52 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 72.2
+  },
+  {
+    "monitor": "HybridRDU",
+    "timestamp": "2026-02-26 17:01:06 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 73.3
+  },
+  {
+    "monitor": "RemoteUSA",
+    "timestamp": "2026-02-26 17:12:37 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 87.8
+  },
+  {
+    "monitor": "HybridNYC",
+    "timestamp": "2026-02-26 17:15:49 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 71.5
+  },
+  {
+    "monitor": "HybridRDU",
+    "timestamp": "2026-02-26 17:19:01 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 71.6
+  },
+  {
+    "monitor": "RemoteUSA",
+    "timestamp": "2026-02-26 17:32:35 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 75.3
+  },
+  {
+    "monitor": "HybridNYC",
+    "timestamp": "2026-02-26 17:35:49 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 73.2
+  },
+  {
+    "monitor": "HybridRDU",
+    "timestamp": "2026-02-26 17:39:01 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 71.5
+  },
+  {
+    "monitor": "RemoteUSA",
+    "timestamp": "2026-02-26 17:51:29 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 79.9
+  },
+  {
+    "monitor": "HybridNYC",
+    "timestamp": "2026-02-26 17:54:43 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 74.1
+  },
+  {
+    "monitor": "HybridRDU",
+    "timestamp": "2026-02-26 17:57:55 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 71.9
+  },
+  {
+    "monitor": "RemoteUSA",
+    "timestamp": "2026-02-26 18:10:57 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 84.8
+  },
+  {
+    "monitor": "HybridNYC",
+    "timestamp": "2026-02-26 18:14:10 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 73.0
+  },
+  {
+    "monitor": "HybridRDU",
+    "timestamp": "2026-02-26 18:17:23 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 71.5
+  },
+  {
+    "monitor": "RemoteUSA",
+    "timestamp": "2026-02-26 18:32:22 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 75.4
+  },
+  {
+    "monitor": "HybridNYC",
+    "timestamp": "2026-02-26 18:35:34 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 71.5
+  },
+  {
+    "monitor": "HybridRDU",
+    "timestamp": "2026-02-26 18:38:45 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 71.8
+  },
+  {
+    "monitor": "RemoteUSA",
+    "timestamp": "2026-02-26 18:52:17 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 75.9
+  },
+  {
+    "monitor": "HybridNYC",
+    "timestamp": "2026-02-26 18:55:30 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 73.0
+  },
+  {
+    "monitor": "HybridRDU",
+    "timestamp": "2026-02-26 18:58:42 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 71.2
+  },
+  {
+    "monitor": "RemoteUSA",
+    "timestamp": "2026-02-26 19:13:08 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 77.4
+  },
+  {
+    "monitor": "HybridNYC",
+    "timestamp": "2026-02-26 19:16:28 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 80.2
+  },
+  {
+    "monitor": "HybridRDU",
+    "timestamp": "2026-02-26 19:19:50 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 81.2
+  },
+  {
+    "monitor": "RemoteUSA",
+    "timestamp": "2026-02-26 19:32:59 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 97.5
+  },
+  {
+    "monitor": "HybridNYC",
+    "timestamp": "2026-02-26 19:36:19 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 79.8
+  },
+  {
+    "monitor": "HybridRDU",
+    "timestamp": "2026-02-26 19:39:34 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 74.1
+  },
+  {
+    "monitor": "RemoteUSA",
+    "timestamp": "2026-02-26 19:52:11 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 84.6
+  },
+  {
+    "monitor": "HybridNYC",
+    "timestamp": "2026-02-26 19:55:23 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 71.8
+  },
+  {
+    "monitor": "HybridRDU",
+    "timestamp": "2026-02-26 19:58:35 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 71.5
+  },
+  {
+    "monitor": "RemoteUSA",
+    "timestamp": "2026-02-26 20:13:04 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 77.9
+  },
+  {
+    "monitor": "HybridNYC",
+    "timestamp": "2026-02-26 20:16:17 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 73.4
+  },
+  {
+    "monitor": "HybridRDU",
+    "timestamp": "2026-02-26 20:19:31 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 73.0
+  },
+  {
+    "monitor": "RemoteUSA",
+    "timestamp": "2026-02-26 22:16:36 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 87.7
+  },
+  {
+    "monitor": "HybridNYC",
+    "timestamp": "2026-02-26 22:19:49 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 72.9
+  },
+  {
+    "monitor": "HybridRDU",
+    "timestamp": "2026-02-26 22:23:02 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 72.2
+  },
+  {
+    "monitor": "RemoteUSA",
+    "timestamp": "2026-02-27 00:25:50 ET",
+    "exit_code": 10,
+    "description": "LinkedIn login failed",
+    "duration_seconds": 240.9
+  },
+  {
+    "monitor": "RemoteUSA",
+    "timestamp": "2026-02-27 00:39:31 ET",
+    "exit_code": 10,
+    "description": "LinkedIn login failed",
+    "duration_seconds": 98.3
+  },
+  {
+    "monitor": "HybridNYC",
+    "timestamp": "2026-02-27 00:43:18 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 226.8
+  },
+  {
+    "monitor": "HybridRDU",
+    "timestamp": "2026-02-27 00:47:01 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 102.6
+  },
+  {
+    "monitor": "RemoteUSA",
+    "timestamp": "2026-02-27 02:46:57 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 130.8
+  },
+  {
+    "monitor": "HybridNYC",
+    "timestamp": "2026-02-27 02:50:31 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 93.3
+  },
+  {
+    "monitor": "HybridRDU",
+    "timestamp": "2026-02-27 02:53:58 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 85.9
+  },
+  {
+    "monitor": "RemoteUSA",
+    "timestamp": "2026-02-27 04:56:12 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 85.5
+  },
+  {
+    "monitor": "HybridNYC",
+    "timestamp": "2026-02-27 04:59:24 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 72.4
+  },
+  {
+    "monitor": "HybridRDU",
+    "timestamp": "2026-02-27 05:02:36 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 71.0
+  },
+  {
+    "monitor": "RemoteUSA",
+    "timestamp": "2026-02-27 07:06:51 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 83.5
+  },
+  {
+    "monitor": "HybridNYC",
+    "timestamp": "2026-02-27 07:10:04 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 72.4
+  },
+  {
+    "monitor": "HybridRDU",
+    "timestamp": "2026-02-27 07:13:16 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 71.4
+  },
+  {
+    "monitor": "RemoteUSA",
+    "timestamp": "2026-02-27 09:14:36 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 75.9
+  },
+  {
+    "monitor": "HybridNYC",
+    "timestamp": "2026-02-27 09:17:56 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 79.2
+  },
+  {
+    "monitor": "HybridRDU",
+    "timestamp": "2026-02-27 09:21:11 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 75.4
+  },
+  {
+    "monitor": "RemoteUSA",
+    "timestamp": "2026-02-27 09:35:43 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 81.9
+  },
+  {
+    "monitor": "HybridNYC",
+    "timestamp": "2026-02-27 09:38:55 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 72.1
+  },
+  {
+    "monitor": "HybridRDU",
+    "timestamp": "2026-02-27 09:42:07 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 71.3
+  },
+  {
+    "monitor": "RemoteUSA",
+    "timestamp": "2026-02-27 09:56:27 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 77.8
+  },
+  {
+    "monitor": "HybridNYC",
+    "timestamp": "2026-02-27 09:59:43 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 75.1
+  },
+  {
+    "monitor": "HybridRDU",
+    "timestamp": "2026-02-27 10:02:57 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 72.9
+  },
+  {
+    "monitor": "RemoteUSA",
+    "timestamp": "2026-02-27 10:18:29 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 77.5
+  },
+  {
+    "monitor": "HybridNYC",
+    "timestamp": "2026-02-27 10:21:43 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 73.2
+  },
+  {
+    "monitor": "HybridRDU",
+    "timestamp": "2026-02-27 10:24:59 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 74.8
+  },
+  {
+    "monitor": "RemoteUSA",
+    "timestamp": "2026-02-27 10:39:05 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 84.1
+  },
+  {
+    "monitor": "HybridNYC",
+    "timestamp": "2026-02-27 10:42:19 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 73.3
+  },
+  {
+    "monitor": "HybridRDU",
+    "timestamp": "2026-02-27 10:45:31 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 71.6
+  },
+  {
+    "monitor": "RemoteUSA",
+    "timestamp": "2026-02-27 11:01:05 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 85.5
+  },
+  {
+    "monitor": "HybridNYC",
+    "timestamp": "2026-02-27 11:04:17 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 71.4
+  },
+  {
+    "monitor": "HybridRDU",
+    "timestamp": "2026-02-27 11:07:29 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 71.4
+  },
+  {
+    "monitor": "RemoteUSA",
+    "timestamp": "2026-02-27 11:21:13 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 75.7
+  },
+  {
+    "monitor": "HybridNYC",
+    "timestamp": "2026-02-27 11:24:25 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 71.8
+  },
+  {
+    "monitor": "HybridRDU",
+    "timestamp": "2026-02-27 11:27:37 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 71.3
+  },
+  {
+    "monitor": "RemoteUSA",
+    "timestamp": "2026-02-27 11:39:19 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 75.6
+  },
+  {
+    "monitor": "HybridNYC",
+    "timestamp": "2026-02-27 11:42:31 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 71.8
+  },
+  {
+    "monitor": "HybridRDU",
+    "timestamp": "2026-02-27 11:45:42 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 70.7
+  },
+  {
+    "monitor": "RemoteUSA",
+    "timestamp": "2026-02-27 12:01:14 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 76.7
+  },
+  {
+    "monitor": "HybridNYC",
+    "timestamp": "2026-02-27 12:04:32 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 77.6
+  },
+  {
+    "monitor": "HybridRDU",
+    "timestamp": "2026-02-27 12:07:52 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 80.1
+  },
+  {
+    "monitor": "RemoteUSA",
+    "timestamp": "2026-02-27 12:22:19 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 150.4
+  },
+  {
+    "monitor": "HybridNYC",
+    "timestamp": "2026-02-27 12:25:54 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 93.9
+  },
+  {
+    "monitor": "HybridRDU",
+    "timestamp": "2026-02-27 12:30:10 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 135.9
+  },
+  {
+    "monitor": "RemoteUSA",
+    "timestamp": "2026-02-27 12:44:23 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 148.4
+  },
+  {
+    "monitor": "HybridNYC",
+    "timestamp": "2026-02-27 12:48:58 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 154.7
+  },
+  {
+    "monitor": "HybridRDU",
+    "timestamp": "2026-02-27 12:52:50 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 110.4
+  },
+  {
+    "monitor": "RemoteUSA",
+    "timestamp": "2026-02-27 13:05:08 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 114.4
+  },
+  {
+    "monitor": "HybridNYC",
+    "timestamp": "2026-02-27 13:09:05 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 116.0
+  },
+  {
+    "monitor": "HybridRDU",
+    "timestamp": "2026-02-27 13:13:09 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 122.6
+  },
+  {
+    "monitor": "RemoteUSA",
+    "timestamp": "2026-02-27 13:28:17 ET",
+    "exit_code": 0,
+    "description": "OK",
+    "duration_seconds": 141.5
+  },
+  {
+    "monitor": "HybridNYC",
+    "timestamp": "2026-02-27 13:30:37 ET",
+    "exit_code": 1,
+    "description": "Configuration error (monitors.yaml)",
+    "duration_seconds": 20.3
+  },
+  {
+    "monitor": "HybridRDU",
+    "timestamp": "2026-02-27 13:36:47 ET",
+    "exit_code": 4,
+    "description": "Screenshot capture failed",
+    "duration_seconds": 249.2
+  }
+]
