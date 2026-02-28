@@ -153,7 +153,20 @@ See [Configuration Guide](#-configuration-guide) below for detailed options.
 **Web UI (Recommended):**
 
 ```bash
+# Windows (Command Prompt / PowerShell)
+JobMonitor.venv\Scripts\activate
+
+# Windows (Git Bash)
+source JobMonitor.venv/Scripts/activate
+
+# Linux / Mac
+source JobMonitor.venv/bin/activate
+
+# Start on default port 5000
 python web_monitor_menu.py
+
+# Start on a custom port (if 5000 is already in use)
+python web_monitor_menu.py --port 8080
 ```
 
 Open `http://localhost:5000` in your browser. The web dashboard lets you:
