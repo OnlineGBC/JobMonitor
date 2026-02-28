@@ -367,15 +367,45 @@ The web UI provides a browser-based dashboard for managing all aspects of JobMon
 
 ### Starting the Web UI
 
+**1. Open a terminal and navigate to the project root:**
+
 ```bash
-# Start on default port 5000
+cd C:\Users\YourName\JobMonitor        # Windows
+cd /path/to/JobMonitor                 # Linux / Mac
+```
+
+**2. Activate the virtual environment:**
+
+```bash
+# Windows (Command Prompt / PowerShell)
+JobMonitor.venv\Scripts\activate
+
+# Windows (Git Bash)
+source JobMonitor.venv/Scripts/activate
+
+# Linux / Mac
+source JobMonitor.venv/bin/activate
+```
+
+You should see `(JobMonitor.venv)` prepended to your prompt when active.
+
+**3. Start the web server:**
+
+```bash
+# Default port 5000
 python web_monitor_menu.py
 
-# Start on a custom port
+# Custom port (if 5000 is already in use)
 python web_monitor_menu.py --port 8080
 ```
 
-Then open `http://localhost:5000` in your browser.
+**4. Open your browser:**
+
+```
+http://localhost:5000
+```
+
+> **Note**: The server binds to `127.0.0.1` (localhost only) and is not accessible from other machines on your network.
 
 ### Running in the Background (PowerShell)
 
