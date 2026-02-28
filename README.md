@@ -67,7 +67,7 @@ Create a `.env` file in the project root:
 
 ```env
 # ==============================================================================
-# ANTHROPIC API KEY (REQUIRED)
+# ANTHROPIC API KEY (OPTIONAL — only needed if imagehash library is unavailable)
 # ==============================================================================
 # Get your API key from: https://console.anthropic.com/
 ANTHROPIC_API_KEY=sk-ant-api03-your-key-here
