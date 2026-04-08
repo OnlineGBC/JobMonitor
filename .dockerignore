@@ -1,0 +1,11 @@
+.env
+*.venv
+JobMonitor.venv/
+__pycache__/
+*.pyc
+snapshots/
+logs/
+data/
+.git/
+README.md
+*.pid
