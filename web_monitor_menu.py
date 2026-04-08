@@ -480,12 +480,16 @@ def main():
 
     logging.getLogger("werkzeug").addFilter(_QuietSchedulerPoll())
 
-    logging.info(f"Starting JobMonitor Web UI on http://127.0.0.1:{args.port}")
+    # Bind to 0.0.0.0 in container environments (Cloud Run), localhost otherwise
+    import os as _os
+    host = "0.0.0.0" if _os.getenv("K_SERVICE") else "127.0.0.1"
+
+    logging.info(f"Starting JobMonitor Web UI on http://{host}:{args.port}")
 
     # Ensure data directory exists
     Path("data").mkdir(exist_ok=True)
 
-    app.run(host="127.0.0.1", port=args.port, debug=False)
+    app.run(host=host, port=args.port, debug=False)
 
 
 if __name__ == "__main__":
