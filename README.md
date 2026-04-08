@@ -1,14 +1,14 @@
 # JobMonitor - LinkedIn Job Search Monitor
 
-A sophisticated Python-based monitoring tool that tracks changes on LinkedIn job search pages using **perceptual hash (phash) screenshot comparison** and sends email notifications when new jobs are posted. Perfect for staying ahead of the competition and never missing important job opportunities.
+A sophisticated Python-based monitoring tool that tracks changes on LinkedIn job search pages using a multi-stage comparison pipeline — text detection, perceptual hash (phash), and Claude AI vision fallback — and sends email notifications when new jobs are posted. Perfect for staying ahead of the competition and never missing important job opportunities.
 
 ## 🎯 Overview
 
-JobMonitor uses perceptual hashing to compare screenshots of LinkedIn job search pages, detecting any visual changes and sending email notifications so you can review them. This approach is fast, free (no API costs), and reliable.
+JobMonitor takes full-page screenshots of LinkedIn job search pages and compares them using a three-stage pipeline: a deterministic text check, perceptual hashing (free, no API costs), and a Claude AI vision fallback. Any detected change triggers an email notification so you can review it.
 
 ### Key Highlights
 
-- **Perceptual Hash Comparison**: Uses phash to detect any visual difference between screenshots — no API costs
+- **Multi-Stage Comparison**: Text check → phash → Claude AI fallback, in that order
 - **Screenshot-Based**: Takes full-page screenshots for accurate visual comparison
 - **Human Review**: Any detected change triggers an email with the screenshot — you decide if it's meaningful
 - **LinkedIn Authentication**: Automatically handles LinkedIn login with session persistence
@@ -222,15 +222,18 @@ python monitor.py --monitor "RemoteUSA"
 ### Subsequent Runs (Change Detection)
 
 1. Takes a new screenshot (`snapshots/<name>_screenshot2.png`)
-2. **Perceptual Hash Comparison**: Compares new screenshot against baseline using phash
+2. **Text Check**: Looks for the text `"No matching jobs found"` on the page
+   - If detected: discards the new screenshot silently, no notification sent
+   - This runs before phash — if there are no results, comparison is skipped entirely
+3. **Perceptual Hash Comparison**: Compares new screenshot against baseline using phash
    - `PHASH_THRESHOLD = 0` — any visual difference triggers an email
    - phash = 0 means identical → no email
    - phash > 0 means different → send email with screenshot for human review
    - If `imagehash` library is unavailable, falls back to Claude AI vision comparison
-3. **If NO changes detected**: Discards new screenshot, keeps baseline
-4. **If changes detected**:
+4. **If NO changes detected**: Discards new screenshot, keeps baseline
+5. **If changes detected**:
    - Sends email notification with new screenshot
-   - Replaces baseline with new screenshot
+   - Replaces baseline with new screenshot only if notification was sent successfully
    - Continues monitoring
    - You can increase `PHASH_THRESHOLD` in `monitor.py` if too many false-positive emails
 
@@ -264,10 +267,13 @@ monitors:
     
     # Behavior options
     headless: true                   # Override default headless setting
-    
-    # Additional options (currently unused by screenshot comparison, kept for reference)
-    # skip_if_page_text_matches:     # Skip notification if page text matches regex
-    #   - '(?i)\bno\s+matching\s+jobs\s+found\b'
+
+    # NOTE: The following options are stored in YAML for reference but are NOT read by monitor.py.
+    # The only text-based skip that runs is the hardcoded check for "No matching jobs found".
+    # Regex patterns listed here have no effect.
+    # skip_if_page_text_matches:
+    #   - '(?i)\bno\s+matching\s+jobs\s+found\b'   # hardcoded in code — works
+    #   - 'some other pattern'                        # ignored — not implemented
 ```
 
 ### Creating LinkedIn Job Search URLs
@@ -296,9 +302,9 @@ monitors:
 | `name` | string | Required | Unique identifier for the monitor |
 | `url` | string | Required | LinkedIn job search URL to monitor |
 | `headless` | boolean | true | Run browser in background (no visible window) |
-| `wait_until` | string | "domcontentloaded" | When to consider page loaded: "load", "domcontentloaded", "networkidle" |
-| `wait_selector` | string | null | CSS selector to wait for before taking screenshot |
-| `css_selector` | string | null | Focus comparison on this element only |
+| `wait_until` | string | "domcontentloaded" | Stored in YAML but not read — monitor.py uses hardcoded `"domcontentloaded"` and `"load"` |
+| `wait_selector` | string | null | CSS selector to wait for before taking screenshot (falls back to built-in LinkedIn selectors if not found) |
+| `css_selector` | string | null | **Not implemented** — screenshots are always full-page; this field has no effect |
 | `timeout_seconds` | integer | 180 | Maximum time to wait for page load |
 
 ## 📧 Email Provider Setup
@@ -488,7 +494,7 @@ kill $(ps aux | grep web_monitor_menu | grep -v grep | awk '{print $2}')
 
 The `run_monitor.py` script includes smart scheduling that checks more frequently during business hours:
 
-- **Weekdays 8 AM - 8 PM ET**: Every 10-15 minutes (randomized)
+- **Weekdays 8 AM – 7:59 PM ET**: Every 10-15 minutes (randomized)
 - **Nights and weekends**: Every 115-125 minutes (randomized)
 
 This reduces API costs while ensuring you catch new jobs during peak posting times.
@@ -665,7 +671,8 @@ run_monitor_loop(custom_interval_minutes=30)  # Every 30 minutes
 **Features:**
 - Intelligent timing (10-15 min during business hours, 115-125 min off-hours)
 - Automatic error detection and email alerts
-- Retry logic for transient failures
+- Retry logic for transient failures with exponential backoff (2s, 4s, 8s) on email/Slack/Discord sends
+- **Login failure (exit code 10)**: automatically retries once after a 10-15 minute delay; sends an alert and stops if the retry also fails
 - Stops on persistent errors (with notification)
 
 ## 🔍 Troubleshooting
@@ -740,6 +747,7 @@ playwright install chromium
 - [ ] Run with `--dry-run` and check logs for errors
 - [ ] Test SMTP credentials with a simple email send
 - [ ] Check firewall/antivirus isn't blocking SMTP port 587
+- [ ] If the LinkedIn page shows **"No matching jobs found"**, the monitor silently skips the comparison and sends no notification — this is by design. Check your search URL and filters.
 
 #### 8. High API Costs
 
