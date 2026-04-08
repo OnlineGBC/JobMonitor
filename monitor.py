@@ -355,8 +355,23 @@ def capture_screenshot(
             effective_headless = False
             logging.info("No cookies available - using visible browser for login")
 
+    # In containers (Cloud Run, Docker) Chromium needs these flags:
+    # --no-sandbox: required when running as root or without kernel namespaces
+    # --disable-dev-shm-usage: avoids crashes from the tiny /dev/shm in containers
+    # --disable-gpu: no GPU in containers
+    import os as _os
+    in_container = bool(_os.getenv("K_SERVICE"))
+    chromium_args = []
+    if in_container:
+        chromium_args = [
+            "--no-sandbox",
+            "--disable-setuid-sandbox",
+            "--disable-dev-shm-usage",
+            "--disable-gpu",
+        ]
+
     with sync_playwright() as p:
-        browser = p.chromium.launch(headless=effective_headless)
+        browser = p.chromium.launch(headless=effective_headless, args=chromium_args)
         try:
             context_options = {
                 "viewport": {'width': 1920, 'height': 1080},
@@ -1179,15 +1194,19 @@ def main():
     worst_exit_code = 0
 
     for monitor in monitors:
-        exit_code = process_monitor(
-            monitor=monitor,
-            defaults=defaults,
-            email_cfg=email_cfg,
-            subject_prefix=subject_prefix,
-            linkedin_username=linkedin_username,
-            linkedin_password=linkedin_password,
-            dry_run=args.dry_run
-        )
+        try:
+            exit_code = process_monitor(
+                monitor=monitor,
+                defaults=defaults,
+                email_cfg=email_cfg,
+                subject_prefix=subject_prefix,
+                linkedin_username=linkedin_username,
+                linkedin_password=linkedin_password,
+                dry_run=args.dry_run
+            )
+        except Exception as e:
+            logging.error(f"[{monitor.get('name', '?')}] Unexpected error: {e}", exc_info=True)
+            exit_code = 4
 
         # Track the worst exit code encountered
         if exit_code != 0:
