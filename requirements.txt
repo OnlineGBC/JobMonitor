@@ -1,12 +1,12 @@
-anthropic
-playwright>=1.47
-pyyaml
-python-dotenv>=1.0
-Pillow>=10.0
-imagehash>=4.3
-tzdata
-flask>=3.0
-ruamel.yaml>=0.18
+anthropic==0.84.0
+playwright==1.58.0
+PyYAML==6.0.3
+python-dotenv==1.2.1
+Pillow==12.1.1
+imagehash==4.3.2
+tzdata==2025.3
+Flask==3.1.3
+ruamel.yaml==0.19.1
 
 # After installing, run:
 # playwright install chromium
