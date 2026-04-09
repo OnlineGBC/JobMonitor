@@ -466,7 +466,21 @@ class LinkedInLoginSession:
                             logging.warning(f"LinkedIn relay click failed: {e}")
                     elif cmd["type"] == "type":
                         try:
-                            page.keyboard.type(cmd["text"], delay=30)
+                            text = cmd["text"]
+                            # Directly set the focused input's value via JS (more
+                            # reliable than keyboard.type across React/SPA pages)
+                            filled = page.evaluate("""(text) => {
+                                const el = document.activeElement;
+                                if (el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA')) {
+                                    el.value = text;
+                                    el.dispatchEvent(new Event('input', {bubbles: true}));
+                                    el.dispatchEvent(new Event('change', {bubbles: true}));
+                                    return true;
+                                }
+                                return false;
+                            }""", text)
+                            if not filled:
+                                page.keyboard.type(text, delay=30)
                         except Exception as e:
                             logging.warning(f"LinkedIn relay type failed: {e}")
                     elif cmd["type"] == "key":
