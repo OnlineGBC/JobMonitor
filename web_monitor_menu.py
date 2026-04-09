@@ -467,17 +467,29 @@ class LinkedInLoginSession:
                     elif cmd["type"] == "type":
                         try:
                             text = cmd["text"]
-                            # Directly set the focused input's value via JS (more
-                            # reliable than keyboard.type across React/SPA pages)
+                            # Use React-compatible native setter; fall back to
+                            # first visible text input if nothing is focused.
                             filled = page.evaluate("""(text) => {
-                                const el = document.activeElement;
-                                if (el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA')) {
-                                    el.value = text;
-                                    el.dispatchEvent(new Event('input', {bubbles: true}));
-                                    el.dispatchEvent(new Event('change', {bubbles: true}));
-                                    return true;
+                                let el = document.activeElement;
+                                if (!el || (el.tagName !== 'INPUT' && el.tagName !== 'TEXTAREA')) {
+                                    const candidates = Array.from(document.querySelectorAll(
+                                        'input[type="text"], input[type="number"], input:not([type])'
+                                    )).filter(i => i.offsetParent !== null && !i.disabled && !i.readOnly);
+                                    el = candidates[0] || null;
                                 }
-                                return false;
+                                if (!el) return false;
+                                el.focus();
+                                try {
+                                    const setter = Object.getOwnPropertyDescriptor(
+                                        Object.getPrototypeOf(el), 'value'
+                                    ).set;
+                                    setter.call(el, text);
+                                } catch(e) {
+                                    el.value = text;
+                                }
+                                el.dispatchEvent(new Event('input', {bubbles: true, cancelable: true}));
+                                el.dispatchEvent(new Event('change', {bubbles: true, cancelable: true}));
+                                return true;
                             }""", text)
                             if not filled:
                                 page.keyboard.type(text, delay=30)
