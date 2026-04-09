@@ -197,6 +197,7 @@
                 <div class="d-flex gap-2 flex-wrap mt-2 align-items-center">
                     <input type="text" id="login-type-text" class="form-control form-control-sm" style="max-width:300px;"
                            placeholder="Type text…" onkeydown="handleTypeInputKey(event)">
+                    <button class="btn btn-sm btn-outline-secondary" onclick="sendKey(currentLoginMonitor,'Shift+Tab')">⇧Tab</button>
                     <button class="btn btn-sm btn-outline-secondary" onclick="sendKey(currentLoginMonitor,'Tab')">Tab</button>
                     <button class="btn btn-sm btn-outline-secondary" onclick="sendKey(currentLoginMonitor,'Enter')">Enter</button>
                     <button class="btn btn-sm btn-outline-secondary" onclick="sendKey(currentLoginMonitor,'Backspace')">⌫</button>
