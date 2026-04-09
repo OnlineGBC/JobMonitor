@@ -467,30 +467,27 @@ class LinkedInLoginSession:
                     elif cmd["type"] == "type":
                         try:
                             text = cmd["text"]
-                            # Use React-compatible native setter; fall back to
-                            # first visible text input if nothing is focused.
-                            filled = page.evaluate("""(text) => {
-                                let el = document.activeElement;
-                                if (!el || (el.tagName !== 'INPUT' && el.tagName !== 'TEXTAREA')) {
-                                    const candidates = Array.from(document.querySelectorAll(
-                                        'input[type="text"], input[type="number"], input:not([type])'
-                                    )).filter(i => i.offsetParent !== null && !i.disabled && !i.readOnly);
-                                    el = candidates[0] || null;
-                                }
-                                if (!el) return false;
-                                el.focus();
-                                try {
-                                    const setter = Object.getOwnPropertyDescriptor(
-                                        Object.getPrototypeOf(el), 'value'
-                                    ).set;
-                                    setter.call(el, text);
-                                } catch(e) {
-                                    el.value = text;
-                                }
-                                el.dispatchEvent(new Event('input', {bubbles: true, cancelable: true}));
-                                el.dispatchEvent(new Event('change', {bubbles: true, cancelable: true}));
-                                return true;
-                            }""", text)
+                            # Use Playwright fill() which correctly handles React
+                            # synthetic events. Try specific selectors first.
+                            selectors = [
+                                'input[name="pin"]',
+                                'input[placeholder*="code" i]',
+                                'input[placeholder*="Enter" i]',
+                                'input[type="text"]',
+                                'input[type="number"]',
+                                'input:not([type="hidden"]):not([type="submit"])'
+                                ':not([type="button"]):not([type="password"])',
+                            ]
+                            filled = False
+                            for sel in selectors:
+                                try:
+                                    loc = page.locator(sel)
+                                    if loc.count() > 0 and loc.first.is_visible(timeout=500):
+                                        loc.first.fill(text, timeout=3000)
+                                        filled = True
+                                        break
+                                except Exception:
+                                    continue
                             if not filled:
                                 page.keyboard.type(text, delay=30)
                         except Exception as e:
