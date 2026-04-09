@@ -153,11 +153,60 @@
                             <button class="btn btn-success btn-sm" onclick="clearBaseline('{{ monitor.name }}')">
                                 <i class="bi bi-arrow-counterclockwise"></i> Clear Baseline
                             </button>
+                            <button class="btn btn-outline-primary btn-sm" onclick="startLinkedInLogin('{{ monitor.name }}')" title="Open an interactive browser to log in to LinkedIn">
+                                <i class="bi bi-person-badge"></i> LinkedIn Login
+                            </button>
                         </div>
                     </div>
                 </div>
             </div>
             {% endfor %}
+        </div>
+    </div>
+</div>
+<!-- LinkedIn Login Modal -->
+<div class="modal fade" id="linkedinLoginModal" tabindex="-1" aria-labelledby="linkedinLoginModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="linkedinLoginModalLabel">
+                    <i class="bi bi-person-badge"></i> LinkedIn Login — <span id="login-monitor-name"></span>
+                </h5>
+                <div class="ms-3">
+                    <span id="login-state-badge" class="badge bg-secondary">Starting…</span>
+                </div>
+                <button type="button" class="btn-close ms-auto" data-bs-dismiss="modal" aria-label="Close" onclick="cancelLinkedInLogin()"></button>
+            </div>
+            <div class="modal-body p-2">
+                <div id="login-status-msg" class="alert alert-info py-1 px-2 mb-2 small">Initializing browser…</div>
+
+                <!-- Browser viewport -->
+                <div style="position:relative; background:#111; border-radius:4px; overflow:hidden; cursor:crosshair;">
+                    <img id="login-screenshot"
+                         src=""
+                         alt="Browser view"
+                         style="width:100%; display:block; max-height:60vh; object-fit:contain;"
+                         onclick="handleBrowserClick(event)">
+                    <div id="login-loading-overlay"
+                         style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.5);color:#fff;">
+                        <div class="spinner-border text-light me-2" role="status"></div> Waiting for browser…
+                    </div>
+                </div>
+
+                <!-- Controls -->
+                <div class="d-flex gap-2 flex-wrap mt-2 align-items-center">
+                    <input type="text" id="login-type-text" class="form-control form-control-sm" style="max-width:300px;"
+                           placeholder="Type text…" onkeydown="handleTypeInputKey(event)">
+                    <button class="btn btn-sm btn-outline-secondary" onclick="sendKey(currentLoginMonitor,'Tab')">Tab</button>
+                    <button class="btn btn-sm btn-outline-secondary" onclick="sendKey(currentLoginMonitor,'Enter')">Enter</button>
+                    <button class="btn btn-sm btn-outline-secondary" onclick="sendKey(currentLoginMonitor,'Backspace')">⌫</button>
+                    <button class="btn btn-sm btn-outline-secondary" onclick="sendKey(currentLoginMonitor,'Escape')">Esc</button>
+                    <button class="btn btn-sm btn-danger ms-auto" onclick="cancelLinkedInLogin()">
+                        <i class="bi bi-x-circle"></i> Cancel
+                    </button>
+                </div>
+                <p class="text-muted small mt-1 mb-0">Click on the browser image to interact. Type in the text box then press Enter to submit.</p>
+            </div>
         </div>
     </div>
 </div>
@@ -236,6 +285,139 @@
         if (count > max) count = max;
         window.location.href = '{{ url_for("dashboard") }}?runs=' + count;
     }
+
+    // -----------------------------------------------------------------------
+    // LinkedIn login relay
+    // -----------------------------------------------------------------------
+    var currentLoginMonitor = null;
+    var loginPollTimer = null;
+    var _browserW = 1366, _browserH = 768;
+
+    function startLinkedInLogin(name) {
+        currentLoginMonitor = name;
+        document.getElementById('login-monitor-name').textContent = name;
+        document.getElementById('login-status-msg').textContent = 'Starting browser session…';
+        document.getElementById('login-state-badge').className = 'badge bg-secondary';
+        document.getElementById('login-state-badge').textContent = 'Starting';
+        document.getElementById('login-loading-overlay').style.display = 'flex';
+        document.getElementById('login-screenshot').src = '';
+
+        var modal = new bootstrap.Modal(document.getElementById('linkedinLoginModal'));
+        modal.show();
+
+        fetch('/api/linkedin/' + encodeURIComponent(name) + '/start', {method: 'POST'})
+            .then(r => r.json())
+            .then(data => {
+                if (data.status === 'ok' || data.status === 'warning') {
+                    startLoginPoll(name);
+                } else {
+                    document.getElementById('login-status-msg').textContent = data.message;
+                }
+            })
+            .catch(e => { document.getElementById('login-status-msg').textContent = 'Failed to start: ' + e; });
+    }
+
+    function startLoginPoll(name) {
+        if (loginPollTimer) clearInterval(loginPollTimer);
+        loginPollTimer = setInterval(function() { pollLoginState(name); }, 500);
+    }
+
+    function pollLoginState(name) {
+        // Fetch status
+        fetch('/api/linkedin/' + encodeURIComponent(name) + '/status')
+            .then(r => r.json())
+            .then(data => {
+                var badge = document.getElementById('login-state-badge');
+                var msg = document.getElementById('login-status-msg');
+                var stateColors = {starting:'secondary', navigating:'info', ready:'primary', saving:'warning', done:'success', error:'danger', none:'secondary'};
+                badge.className = 'badge bg-' + (stateColors[data.state] || 'secondary');
+                badge.textContent = data.state;
+                msg.textContent = data.message || '';
+
+                if (data.state === 'done' || data.state === 'error' || data.state === 'none') {
+                    clearInterval(loginPollTimer);
+                    loginPollTimer = null;
+                    if (data.state === 'done') {
+                        setTimeout(function() {
+                            var m = bootstrap.Modal.getInstance(document.getElementById('linkedinLoginModal'));
+                            if (m) m.hide();
+                            showFlash('LinkedIn session saved for ' + name + '!', 'success');
+                        }, 2000);
+                    }
+                }
+            })
+            .catch(() => {});
+
+        // Fetch screenshot
+        fetch('/api/linkedin/' + encodeURIComponent(name) + '/screenshot')
+            .then(r => r.json())
+            .then(data => {
+                if (data.status === 'ok' && data.image) {
+                    var img = document.getElementById('login-screenshot');
+                    img.src = 'data:image/jpeg;base64,' + data.image;
+                    document.getElementById('login-loading-overlay').style.display = 'none';
+                }
+            })
+            .catch(() => {});
+    }
+
+    function handleBrowserClick(event) {
+        if (!currentLoginMonitor) return;
+        var img = event.currentTarget;
+        var rect = img.getBoundingClientRect();
+        // Map click position on displayed image to browser coordinates
+        var naturalW = _browserW, naturalH = _browserH;
+        var displayedW = rect.width;
+        var displayedH = rect.height;
+        // Account for object-fit:contain letterboxing
+        var scale = Math.min(displayedW / naturalW, displayedH / naturalH);
+        var offsetX = (displayedW - naturalW * scale) / 2;
+        var offsetY = (displayedH - naturalH * scale) / 2;
+        var x = Math.round((event.clientX - rect.left - offsetX) / scale);
+        var y = Math.round((event.clientY - rect.top - offsetY) / scale);
+        x = Math.max(0, Math.min(x, naturalW - 1));
+        y = Math.max(0, Math.min(y, naturalH - 1));
+        fetch('/api/linkedin/' + encodeURIComponent(currentLoginMonitor) + '/click', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({x: x, y: y})
+        }).catch(() => {});
+    }
+
+    function handleTypeInputKey(event) {
+        if (event.key === 'Enter') {
+            var text = document.getElementById('login-type-text').value;
+            if (text && currentLoginMonitor) {
+                fetch('/api/linkedin/' + encodeURIComponent(currentLoginMonitor) + '/type', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({text: text})
+                }).catch(() => {});
+                document.getElementById('login-type-text').value = '';
+            }
+        }
+    }
+
+    function sendKey(name, key) {
+        if (!name) return;
+        fetch('/api/linkedin/' + encodeURIComponent(name) + '/key', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({key: key})
+        }).catch(() => {});
+    }
+
+    function cancelLinkedInLogin() {
+        if (loginPollTimer) { clearInterval(loginPollTimer); loginPollTimer = null; }
+        if (currentLoginMonitor) {
+            fetch('/api/linkedin/' + encodeURIComponent(currentLoginMonitor) + '/cancel', {method: 'POST'}).catch(() => {});
+            currentLoginMonitor = null;
+        }
+    }
+
+    document.getElementById('linkedinLoginModal').addEventListener('hidden.bs.modal', function() {
+        cancelLinkedInLogin();
+    });
 
     // Auto-refresh dashboard data
     function refreshDashboard() {
