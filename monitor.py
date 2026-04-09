@@ -286,6 +286,16 @@ def login_to_linkedin(page, username: str, password: str) -> bool:
         # Check if LinkedIn is asking for verification (2FA, captcha, etc.)
         if "/challenge" in current_url or "checkpoint" in current_url:
             logging.warning("LinkedIn login requires verification/challenge (2FA, captcha, etc.)")
+            # DIAGNOSTIC: log page details to understand challenge type
+            try:
+                logging.warning(f"[DIAG] Challenge page title: {page.title()}")
+                page_text = page.inner_text("body")[:1500]
+                logging.warning(f"[DIAG] Challenge page text: {page_text}")
+                inputs = page.query_selector_all("input")
+                input_info = [(i.get_attribute("name"), i.get_attribute("type"), i.get_attribute("placeholder")) for i in inputs]
+                logging.warning(f"[DIAG] Input fields: {input_info}")
+            except Exception as diag_e:
+                logging.warning(f"[DIAG] Could not capture diagnostics: {diag_e}")
             return False
 
         # Check if we're still stuck on the login page
