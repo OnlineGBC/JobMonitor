@@ -346,8 +346,13 @@ def capture_screenshot(
     needs_login = "linkedin.com" in url and linkedin_username and linkedin_password
     effective_headless = headless
 
-    # Decide whether to show the browser window
-    if needs_login:
+    # In a container there is no display server — always force headless
+    import os as _os_h
+    if bool(_os_h.getenv("K_SERVICE")):
+        effective_headless = True
+        logging.info("Container environment detected - forcing headless mode")
+    elif needs_login:
+        # Decide whether to show the browser window (local only)
         if has_saved_session and headless:
             effective_headless = True
             logging.info("Valid cookies detected - using headless mode")
