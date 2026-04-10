@@ -14,7 +14,7 @@ defaults:
 monitors:
 #  This is for RemoteUSA
 - name: "RemoteUSA"
-  url: "https://www.linkedin.com/jobs/search/?currentJobId=4314563541&distance=25&f_E=5%2C6&f_TPR=r86400&f_WT=2&geoId=103644278&keywords=(title%3A%22Director%22%20OR%20title%3A%22VP%22%20OR%20title%3A%22Vice%20President%22%20OR%20title%3A%22Vice-President%22%20OR%20title%3A%22Head%22%20OR%20title%3A%22Leader%22%20OR%20title%3A%22Fractional%20CTO%22%20OR%20title%3A%22Fractional%20CIO%22%20)%20AND%20(title%3A%22AI%22%20OR%20title%3A%22Artificial%20Intelligence%22)%20AND%20NOT%20(%22Crossover%22%20OR%20%22Get%20IT%22%20OR%20%22Talentify%22%20OR%20%22Toptal%22%20OR%20%22Stealth%20Stanford%20AI%20Startup%22%20OR%20%22Lensa%22%20OR%20%22Tempus%22%20OR%20%22Harnham%22%20OR%20%22Swooped%22%20OR%20%22Jobgether%22)&origin=JOB_SEARCH_PAGE_JOB_FILTER&refresh=true&sortBy=R&spellCorrectionEnabled=true"
+  url: "https://www.linkedin.com/jobs/search/?currentJobId=4378353821&distance=25&f_E=4%2C5%2C6&f_TPR=r86400&f_WT=2&geoId=103644278&keywords=(title%3A%22Director%22%20OR%20title%3A%22VP%22%20OR%20title%3A%22Vice%20President%22%20OR%20title%3A%22Vice-President%22%20OR%20title%3A%22Head%22%20OR%20title%3A%22Leader%22%20OR%20title%3A%22Fractional%20CTO%22%20OR%20title%3A%22Fractional%20CIO%22%20)%20AND%20(title%3A%22AI%22%20OR%20title%3A%22Artificial%20Intelligence%22)%20AND%20NOT%20(%22Crossover%22%20OR%20%22Get%20IT%22%20OR%20%22Talentify%22%20OR%20%22Toptal%22%20OR%20%22Stealth%20Stanford%20AI%20Startup%22%20OR%20%22Lensa%22%20OR%20%22Tempus%22%20OR%20%22Harnham%22%20OR%20%22Swooped%22%20OR%20%22Jobgether%22)&origin=JOB_SEARCH_PAGE_JOB_FILTER&refresh=true&sortBy=R&spellCorrectionEnabled=true"
     # Results list container (common on LinkedIn jobs search)
   wait_selector: "ul.jobs-search__results-list"
   css_selector: "ul.jobs-search__results-list"
@@ -57,7 +57,7 @@ monitors:
 
 #  This is for HybridNYC
 - name: "HybridNYC"
-  url: "https://www.linkedin.com/jobs/search/?currentJobId=4311680696&f_E=4%2C5%2C6&f_PP=102571732&f_TPR=r86400&f_WT=1%2C3%2C2&geoId=105080838&keywords=(title%3A%22Director%22%20OR%20title%3A%22VP%22%20OR%20title%3A%22Vice%20President%22%20OR%20title%3A%22Vice-President%22%20OR%20title%3A%22Head%22%20OR%20title%3A%22Leader%22%20OR%20title%3A%22Fractional%20CIO%22%20OR%20title%3A%22Fractional%20CTO%22%20)%20AND%20(title%3A%22AI%22%20OR%20title%3A%22Artificial%20Intelligence%22)%20AND%20NOT%20(%22Crossover%22%20OR%20%22Get%20IT%22%20OR%20%22Talentify%22%20OR%20%22Toptal%22%20OR%20%22Stealth%20Stanford%20AI%20Startup%22%20OR%20%22Lensa%22%20OR%20%22Harnham%22%20OR%20%22Swooped%22%20%20OR%20%22Jobgether%22)&origin=JOB_SEARCH_PAGE_JOB_FILTER&refresh=true&sortBy=R&spellCorrectionEnabled=true"
+  url: "https://www.linkedin.com/jobs/search/?currentJobId=4383943436&distance=5&f_E=5%2C6&f_TPR=r86400&geoId=102571732&keywords=(title%3A%22Director%22%20OR%20title%3A%22VP%22%20OR%20title%3A%22Vice%20President%22%20OR%20title%3A%22Vice-President%22%20OR%20title%3A%22Head%22%20OR%20title%3A%22Leader%22%20OR%20title%3A%22Fractional%20CIO%22%20OR%20title%3A%22Fractional%20CTO%22%20)%20AND%20(title%3A%22AI%22%20OR%20title%3A%22Artificial%20Intelligence%22)%20AND%20NOT%20(%22Crossover%22%20OR%20%22Get%20IT%22%20OR%20%22Talentify%22%20OR%20%22Toptal%22%20OR%20%22Stealth%20Stanford%20AI%20Startup%22%20OR%20%22Lensa%22%20OR%20%22Harnham%22%20OR%20%22Swooped%22%20%20OR%20%22Jobgether%22)&origin=JOB_SEARCH_PAGE_JOB_FILTER"
   wait_selector: "ul.jobs-search__results-list"
   css_selector: "ul.jobs-search__results-list"
 
@@ -93,7 +93,7 @@ monitors:
 
 
 - name: "HybridRDU"
-  url: "https://www.linkedin.com/jobs/search/?currentJobId=4233449053&f_E=4%2C5%2C6&f_PP=102571732&f_TPR=r86400&f_WT=1%2C3%2C2&geoId=90000664&keywords=(title%3A%22Director%22%20OR%20title%3A%22VP%22%20OR%20title%3A%22Vice%20President%22%20OR%20title%3A%22Vice-President%22%20OR%20title%3A%22Head%22%20OR%20title%3A%22Leader%22%20OR%20title%3A%22Fractional%20CIO%22%20OR%20title%3A%22Fractional%20CTO%22%20)%20AND%20(title%3A%22AI%22%20OR%20title%3A%22Artificial%20Intelligence%22)%20AND%20NOT%20(%22Crossover%22%20OR%20%22Get%20IT%22%20OR%20%22Talentify%22%20OR%20%22Toptal%22%20OR%20%22Stealth%20Stanford%20AI%20Startup%22%20OR%20%22Lensa%22%20OR%20%22Harnham%22%20OR%20%22Swooped%22%20%20OR%20%22Jobgether%22)&origin=JOB_SEARCH_PAGE_SEARCH_BUTTON&refresh=true&sortBy=R&spellCorrectionEnabled=true"
+  url: "https://www.linkedin.com/jobs/search/?currentJobId=4334768986&f_E=4%2C5%2C6&f_PP=100197101&f_TPR=r86400&f_WT=1%2C3%2C2&geoId=90000664&keywords=(title%3A%22Director%22%20OR%20title%3A%22VP%22%20OR%20title%3A%22Vice%20President%22%20OR%20title%3A%22Vice-President%22%20OR%20title%3A%22Head%22%20OR%20title%3A%22Leader%22%20OR%20title%3A%22Fractional%20CIO%22%20OR%20title%3A%22Fractional%20CTO%22%20)%20AND%20(title%3A%22AI%22%20OR%20title%3A%22Artificial%20Intelligence%22)%20AND%20NOT%20(%22Crossover%22%20OR%20%22Get%20IT%22%20OR%20%22Talentify%22%20OR%20%22Toptal%22%20OR%20%22Stealth%20Stanford%20AI%20Startup%22%20OR%20%22Lensa%22%20OR%20%22Harnham%22%20OR%20%22Swooped%22%20%20OR%20%22Jobgether%22)&origin=JOB_SEARCH_PAGE_SEARCH_BUTTON&refresh=true&sortBy=R&spellCorrectionEnabled=true"
   wait_selector: "ul.jobs-search__results-list"
   css_selector: "ul.jobs-search__results-list"
 
