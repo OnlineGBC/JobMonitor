@@ -9,6 +9,7 @@ logs/
 *.log
 nohup.out
 .claude/
+data/run_history.json
 
 # --- Distribution / packaging ---
 .env
