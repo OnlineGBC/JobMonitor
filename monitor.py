@@ -43,6 +43,7 @@ FILES CREATED:
 """
 
 import os
+import re
 import sys
 import json
 import time
@@ -240,6 +241,165 @@ def images_are_identical_phash(img1_path: Path, img2_path: Path, threshold: int 
 
 
 # =============================================================================
+# Job Listing Extraction & Digest
+# =============================================================================
+
+def extract_job_listings(page) -> list:
+    """
+    Extract individual job listings from a LinkedIn jobs search results page.
+    Returns a list of dicts: {title, company, location, url, easy_apply}.
+    """
+    try:
+        jobs = page.evaluate("""() => {
+            const jobs = [];
+            const seen = new Set();
+
+            // Try multiple card selectors — LinkedIn changes class names periodically
+            const cardSelectors = [
+                'li[data-occludable-job-id]',
+                'li.jobs-search-results__list-item',
+                'div.job-card-container',
+            ];
+            let cards = [];
+            for (const sel of cardSelectors) {
+                cards = Array.from(document.querySelectorAll(sel));
+                if (cards.length > 0) break;
+            }
+
+            for (const card of cards) {
+                const link = card.querySelector('a[href*="/jobs/view/"]');
+                if (!link) continue;
+
+                // Strip query params to get a clean canonical URL
+                const urlMatch = link.href.match(/(https:\\/\\/www\\.linkedin\\.com\\/jobs\\/view\\/\\d+)/);
+                if (!urlMatch) continue;
+                const url = urlMatch[1];
+                if (seen.has(url)) continue;
+                seen.add(url);
+
+                // Title
+                const titleSelectors = [
+                    '.job-card-list__title--link',
+                    '.job-card-container__link',
+                    'strong.job-card-list__title',
+                ];
+                let title = '';
+                for (const sel of titleSelectors) {
+                    const el = card.querySelector(sel);
+                    if (el && el.innerText.trim()) { title = el.innerText.trim(); break; }
+                }
+                if (!title) title = link.innerText.trim();
+
+                // Company
+                const companySelectors = [
+                    '.job-card-container__primary-description',
+                    '.artdeco-entity-lockup__subtitle span',
+                    '.job-card-container__company-name',
+                ];
+                let company = '';
+                for (const sel of companySelectors) {
+                    const el = card.querySelector(sel);
+                    if (el && el.innerText.trim()) { company = el.innerText.trim(); break; }
+                }
+
+                // Location
+                const locationSelectors = [
+                    '.job-card-container__metadata-item',
+                    '.artdeco-entity-lockup__caption span',
+                    '.job-card-container__metadata-wrapper li',
+                ];
+                let location = '';
+                for (const sel of locationSelectors) {
+                    const el = card.querySelector(sel);
+                    if (el && el.innerText.trim()) { location = el.innerText.trim(); break; }
+                }
+
+                const easyApply = card.innerText.includes('Easy Apply');
+                jobs.push({ title, company, location, url, easy_apply: easyApply });
+            }
+            return jobs;
+        }""")
+        logging.info(f"Extracted {len(jobs)} job listings from page")
+        return jobs
+    except Exception as e:
+        logging.warning(f"Could not extract job listings: {e}")
+        return []
+
+
+def get_new_jobs(old_jobs: list, new_jobs: list) -> list:
+    """Return jobs present in new_jobs but not in old_jobs (matched by URL)."""
+    old_urls = {job.get("url") for job in old_jobs}
+    return [job for job in new_jobs if job.get("url") not in old_urls]
+
+
+def summarize_jobs_with_ai(jobs: list) -> list:
+    """
+    Add a one-sentence fit summary to each job dict using Claude Haiku.
+    Batches all jobs into a single API call. Fails gracefully.
+    """
+    if not jobs or not HAS_ANTHROPIC:
+        return jobs
+    api_key = os.getenv("ANTHROPIC_API_KEY")
+    if not api_key:
+        return jobs
+    try:
+        client = anthropic.Anthropic(api_key=api_key)
+        jobs_text = "\n".join([
+            f"{i+1}. {j.get('title','?')} at {j.get('company','?')} ({j.get('location','')})"
+            for i, j in enumerate(jobs)
+        ])
+        response = client.messages.create(
+            model="claude-haiku-4-5-20251001",
+            max_tokens=800,
+            messages=[{
+                "role": "user",
+                "content": (
+                    "For each job below write ONE sentence assessing fit for a senior AI/technology executive "
+                    "(Director/VP/Head level, seeking remote or hybrid roles, focused on AI strategy and "
+                    "leadership — not hands-on engineering).\n\n"
+                    f"Jobs:\n{jobs_text}\n\n"
+                    "Reply with only numbered lines matching the job numbers. One sentence per line. No extra text."
+                )
+            }]
+        )
+        summaries = response.content[0].text.strip().splitlines()
+        for i, job in enumerate(jobs):
+            if i < len(summaries):
+                job["summary"] = re.sub(r'^\d+[\.\)]\s*', '', summaries[i].strip())
+    except Exception as e:
+        logging.warning(f"AI job summarization failed: {e}")
+    return jobs
+
+
+def format_jobs_for_email(new_jobs: list) -> str:
+    """Format new job listings as a readable block to prepend to the email body."""
+    if not new_jobs:
+        return ""
+    lines = [f"NEW JOBS FOUND ({len(new_jobs)}):\n"]
+    for i, job in enumerate(new_jobs, 1):
+        apply_type = "Easy Apply" if job.get("easy_apply") else "Apply"
+        title    = job.get("title", "Unknown Title")
+        company  = job.get("company", "")
+        location = job.get("location", "")
+        url      = job.get("url", "")
+        summary  = job.get("summary", "")
+
+        header = f"{i}. {title}"
+        if company:
+            header += f" — {company}"
+        if location:
+            header += f" ({location})"
+        header += f" [{apply_type}]"
+        lines.append(header)
+        if summary:
+            lines.append(f"   {summary}")
+        if url:
+            lines.append(f"   {url}")
+        lines.append("")
+    return "\n".join(lines)
+
+
+# =============================================================================
 # LinkedIn Login
 # =============================================================================
 
@@ -321,7 +481,8 @@ def capture_screenshot(
     linkedin_password: Optional[str] = None,
     headless: bool = False,
     timeout: int = 180,
-    storage_state_path: Optional[Path] = None
+    storage_state_path: Optional[Path] = None,
+    jobs_output_path: Optional[Path] = None,
 ) -> tuple:
     """
     Open a browser, navigate to the URL, and take a screenshot.
@@ -466,6 +627,16 @@ def capture_screenshot(
                 logging.info(f"Page text saved to {text_output_path}")
             except Exception as e:
                 logging.warning(f"Could not extract page text: {e}")
+
+            # Extract and save job listings for structured new-job detection
+            if jobs_output_path and "linkedin.com/jobs/search" in url:
+                try:
+                    jobs = extract_job_listings(page)
+                    with open(jobs_output_path, "w", encoding="utf-8") as f:
+                        json.dump(jobs, f, indent=2)
+                    logging.info(f"Job listings saved to {jobs_output_path} ({len(jobs)} jobs)")
+                except Exception as e:
+                    logging.warning(f"Could not save job listings: {e}")
 
             # Update the saved session cookies
             if needs_login and is_authenticated:
@@ -882,6 +1053,9 @@ def process_monitor(
 
     # Get monitor-specific snapshot paths
     screenshot1_path, screenshot2_path, text1_path, text2_path, state_path = get_snapshot_paths(name)
+    safe_name = "".join(c if c.isalnum() or c in "-_" else "_" for c in name)
+    jobs1_path = Path("snapshots") / f"{safe_name}_jobs1.json"
+    jobs2_path = Path("snapshots") / f"{safe_name}_jobs2.json"
 
     logging.info("-" * 60)
     logging.info(f"Processing monitor: {name}")
@@ -906,7 +1080,8 @@ def process_monitor(
             linkedin_username=linkedin_username,
             linkedin_password=linkedin_password,
             headless=headless,
-            storage_state_path=state_path
+            storage_state_path=state_path,
+            jobs_output_path=jobs1_path,
         )
 
         if login_failed:
@@ -948,7 +1123,8 @@ def process_monitor(
             linkedin_username=linkedin_username,
             linkedin_password=linkedin_password,
             headless=headless,
-            storage_state_path=state_path
+            storage_state_path=state_path,
+            jobs_output_path=jobs2_path,
         )
 
         if login_failed:
@@ -1016,11 +1192,29 @@ def process_monitor(
                 screenshot2_path.unlink()
                 if text2_path.exists():
                     text2_path.unlink()
+                if jobs2_path.exists():
+                    jobs2_path.unlink()
             else:
                 # Change detected - send alert and update the baseline
                 logging.info(f"[{name}] CHANGE DETECTED! Sending notification...")
 
+                # Build job digest: find new jobs, summarize with AI
+                job_digest = ""
+                try:
+                    old_jobs = json.loads(jobs1_path.read_text(encoding="utf-8")) if jobs1_path.exists() else []
+                    new_jobs_all = json.loads(jobs2_path.read_text(encoding="utf-8")) if jobs2_path.exists() else []
+                    new_jobs = get_new_jobs(old_jobs, new_jobs_all)
+                    if new_jobs:
+                        logging.info(f"[{name}] {len(new_jobs)} new job(s) found — generating AI summaries")
+                        new_jobs = summarize_jobs_with_ai(new_jobs)
+                        job_digest = format_jobs_for_email(new_jobs) + "\n"
+                    else:
+                        logging.info(f"[{name}] No new job URLs detected (visual change may be cosmetic)")
+                except Exception as e:
+                    logging.warning(f"[{name}] Job digest generation failed: {e}")
+
                 body = (
+                    f"{job_digest}"
                     f"Change detected for '{name}'!\n\n"
                     f"URL: {url}\n"
                     f"Timestamp: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n"
@@ -1054,6 +1248,11 @@ def process_monitor(
                         temp_text.unlink()
                     elif text2_path.exists():
                         text2_path.rename(text1_path)
+                    # Rotate the jobs files
+                    if jobs2_path.exists():
+                        if jobs1_path.exists():
+                            jobs1_path.unlink()
+                        jobs2_path.rename(jobs1_path)
                     logging.info(f"[{name}] Screenshot rotation complete")
                 else:
                     # Clean up screenshot2 but keep screenshot1 as baseline
@@ -1062,6 +1261,8 @@ def process_monitor(
                         screenshot2_path.unlink()
                     if text2_path.exists():
                         text2_path.unlink()
+                    if jobs2_path.exists():
+                        jobs2_path.unlink()
 
     logging.info(f"[{name}] Monitor processing complete")
     return 0
