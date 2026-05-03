@@ -96,9 +96,8 @@ MAX_RETRIES = 3
 RETRY_BASE_DELAY = 2  # seconds, doubles each retry (exponential backoff)
 
 # Perceptual hash threshold - images with hash difference <= this are considered identical
-# 0 = any visual difference triggers email (too sensitive for LinkedIn's dynamic content)
-# 5 = tolerates minor noise (promoted slots, ad shifts) while catching real job changes
-PHASH_THRESHOLD = 5
+# 0 = any visual difference triggers email
+PHASH_THRESHOLD = 0
 
 
 def get_snapshot_paths(monitor_name: str) -> tuple:
