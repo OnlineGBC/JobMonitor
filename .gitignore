@@ -10,6 +10,7 @@ logs/
 nohup.out
 .claude/
 data/run_history.json
+snapshots/*_jobs*.json
 
 # --- Distribution / packaging ---
 .env

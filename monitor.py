@@ -1195,23 +1195,40 @@ def process_monitor(
                 if jobs2_path.exists():
                     jobs2_path.unlink()
             else:
-                # Change detected - send alert and update the baseline
-                logging.info(f"[{name}] CHANGE DETECTED! Sending notification...")
+                # Change detected by phash — verify with job URL comparison before alerting
+                logging.info(f"[{name}] CHANGE DETECTED by phash — checking for new job URLs...")
 
-                # Build job digest: find new jobs, summarize with AI
-                job_digest = ""
+                new_jobs = []
+                job_extraction_failed = False
                 try:
                     old_jobs = json.loads(jobs1_path.read_text(encoding="utf-8")) if jobs1_path.exists() else []
                     new_jobs_all = json.loads(jobs2_path.read_text(encoding="utf-8")) if jobs2_path.exists() else []
                     new_jobs = get_new_jobs(old_jobs, new_jobs_all)
-                    if new_jobs:
-                        logging.info(f"[{name}] {len(new_jobs)} new job(s) found — generating AI summaries")
+
+                    # If both lists extracted successfully but no new URLs → cosmetic change, skip email
+                    if old_jobs and new_jobs_all and not new_jobs:
+                        logging.info(f"[{name}] No new job URLs found — visual change is cosmetic. Skipping notification.")
+                        screenshot2_path.unlink()
+                        if text2_path.exists():
+                            text2_path.unlink()
+                        if jobs2_path.exists():
+                            jobs2_path.unlink()
+                        logging.info(f"[{name}] Monitor processing complete")
+                        return 0
+                except Exception as e:
+                    logging.warning(f"[{name}] Job URL comparison failed: {e} — sending email as fallback")
+                    job_extraction_failed = True
+
+                # New jobs confirmed (or extraction failed — fail safe: send email)
+                logging.info(f"[{name}] {len(new_jobs)} new job(s) found — sending notification...")
+
+                job_digest = ""
+                if new_jobs:
+                    try:
                         new_jobs = summarize_jobs_with_ai(new_jobs)
                         job_digest = format_jobs_for_email(new_jobs) + "\n"
-                    else:
-                        logging.info(f"[{name}] No new job URLs detected (visual change may be cosmetic)")
-                except Exception as e:
-                    logging.warning(f"[{name}] Job digest generation failed: {e}")
+                    except Exception as e:
+                        logging.warning(f"[{name}] AI summarization failed: {e}")
 
                 body = (
                     f"{job_digest}"
