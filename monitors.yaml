@@ -1,135 +1,28 @@
-# monitors.yaml — LinkedIn jobs: Remote USA + Hybrid NYC + Hybrid RDU
-# Uses Playwright (render_js: true) and narrows the diff to the results list only.
-
-defaults:
-  render_js: true
-  wait_until: "load"
-  headless: true
-  compare_mode: "text"                  # diff visible text to reduce HTML noise (legacy mode)
-  normalize_whitespace: true
-  timeout_seconds: 180                   # Increased timeout for LinkedIn
-  headers:                              # used only by requests mode; here for completeness
-    User-Agent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) WebChangeMonitor/1.0"
+# monitors.yaml — LinkedIn jobs: Remote USA + Hybrid NYC + Hybrid RDU + Chief AI Officer
+#
+# Only the following fields are read by monitor.py:
+#   - name       (identifier)
+#   - url        (LinkedIn search URL)
+#   - headless   (browser mode; defaults to False if omitted)
+#
+# Legacy fields (wait_selector, css_selector, structured_mode, compare_mode,
+# remove_selectors, ignore_regexes, normalize_whitespace, skip_if_page_text_matches,
+# render_js, wait_until, timeout_seconds, headers) were previously here but are
+# ignored — LinkedIn selectors and filtering logic are hardcoded in monitor.py.
 
 monitors:
-#  This is for RemoteUSA
 - name: "RemoteUSA"
   url: "https://www.linkedin.com/jobs/search/?currentJobId=4378353821&distance=25&f_E=4%2C5%2C6&f_TPR=r86400&f_WT=2&geoId=103644278&keywords=(title%3A%22Director%22%20OR%20title%3A%22VP%22%20OR%20title%3A%22Vice%20President%22%20OR%20title%3A%22Vice-President%22%20OR%20title%3A%22Head%22%20OR%20title%3A%22Leader%22%20OR%20title%3A%22Fractional%20CTO%22%20OR%20title%3A%22Fractional%20CIO%22%20)%20AND%20(title%3A%22AI%22%20OR%20title%3A%22Artificial%20Intelligence%22)%20AND%20NOT%20(%22Crossover%22%20OR%20%22Get%20IT%22%20OR%20%22Talentify%22%20OR%20%22Toptal%22%20OR%20%22Stealth%20Stanford%20AI%20Startup%22%20OR%20%22Lensa%22%20OR%20%22Tempus%22%20OR%20%22Harnham%22%20OR%20%22Swooped%22%20OR%20%22Jobgether%22)&origin=JOB_SEARCH_PAGE_JOB_FILTER&refresh=true&sortBy=R&spellCorrectionEnabled=true"
-    # Results list container (common on LinkedIn jobs search)
-  wait_selector: "ul.jobs-search__results-list"
-  css_selector: "ul.jobs-search__results-list"
+  headless: true
 
-    # Robust, order-insensitive LinkedIn comparison
-  structured_mode: "linkedin_jobs"
-
-    # If LinkedIn shows a "no jobs" banner, bail out quietly (no email)
-    # Use single-quoted YAML so backslashes are literal; \s+ tolerates spacing; (?:\.)? allows trailing period
-  skip_if_page_text_matches:
-  - '(?i)\bno\s+matching\s+jobs\s+found\b(?:\.)?'
-  - '(?i)\bno\s+results\s+found\b'
-  - '(?i)\bno\s+jobs\s+found\b'
-  - '(?i)\b0\s+results\b'
-  - '(?i)\btry\s+adjusting\s+your\s+search\b'
-
-    # Remove noisy, highly dynamic elements before comparing (legacy mode only):
-  remove_selectors:
-  - "time"                                       # relative time badges
-  - ".job-card-container__footer"                # highly dynamic actions/footer
-  - ".job-card-container__insight"               # views/applicants counters
-  - ".job-card-list__insight"                    # legacy insight block
-  - ".job-card-list__footer"                     # extra dynamic footer
-  - ".jobs-search-results-list__subtitle"        # changing subtitles
-  - ".artdeco-toast-item"                        # transient toasts
-  - "aside"                                      # sidebars often include changing widgets
-  - "header"                                     # header banners
-  - "footer"                                     # footer content
-
-    # Ignore changing strings (legacy mode only):
-  ignore_regexes:
-  - "\\b(views?|applicants?)\\b.*"               # "23 applicants", "120 views"
-  - "\\b\\d+\\s+applicants?\\b"                  # explicit numeric applicants (extra safeguard)
-  - "\\bPromoted\\b|\\bReposted\\b|\\bActively hiring\\b"
-  - "\\bJust now\\b|\\bminutes? ago\\b|\\bhours? ago\\b|\\bdays? ago\\b"
-  - "\\bUpdated on\\s*\\d{4}-\\d{2}-\\d{2}\\b"
-  - "\\b\\d{1,2}:\\d{2}(?:am|pm)\\b"
-  - "\\b\\d{4}-\\d{2}-\\d{2}\\b"
-
-
-#  This is for HybridNYC
 - name: "HybridNYC"
   url: "https://www.linkedin.com/jobs/search/?currentJobId=4383943436&distance=5&f_E=5%2C6&f_TPR=r86400&geoId=102571732&keywords=(title%3A%22Director%22%20OR%20title%3A%22VP%22%20OR%20title%3A%22Vice%20President%22%20OR%20title%3A%22Vice-President%22%20OR%20title%3A%22Head%22%20OR%20title%3A%22Leader%22%20OR%20title%3A%22Fractional%20CIO%22%20OR%20title%3A%22Fractional%20CTO%22%20)%20AND%20(title%3A%22AI%22%20OR%20title%3A%22Artificial%20Intelligence%22)%20AND%20NOT%20(%22Crossover%22%20OR%20%22Get%20IT%22%20OR%20%22Talentify%22%20OR%20%22Toptal%22%20OR%20%22Stealth%20Stanford%20AI%20Startup%22%20OR%20%22Lensa%22%20OR%20%22Harnham%22%20OR%20%22Swooped%22%20%20OR%20%22Jobgether%22)&origin=JOB_SEARCH_PAGE_JOB_FILTER"
-  wait_selector: "ul.jobs-search__results-list"
-  css_selector: "ul.jobs-search__results-list"
-
-  structured_mode: "linkedin_jobs"
-
-  skip_if_page_text_matches:
-  - '(?i)\bno\s+matching\s+jobs\s+found\b(?:\.)?'
-  - '(?i)\bno\s+results\s+found\b'
-  - '(?i)\bno\s+jobs\s+found\b'
-  - '(?i)\b0\s+results\b'
-  - '(?i)\btry\s+adjusting\s+your\s+search\b'
-
-  remove_selectors:
-  - "time"
-  - ".job-card-container__footer"
-  - ".job-card-container__insight"
-  - ".job-card-list__insight"
-  - ".job-card-list__footer"
-  - ".jobs-search-results-list__subtitle"
-  - ".artdeco-toast-item"
-  - "aside"
-  - "header"
-  - "footer"
-
-  ignore_regexes:
-  - "\\b(views?|applicants?)\\b.*"
-  - "\\b\\d+\\s+applicants?\\b"
-  - "\\bPromoted\\b|\\bReposted\\b|\\bActively hiring\\b"
-  - "\\bJust now\\b|\\bminutes? ago\\b|\\bhours? ago\\b|\\bdays? ago\\b"
-  - "\\bUpdated on\\s*\\d{4}-\\d{2}-\\d{2}\\b"
-  - "\\b\\d{1,2}:\\d{2}(?:am|pm)\\b"
-  - "\\b\\d{4}-\\d{2}-\\d{2}\\b"
-
+  headless: true
 
 - name: "HybridRDU"
   url: "https://www.linkedin.com/jobs/search/?currentJobId=4334768986&f_E=4%2C5%2C6&f_PP=100197101&f_TPR=r86400&f_WT=1%2C3%2C2&geoId=90000664&keywords=(title%3A%22Director%22%20OR%20title%3A%22VP%22%20OR%20title%3A%22Vice%20President%22%20OR%20title%3A%22Vice-President%22%20OR%20title%3A%22Head%22%20OR%20title%3A%22Leader%22%20OR%20title%3A%22Fractional%20CIO%22%20OR%20title%3A%22Fractional%20CTO%22%20)%20AND%20(title%3A%22AI%22%20OR%20title%3A%22Artificial%20Intelligence%22)%20AND%20NOT%20(%22Crossover%22%20OR%20%22Get%20IT%22%20OR%20%22Talentify%22%20OR%20%22Toptal%22%20OR%20%22Stealth%20Stanford%20AI%20Startup%22%20OR%20%22Lensa%22%20OR%20%22Harnham%22%20OR%20%22Swooped%22%20%20OR%20%22Jobgether%22)&origin=JOB_SEARCH_PAGE_SEARCH_BUTTON&refresh=true&sortBy=R&spellCorrectionEnabled=true"
-  wait_selector: "ul.jobs-search__results-list"
-  css_selector: "ul.jobs-search__results-list"
+  headless: true
 
-  structured_mode: "linkedin_jobs"
-
-  skip_if_page_text_matches:
-  - '(?i)\bno\s+matching\s+jobs\s+found\b(?:\.)?'
-  - '(?i)\bno\s+results\s+found\b'
-  - '(?i)\bno\s+jobs\s+found\b'
-  - '(?i)\b0\s+results\b'
-  - '(?i)\btry\s+adjusting\s+your\s+search\b'
-
-  remove_selectors:
-  - "time"
-  - ".job-card-container__footer"
-  - ".job-card-container__insight"
-  - ".job-card-list__insight"
-  - ".job-card-list__footer"
-  - ".jobs-search-results-list__subtitle"
-  - ".artdeco-toast-item"
-  - "aside"
-  - "header"
-  - "footer"
-
-  ignore_regexes:
-  - "\\b(views?|applicants?)\\b.*"
-  - "\\b\\d+\\s+applicants?\\b"
-  - "\\bPromoted\\b|\\bReposted\\b|\\bActively hiring\\b"
-  - "\\bJust now\\b|\\bminutes? ago\\b|\\bhours? ago\\b|\\bdays? ago\\b"
-  - "\\bUpdated on\\s*\\d{4}-\\d{2}-\\d{2}\\b"
-  - "\\b\\d{1,2}:\\d{2}(?:am|pm)\\b"
-  - "\\b\\d{4}-\\d{2}-\\d{2}\\b"
-
-- name: Chief AI Officer
-  url: 
-    https://www.linkedin.com/jobs/search/?currentJobId=4405426713&f_TPR=r86400&geoId=103644278&keywords=%22chief%20AI%20officer%22&origin=JOB_SEARCH_PAGE_JOB_FILTER&refresh=true
+- name: "Chief AI Officer"
+  url: "https://www.linkedin.com/jobs/search/?currentJobId=4405426713&f_TPR=r86400&geoId=103644278&keywords=%22chief%20AI%20officer%22&origin=JOB_SEARCH_PAGE_JOB_FILTER&refresh=true"
   headless: false
-  wait_selector: ul.jobs-search__results-list
-  css_selector: ul.jobs-search__results-list
