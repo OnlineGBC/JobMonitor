@@ -39,6 +39,7 @@ from flask import (
 from ruamel.yaml import YAML
 
 from monitor import clear_baseline, configure_logging, get_snapshot_paths
+from run_monitor import get_scheduler_ranges
 from web_run_monitor import MonitorScheduler, get_run_history, get_total_run_count
 
 # ---------------------------------------------------------------------------
@@ -174,6 +175,12 @@ SETTINGS_GROUPS = {
         ("SLACK_WEBHOOK_URL", "Slack incoming webhook URL", False),
         ("DISCORD_WEBHOOK_URL", "Discord webhook URL", False),
     ],
+    "Scheduler (intervals in minutes)": [
+        ("SCHED_BUSINESS_MIN", "Business-hours minimum interval (default 10)", False),
+        ("SCHED_BUSINESS_MAX", "Business-hours maximum interval (default 15)", False),
+        ("SCHED_OFFHOURS_MIN", "Off-hours minimum interval (default 115)", False),
+        ("SCHED_OFFHOURS_MAX", "Off-hours maximum interval (default 125)", False),
+    ],
     "Other": [
         ("CONFIG_PATH", "Path to monitors.yaml config file", False),
     ],
@@ -217,6 +224,7 @@ def dashboard():
         run_history=get_run_history(show_runs),
         total_runs=total_runs,
         show_runs=show_runs,
+        sched_ranges=get_scheduler_ranges(),
     )
 
 
@@ -418,6 +426,35 @@ def api_scheduler_stop():
 @app.route("/api/scheduler/status")
 def api_scheduler_status():
     return jsonify(scheduler.get_status())
+
+
+@app.route("/api/scheduler/intervals", methods=["POST"])
+def api_scheduler_intervals():
+    """Save the four randomized-interval ranges (in minutes) to .env."""
+    if not request.is_json:
+        return jsonify({"status": "error", "message": "Expected JSON body."})
+    payload = request.json or {}
+    keys = ("business_min", "business_max", "offhours_min", "offhours_max")
+    try:
+        vals = {k: int(payload.get(k)) for k in keys}
+    except (TypeError, ValueError):
+        return jsonify({"status": "error", "message": "All four intervals must be integers."})
+
+    for k, v in vals.items():
+        if v < 1 or v > 1440:
+            return jsonify({"status": "error", "message": f"{k} must be between 1 and 1440 minutes."})
+    if vals["business_max"] < vals["business_min"]:
+        return jsonify({"status": "error", "message": "Business-hours max must be ≥ min."})
+    if vals["offhours_max"] < vals["offhours_min"]:
+        return jsonify({"status": "error", "message": "Off-hours max must be ≥ min."})
+
+    _write_env([
+        ("SCHED_BUSINESS_MIN", str(vals["business_min"])),
+        ("SCHED_BUSINESS_MAX", str(vals["business_max"])),
+        ("SCHED_OFFHOURS_MIN", str(vals["offhours_min"])),
+        ("SCHED_OFFHOURS_MAX", str(vals["offhours_max"])),
+    ])
+    return jsonify({"status": "ok", "message": "Interval ranges saved. Next cycle will use the new values."})
 
 
 @app.route("/api/logs")

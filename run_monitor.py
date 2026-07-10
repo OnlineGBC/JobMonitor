@@ -77,17 +77,58 @@ def is_business_hours(et_now: datetime) -> bool:
     return is_weekday and is_daytime
 
 
+SCHED_DEFAULTS = {
+    "SCHED_BUSINESS_MIN": 10,
+    "SCHED_BUSINESS_MAX": 15,
+    "SCHED_OFFHOURS_MIN": 115,
+    "SCHED_OFFHOURS_MAX": 125,
+}
+
+
+def _read_sched_minutes(key: str) -> int:
+    """Read a scheduler interval env var (in minutes) with default fallback."""
+    raw = os.getenv(key)
+    if raw is None:
+        return SCHED_DEFAULTS[key]
+    try:
+        value = int(raw)
+        if value < 1:
+            return SCHED_DEFAULTS[key]
+        return value
+    except (ValueError, TypeError):
+        return SCHED_DEFAULTS[key]
+
+
+def get_scheduler_ranges() -> dict:
+    """Return the current business-hours and off-hours interval ranges in minutes."""
+    b_min = _read_sched_minutes("SCHED_BUSINESS_MIN")
+    b_max = _read_sched_minutes("SCHED_BUSINESS_MAX")
+    o_min = _read_sched_minutes("SCHED_OFFHOURS_MIN")
+    o_max = _read_sched_minutes("SCHED_OFFHOURS_MAX")
+    if b_max < b_min:
+        b_max = b_min
+    if o_max < o_min:
+        o_max = o_min
+    return {
+        "business_min": b_min,
+        "business_max": b_max,
+        "offhours_min": o_min,
+        "offhours_max": o_max,
+    }
+
+
 def get_sleep_interval(et_now: datetime) -> int:
     """
     Get the sleep interval in seconds based on time of day.
 
-    - Business hours: 10-15 minutes (600-900 seconds)
-    - Off-hours: 115-125 minutes (6900-7500 seconds)
+    Ranges come from env vars (SCHED_BUSINESS_MIN/MAX, SCHED_OFFHOURS_MIN/MAX,
+    all in minutes) with defaults of 10-15 and 115-125.
     """
+    ranges = get_scheduler_ranges()
     if is_business_hours(et_now):
-        return random.randint(600, 900)
+        return random.randint(ranges["business_min"] * 60, ranges["business_max"] * 60)
     else:
-        return random.randint(6900, 7500)
+        return random.randint(ranges["offhours_min"] * 60, ranges["offhours_max"] * 60)
 
 
 def build_email_config() -> dict:

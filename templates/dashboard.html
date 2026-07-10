@@ -54,6 +54,30 @@
                         </button>
                     </div>
                 </div>
+
+                <hr>
+                <div>
+                    <p class="mb-1"><small class="text-muted fw-bold">Randomized intervals (min)</small></p>
+                    <p class="mb-1"><small class="text-muted">Business hours (Mon–Fri 8AM–8PM ET):</small></p>
+                    <div class="input-group input-group-sm mb-2" style="max-width: 220px;">
+                        <input type="number" class="form-control" id="schedBusinessMin"
+                               value="{{ sched_ranges.business_min }}" min="1" max="1440" title="Minimum minutes">
+                        <span class="input-group-text">to</span>
+                        <input type="number" class="form-control" id="schedBusinessMax"
+                               value="{{ sched_ranges.business_max }}" min="1" max="1440" title="Maximum minutes">
+                    </div>
+                    <p class="mb-1"><small class="text-muted">Off-hours (nights, weekends):</small></p>
+                    <div class="input-group input-group-sm mb-2" style="max-width: 220px;">
+                        <input type="number" class="form-control" id="schedOffhoursMin"
+                               value="{{ sched_ranges.offhours_min }}" min="1" max="1440" title="Minimum minutes">
+                        <span class="input-group-text">to</span>
+                        <input type="number" class="form-control" id="schedOffhoursMax"
+                               value="{{ sched_ranges.offhours_max }}" min="1" max="1440" title="Maximum minutes">
+                    </div>
+                    <button class="btn btn-outline-success btn-sm" onclick="saveSchedIntervals()" id="btn-save-intervals">
+                        <i class="bi bi-save"></i> Save Intervals
+                    </button>
+                </div>
             </div>
         </div>
 
@@ -219,6 +243,25 @@
             .then(data => {
                 showFlash(data.message, data.status === 'ok' ? 'success' : 'warning');
                 setTimeout(() => location.reload(), 500);
+            })
+            .catch(() => showFlash('Request failed', 'error'));
+    }
+
+    function saveSchedIntervals() {
+        var payload = {
+            business_min: parseInt(document.getElementById('schedBusinessMin').value),
+            business_max: parseInt(document.getElementById('schedBusinessMax').value),
+            offhours_min: parseInt(document.getElementById('schedOffhoursMin').value),
+            offhours_max: parseInt(document.getElementById('schedOffhoursMax').value),
+        };
+        fetch('/api/scheduler/intervals', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(payload)
+        })
+            .then(r => r.json())
+            .then(data => {
+                showFlash(data.message, data.status === 'ok' ? 'success' : 'error');
             })
             .catch(() => showFlash('Request failed', 'error'));
     }
