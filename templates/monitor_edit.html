@@ -33,6 +33,13 @@
                 <div class="form-text">Run browser without visible window. Uncheck for first-time LinkedIn login.</div>
             </div>
 
+            <div class="mb-3 form-check form-switch">
+                <input class="form-check-input" type="checkbox" name="enabled" id="enabled"
+                       {% if monitor and monitor.get('enabled', true) %}checked{% elif not monitor %}checked{% endif %}>
+                <label class="form-check-label" for="enabled">Enabled (include in scheduler)</label>
+                <div class="form-text">When off, the scheduler and "Run All Once" skip this monitor. The per-card Run button still works.</div>
+            </div>
+
             <hr>
             <div class="d-flex gap-2">
                 <button type="submit" class="btn btn-primary">

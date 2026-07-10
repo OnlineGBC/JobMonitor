@@ -160,14 +160,18 @@ class MonitorScheduler:
             try:
                 with open(config_path, "r", encoding="utf-8") as f:
                     cfg = yaml.safe_load(f) or {}
-                monitor_names = [m["name"] for m in cfg.get("monitors", []) if "name" in m]
+                all_monitors = cfg.get("monitors", [])
+                monitor_names = [m["name"] for m in all_monitors if "name" in m and m.get("enabled", True)]
+                skipped = [m["name"] for m in all_monitors if "name" in m and not m.get("enabled", True)]
+                if skipped:
+                    logging.info(f"Scheduler: skipping disabled monitor(s): {', '.join(skipped)}")
             except Exception as e:
                 logging.error(f"Scheduler: cannot read monitors.yaml: {e}")
                 self._sleep_interruptible(60)
                 continue
 
             if not monitor_names:
-                logging.warning("Scheduler: no monitors configured")
+                logging.warning("Scheduler: no enabled monitors configured")
                 self._sleep_interruptible(60)
                 continue
 
@@ -249,7 +253,11 @@ class MonitorScheduler:
                 else:
                     with open("monitors.yaml", "r", encoding="utf-8") as f:
                         cfg = yaml.safe_load(f) or {}
-                    names = [m["name"] for m in cfg.get("monitors", []) if "name" in m]
+                    all_monitors = cfg.get("monitors", [])
+                    names = [m["name"] for m in all_monitors if "name" in m and m.get("enabled", True)]
+                    skipped = [m["name"] for m in all_monitors if "name" in m and not m.get("enabled", True)]
+                    if skipped:
+                        logging.info(f"Run All: skipping disabled monitor(s): {', '.join(skipped)}")
 
                 for idx, name in enumerate(names):
                     start_time = time.time()

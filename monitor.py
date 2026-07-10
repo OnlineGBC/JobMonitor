@@ -1354,11 +1354,20 @@ def main():
         logging.error("No monitors defined in monitors.yaml")
         sys.exit(1)
 
-    # Filter monitors if --monitor flag is specified
+    # Filter monitors if --monitor flag is specified (explicit name overrides enabled flag)
     if args.monitor:
         monitors = [m for m in monitors if m.get("name") == args.monitor]
         if not monitors:
             logging.error(f"No monitor found with name: {args.monitor}")
+            sys.exit(1)
+    else:
+        # Bare run: skip disabled monitors
+        skipped = [m.get("name", "?") for m in monitors if not m.get("enabled", True)]
+        monitors = [m for m in monitors if m.get("enabled", True)]
+        if skipped:
+            logging.info(f"Skipping disabled monitor(s): {', '.join(skipped)}")
+        if not monitors:
+            logging.error("No enabled monitors in monitors.yaml")
             sys.exit(1)
 
     defaults = cfg.get("defaults", {})

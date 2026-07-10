@@ -15,6 +15,7 @@
             <tr>
                 <th>Name</th>
                 <th>URL</th>
+                <th>Enabled</th>
                 <th>Headless</th>
                 <th>Baseline</th>
                 <th>Last Modified</th>
@@ -26,6 +27,13 @@
             <tr>
                 <td><strong>{{ monitor.name }}</strong></td>
                 <td class="url-display" style="max-width: 300px;">{{ monitor.url[:100] }}{% if monitor.url|length > 100 %}...{% endif %}</td>
+                <td>
+                    {% if monitor.get('enabled', true) %}
+                        <span class="badge bg-success">Yes</span>
+                    {% else %}
+                        <span class="badge bg-warning text-dark">Paused</span>
+                    {% endif %}
+                </td>
                 <td>
                     {% if monitor.headless %}
                         <span class="badge bg-success">Yes</span>

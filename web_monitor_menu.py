@@ -308,6 +308,7 @@ def api_monitor_create():
         "name": name,
         "url": url_val,
         "headless": "headless" in request.form,
+        "enabled": "enabled" in request.form,
     }
     monitors_list.append(new_monitor)
     cfg["monitors"] = monitors_list
@@ -326,6 +327,7 @@ def api_monitor_update(name):
         if m.get("name") == name:
             m["url"] = request.form.get("url", "").strip()
             m["headless"] = "headless" in request.form
+            m["enabled"] = "enabled" in request.form
             found = True
             break
 

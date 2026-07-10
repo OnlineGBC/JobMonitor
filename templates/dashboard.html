@@ -118,7 +118,12 @@
                 <div class="card monitor-card h-100">
                     <div class="card-body">
                         <h6 class="card-title d-flex justify-content-between align-items-center">
-                            {{ monitor.name }}
+                            <span>
+                                {{ monitor.name }}
+                                {% if not monitor.get('enabled', true) %}
+                                    <span class="badge bg-warning text-dark ms-1" title="Excluded from scheduler and Run All Once">Paused</span>
+                                {% endif %}
+                            </span>
                             {% if monitor.has_baseline %}
                                 <span class="status-dot green" title="Baseline exists"></span>
                             {% else %}
