@@ -211,8 +211,15 @@
             .then(r => r.json())
             .then(data => {
                 showFlash(data.message, data.status === 'ok' ? 'info' : 'warning');
+                if (data.status !== 'ok' && btn) {
+                    btn.disabled = false;
+                    btn.innerHTML = '<i class="bi bi-lightning"></i> Run';
+                }
             })
-            .catch(() => showFlash('Request failed', 'error'));
+            .catch(() => {
+                showFlash('Request failed', 'error');
+                if (btn) { btn.disabled = false; btn.innerHTML = '<i class="bi bi-lightning"></i> Run'; }
+            });
     }
 
     function runAll() {
@@ -222,8 +229,15 @@
             .then(r => r.json())
             .then(data => {
                 showFlash(data.message, data.status === 'ok' ? 'info' : 'warning');
+                if (data.status !== 'ok' && btn) {
+                    btn.disabled = false;
+                    btn.innerHTML = '<i class="bi bi-lightning"></i> Run All Once';
+                }
             })
-            .catch(() => showFlash('Request failed', 'error'));
+            .catch(() => {
+                showFlash('Request failed', 'error');
+                if (btn) { btn.disabled = false; btn.innerHTML = '<i class="bi bi-lightning"></i> Run All Once'; }
+            });
     }
 
     function startCustomSchedule() {
