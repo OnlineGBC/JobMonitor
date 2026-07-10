@@ -308,8 +308,6 @@ def api_monitor_create():
         "name": name,
         "url": url_val,
         "headless": "headless" in request.form,
-        "wait_selector": request.form.get("wait_selector", "").strip() or "ul.jobs-search__results-list",
-        "css_selector": request.form.get("css_selector", "").strip() or "ul.jobs-search__results-list",
     }
     monitors_list.append(new_monitor)
     cfg["monitors"] = monitors_list
@@ -328,8 +326,6 @@ def api_monitor_update(name):
         if m.get("name") == name:
             m["url"] = request.form.get("url", "").strip()
             m["headless"] = "headless" in request.form
-            m["wait_selector"] = request.form.get("wait_selector", "").strip() or "ul.jobs-search__results-list"
-            m["css_selector"] = request.form.get("css_selector", "").strip() or "ul.jobs-search__results-list"
             found = True
             break
 

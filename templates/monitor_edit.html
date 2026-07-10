@@ -33,20 +33,6 @@
                 <div class="form-text">Run browser without visible window. Uncheck for first-time LinkedIn login.</div>
             </div>
 
-            <div class="mb-3">
-                <label class="form-label fw-bold">Wait Selector</label>
-                <input type="text" class="form-control" name="wait_selector"
-                       value="{{ monitor.wait_selector if monitor and monitor.wait_selector else 'ul.jobs-search__results-list' }}">
-                <div class="form-text">CSS selector to wait for before taking screenshot.</div>
-            </div>
-
-            <div class="mb-3">
-                <label class="form-label fw-bold">CSS Selector</label>
-                <input type="text" class="form-control" name="css_selector"
-                       value="{{ monitor.css_selector if monitor and monitor.css_selector else 'ul.jobs-search__results-list' }}">
-                <div class="form-text">CSS selector for the content to compare.</div>
-            </div>
-
             <hr>
             <div class="d-flex gap-2">
                 <button type="submit" class="btn btn-primary">
