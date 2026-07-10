@@ -62,19 +62,21 @@ CONFIG_PATH=monitors.yaml
 
 ## Configuring monitors
 
-Edit `monitors.yaml`. Only three fields are read:
+Edit `monitors.yaml`. Only these fields are read:
 
 | Field | Type | Notes |
 |-------|------|-------|
 | `name` | string | Unique identifier — used in filenames |
 | `url` | string | The full LinkedIn job search URL |
 | `headless` | bool | Run browser without a window. Set `false` for first login so you can solve captcha / 2FA |
+| `enabled` | bool | Default `true`. When `false`, the scheduler and "Run All Once" skip this monitor. The per-card **Run** button and `python monitor.py --monitor NAME` still run it. |
 
 ```yaml
 monitors:
   - name: "RemoteUSA"
     url: "https://www.linkedin.com/jobs/search/?keywords=..."
     headless: true
+    enabled: true
 ```
 
 To build a URL: run the search on LinkedIn, then copy the address bar. LinkedIn
