@@ -158,7 +158,7 @@ monitor.py                Core: screenshot, phash compare, extract, notify
 run_monitor.py            CLI scheduling loop with smart timing
 monitor_menu.py           Interactive CLI menu
 web_monitor_menu.py       Flask web UI (localhost:5000)
-web_run_monitor.py        Background thread scheduler used by the web UI
+background_scheduler.py   Background thread scheduler used by the web UI
 monitors.yaml             Monitor definitions
 requirements.txt          Python dependencies
 templates/                Jinja2 templates for the web UI

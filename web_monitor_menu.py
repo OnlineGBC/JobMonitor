@@ -40,7 +40,7 @@ from ruamel.yaml import YAML
 
 from monitor import clear_baseline, configure_logging, get_snapshot_paths
 from run_monitor import get_scheduler_ranges
-from web_run_monitor import MonitorScheduler, get_run_history, get_total_run_count
+from background_scheduler import MonitorScheduler, get_run_history, get_total_run_count
 
 # ---------------------------------------------------------------------------
 # App setup
