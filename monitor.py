@@ -116,6 +116,27 @@ def get_snapshot_paths(monitor_name: str) -> tuple:
     )
 
 
+def find_seed_state_path(exclude_path: Path) -> Optional[Path]:
+    """
+    Find another monitor's saved LinkedIn session to seed a new monitor with.
+
+    All monitors sign in as the same LinkedIn account, so a session saved by one
+    is valid for the rest. Without this, a newly added monitor has no cookies and
+    is forced through a full username/password login, which LinkedIn tends to
+    answer with a 2FA/captcha checkpoint.
+
+    Returns the most recently modified state file other than exclude_path,
+    or None if there isn't one.
+    """
+    candidates = [
+        p for p in Path("snapshots").glob("*_linkedin_state.json")
+        if p.resolve() != exclude_path.resolve()
+    ]
+    if not candidates:
+        return None
+    return max(candidates, key=lambda p: p.stat().st_mtime)
+
+
 # =============================================================================
 # Utility Functions
 # =============================================================================
@@ -499,13 +520,23 @@ def capture_screenshot(
     storage_state = None
     has_saved_session = False
 
+    needs_login = "linkedin.com" in url and linkedin_username and linkedin_password
+
     # Check if we have saved LinkedIn cookies from a previous session
     if storage_state_path.exists():
         storage_state = str(storage_state_path)
         has_saved_session = True
         logging.info(f"Loading saved LinkedIn session from {storage_state_path}")
-
-    needs_login = "linkedin.com" in url and linkedin_username and linkedin_password
+    elif needs_login:
+        # New monitor with no session of its own. Borrow another monitor's
+        # session rather than forcing a fresh login into a LinkedIn checkpoint.
+        # It is validated below like any other saved session, and saved to this
+        # monitor's own path once the run succeeds.
+        seed_path = find_seed_state_path(storage_state_path)
+        if seed_path:
+            storage_state = str(seed_path)
+            has_saved_session = True
+            logging.info(f"No session for this monitor - seeding from {seed_path}")
     effective_headless = headless
 
     # In a container there is no display server — always force headless
