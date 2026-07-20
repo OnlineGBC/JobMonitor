@@ -1476,9 +1476,14 @@ def main():
         if exit_code != 0:
             worst_exit_code = exit_code
 
-        # Stop immediately on login failure (affects all monitors)
+        # Stop immediately on login failure - a bad session affects every monitor
+        # in THIS invocation. With --monitor that is just the one named, so only
+        # say "stopping" when there are others left to abandon.
         if exit_code == 10:
-            logging.error("LinkedIn login failed - stopping all monitors")
+            if len(monitors) > 1:
+                logging.error("LinkedIn login failed - stopping remaining monitors in this run")
+            else:
+                logging.error(f"LinkedIn login failed for {monitor.get('name', '?')}")
             break
 
     logging.info("=" * 60)
