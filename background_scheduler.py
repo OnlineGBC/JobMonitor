@@ -108,6 +108,31 @@ class MonitorScheduler:
             time.sleep(1)
         return True
 
+    def _is_monitor_enabled(self, monitor_name):
+        """
+        Re-read monitors.yaml to check whether a monitor is still enabled.
+
+        A cycle takes minutes to walk (2-min gaps between monitors, plus login
+        retries), so the list captured at the top of the cycle goes stale. Pausing
+        a monitor from the web UI has to take effect on this cycle, not the next.
+
+        Fails open: if the config can't be read, run the monitor as already
+        decided rather than silently skipping everything.
+        """
+        import yaml
+        try:
+            with open("monitors.yaml", "r", encoding="utf-8") as f:
+                cfg = yaml.safe_load(f) or {}
+        except Exception as e:
+            logging.warning(f"Could not re-check enabled flag for {monitor_name}: {e}")
+            return True
+
+        for m in cfg.get("monitors", []):
+            if m.get("name") == monitor_name:
+                return bool(m.get("enabled", True))
+        # Monitor was deleted mid-cycle
+        return False
+
     def _run_single_monitor(self, monitor_name):
         """Run monitor.py for a single monitor. Returns exit code."""
         script_dir = Path(__file__).parent
@@ -182,6 +207,11 @@ class MonitorScheduler:
                 if self._stop_event.is_set():
                     break
 
+                # The list was captured minutes ago - honor a pause made since then
+                if not self._is_monitor_enabled(name):
+                    logging.info(f"Scheduler: {name} was paused mid-cycle - skipping")
+                    continue
+
                 start_time = time.time()
                 exit_code = self._run_single_monitor(name)
                 duration = time.time() - start_time
@@ -201,6 +231,9 @@ class MonitorScheduler:
                     logging.warning(f"Login failed for {name} - retrying once after delay")
                     if not self._sleep_interruptible(600):  # 10 min
                         break
+                    if not self._is_monitor_enabled(name):
+                        logging.info(f"Scheduler: {name} was paused - skipping login retry")
+                        continue
                     start_time = time.time()
                     exit_code = self._run_single_monitor(name)
                     duration = time.time() - start_time
@@ -260,6 +293,12 @@ class MonitorScheduler:
                         logging.info(f"Run All: skipping disabled monitor(s): {', '.join(skipped)}")
 
                 for idx, name in enumerate(names):
+                    # Skip a monitor paused since the list was built, but only for
+                    # "Run All" - an explicit single-monitor Run is a deliberate click
+                    # and runs even when paused.
+                    if not monitor_name and not self._is_monitor_enabled(name):
+                        logging.info(f"Run All: {name} was paused mid-run - skipping")
+                        continue
                     start_time = time.time()
                     exit_code = self._run_single_monitor(name)
                     duration = time.time() - start_time
