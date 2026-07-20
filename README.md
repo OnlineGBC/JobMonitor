@@ -19,7 +19,11 @@ sends a digest email.
 5. Rotates the new screenshot into the baseline only after a successful send.
 
 Session cookies are saved per monitor in `snapshots/<name>_linkedin_state.json`
-so subsequent runs stay logged in.
+so subsequent runs stay logged in. A newly added monitor has no session file, so
+it seeds from the most recently saved one (all monitors use the same LinkedIn
+account) and writes its own copy after the first successful run. This avoids a
+full username/password login, which LinkedIn tends to answer with a 2FA/captcha
+checkpoint.
 
 ## Setup
 
@@ -176,8 +180,9 @@ logs/screen_compare.log   Rotated at 5MB, keeps 3 backups
 `SMTP_USE_TLS`. Check firewall for port 587.
 
 **LinkedIn login fails** → Set `headless: false` on the monitor and rerun so
-you can see the login page and solve any captcha. Delete
-`snapshots/<name>_linkedin_state.json` to force a fresh login.
+you can see the login page and solve any captcha. To force a fresh login you
+must delete *every* `snapshots/*_linkedin_state.json`, not just this monitor's
+— a monitor with no session of its own seeds from the newest remaining one.
 
 **Too many false-positive emails** → Raise `PHASH_THRESHOLD` in `monitor.py`
 (default `0` triggers on any visual difference). Values 2–3 absorb minor
