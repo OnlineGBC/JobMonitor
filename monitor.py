@@ -117,6 +117,32 @@ def get_snapshot_paths(monitor_name: str) -> tuple:
     )
 
 
+# Chromium network errors that mean "this machine cannot reach the internet",
+# as opposed to anything LinkedIn did. Treating these as an expired session
+# would clear good cookies and attempt a full password login - which is what
+# provokes a captcha/2FA checkpoint. A dropped connection must never cost that.
+NETWORK_ERROR_MARKERS = (
+    "ERR_INTERNET_DISCONNECTED",
+    "ERR_NAME_NOT_RESOLVED",
+    "ERR_NAME_RESOLUTION_FAILED",
+    "ERR_ADDRESS_UNREACHABLE",
+    "ERR_NETWORK_CHANGED",
+    "ERR_CONNECTION_REFUSED",
+    "ERR_CONNECTION_RESET",
+    "ERR_CONNECTION_TIMED_OUT",
+    "ERR_CONNECTION_CLOSED",
+    "ERR_PROXY_CONNECTION_FAILED",
+    "ERR_TUNNEL_CONNECTION_FAILED",
+    "ERR_SOCKS_CONNECTION_FAILED",
+)
+
+
+def is_network_error(error: Exception) -> bool:
+    """Whether this exception means the network is unreachable."""
+    text = str(error)
+    return any(marker in text for marker in NETWORK_ERROR_MARKERS)
+
+
 def safe_owner(owner_email: str) -> str:
     """Turn an email into something usable as a filename."""
     return "".join(c if c.isalnum() or c in "-_" else "_" for c in (owner_email or "").strip().lower())
@@ -585,10 +611,11 @@ def capture_screenshot(
     """
     Open a browser, navigate to the URL, and take a screenshot.
 
-    Returns a tuple: (success, login_failed)
-        - (True, False) = Screenshot captured successfully
-        - (False, True) = LinkedIn login failed
-        - (False, False) = Some other error occurred
+    Returns a tuple: (success, login_failed, network_down)
+        - (True, False, False)  = Screenshot captured successfully
+        - (False, True, False)  = LinkedIn login failed
+        - (False, False, True)  = This machine could not reach the network
+        - (False, False, False) = Some other error occurred
     """
     if not HAS_PLAYWRIGHT:
         raise RuntimeError("Playwright not installed. Run: pip install playwright && playwright install chromium")
@@ -678,6 +705,13 @@ def capture_screenshot(
                     else:
                         logging.info("Saved LinkedIn session appears expired, will re-login")
                 except Exception as e:
+                    if is_network_error(e):
+                        # The network is down, so nothing is known about the
+                        # session. Keep the cookies and give up for now: a
+                        # password login here would risk a checkpoint for the
+                        # sake of an outage that will pass on its own.
+                        logging.warning(f"Network unavailable - skipping this run: {e}")
+                        return (False, False, True)
                     logging.warning(f"Could not validate session, will re-login: {e}")
 
             # Log in if we don't have a valid session
@@ -697,7 +731,7 @@ def capture_screenshot(
                         logging.warning(f"Could not save storage state: {e}")
                 else:
                     logging.error("LinkedIn login failed!")
-                    return (False, True)
+                    return (False, True, False)
 
             # Navigate to the target URL
             logging.info(f"Navigating to {url}")
@@ -754,12 +788,15 @@ def capture_screenshot(
                     pass
 
             logging.info("Screenshot captured successfully")
-            return (True, False)
+            return (True, False, False)
 
         except Exception as e:
+            if is_network_error(e):
+                logging.warning(f"Network unavailable - skipping this run: {e}")
+                return (False, False, True)
             logging.error(f"Screenshot capture failed: {e}")
             logging.debug(traceback.format_exc())
-            return (False, False)
+            return (False, False, False)
         finally:
             browser.close()
 
@@ -1311,7 +1348,7 @@ def process_monitor(
         # FIRST RUN: No previous screenshot exists
         logging.info(f"[{name}] No existing screenshot found. Capturing initial screenshot...")
 
-        success, login_failed = capture_screenshot(
+        success, login_failed, network_down = capture_screenshot(
             url=url,
             output_path=screenshot1_path,
             linkedin_username=linkedin_username,
@@ -1320,6 +1357,13 @@ def process_monitor(
             storage_state_path=state_path,
             jobs_output_path=jobs1_path,
         )
+
+        if network_down:
+            # No alert: the mail server is unreachable for the same reason, and
+            # a passing outage is not something to act on. The scheduler will
+            # simply try again at this monitor's next turn.
+            logging.warning(f"[{name}] Network unavailable - run skipped, will try again")
+            return 11
 
         if login_failed:
             logging.error(f"[{name}] LinkedIn login failed - sending alert")
@@ -1354,7 +1398,7 @@ def process_monitor(
         # SUBSEQUENT RUN: A previous screenshot exists
         logging.info(f"[{name}] Existing screenshot found. Capturing new screenshot for comparison...")
 
-        success, login_failed = capture_screenshot(
+        success, login_failed, network_down = capture_screenshot(
             url=url,
             output_path=screenshot2_path,
             linkedin_username=linkedin_username,
@@ -1363,6 +1407,13 @@ def process_monitor(
             storage_state_path=state_path,
             jobs_output_path=jobs2_path,
         )
+
+        if network_down:
+            # No alert: the mail server is unreachable for the same reason, and
+            # a passing outage is not something to act on. The scheduler will
+            # simply try again at this monitor's next turn.
+            logging.warning(f"[{name}] Network unavailable - run skipped, will try again")
+            return 11
 
         if login_failed:
             logging.error(f"[{name}] LinkedIn login failed - sending alert")

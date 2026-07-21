@@ -223,6 +223,7 @@ Start in: project root) or a `@reboot` cron entry.
 | 4 | Screenshot capture failed |
 | 5 | AI comparison failed |
 | 10 | LinkedIn login failed (scheduling loop retries once, then stops) |
+| 11 | Network unavailable — run skipped, no alert sent, retried at the monitor's next turn |
 
 ## File layout
 
@@ -530,6 +531,13 @@ login on the shared account you must delete *every* shared
 `snapshots/*_linkedin_state.json`, not just this monitor's, since a monitor with
 no session seeds from the newest remaining one. `owner_*` files are never used
 for seeding.
+
+**Runs logged as "Network unavailable"** → This machine could not reach the
+internet at that moment. The run is skipped and retried at the monitor's next
+turn, no cookies are cleared and no login is attempted — a passing outage must
+not provoke a LinkedIn captcha. No alert is sent either, since the mail server
+is unreachable for the same reason. Repeated occurrences mean a real
+connectivity problem, not a JobMonitor one.
 
 **No sign-in code arrives** → The code goes out over the same SMTP config the
 monitors use, so if email is broken nobody can log in. Check

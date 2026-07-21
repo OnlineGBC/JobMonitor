@@ -367,7 +367,16 @@ class MonitorScheduler:
             self._record_run(name, exit_code, duration)
             self._last_run = get_eastern_time().strftime("%Y-%m-%d %H:%M:%S ET")
 
-            if exit_code == 10 and not was_retry:
+            if exit_code == 11:
+                # Nothing was reachable. Not a fault to retry aggressively or
+                # alert about - just wait for this monitor's next turn.
+                interval = self.interval_seconds_for(monitor)
+                self._next_due[name] = last_finished + interval
+                logging.info(
+                    f"Scheduler: {name} skipped (network unavailable), "
+                    f"next attempt in {interval / 60:.1f} min"
+                )
+            elif exit_code == 10 and not was_retry:
                 # Retry once, but by scheduling it rather than blocking here -
                 # other people's monitors should not wait out someone's retry
                 logging.warning(f"Login failed for {name} - retrying in 10 minutes")

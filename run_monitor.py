@@ -60,6 +60,7 @@ EXIT_CODE_DESCRIPTIONS = {
     4: "Screenshot capture failed",
     5: "AI comparison call to LLM failed",
     10: "LinkedIn login failed",
+    11: "Network unavailable - run skipped",
 }
 
 
