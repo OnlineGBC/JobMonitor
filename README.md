@@ -82,6 +82,7 @@ Edit `monitors.yaml`. Only these fields are read:
 | `enabled` | bool | Default `true`. When `false`, the scheduler and "Run All Once" skip this monitor. The per-card **Run** button and `python monitor.py --monitor NAME` still run it. |
 | `to_addrs` | string or list | Optional. Who receives this monitor's emails. Omit to use the global `TO_ADDRS`. |
 | `owner` | string | Optional. Email of the account that can see and edit this monitor in the web UI. Omit and it is admin-only. |
+| `interval_minutes` | int | Optional. How often this monitor runs. Omit for the shared business-hours / off-hours schedule. Floor is `SCHED_MIN_INTERVAL` (default 30), ceiling 1440. |
 
 ```yaml
 monitors:
@@ -164,12 +165,32 @@ python monitor_menu.py                     # interactive CLI menu
 
 ### Scheduling
 
-`run_monitor.py` runs a smart loop:
+Each monitor carries its own next-due time, so one person's cadence does not
+dictate anyone else's.
 
-- Weekdays 8 AM – 8 PM ET → every 10–15 minutes
-- Nights and weekends → every 115–125 minutes
-- On login failure (exit 10) it retries once after ~10 minutes, then alerts and stops
-- Transient email/webhook failures retry with exponential backoff (2s / 4s / 8s)
+- A monitor with `interval_minutes` runs on that cadence, jittered ±10% so it is
+  not machine-perfect
+- A monitor without one uses the shared schedule: weekdays 8 AM – 8 PM ET every
+  10–15 minutes, nights and weekends every 115–125 minutes
+- Users set their own interval on the monitor's edit page. The floor is
+  `SCHED_MIN_INTERVAL` (default 30 minutes) — an admin setting, so nobody can
+  schedule the shared LinkedIn account into a rate limit
+- Starting the scheduler with a custom interval overrides every monitor's own
+
+Runs stay **serialized and spaced at least 2 minutes apart** no matter how many
+monitors come due at once. Users choose how often their monitor runs, not how
+hard LinkedIn gets hit.
+
+On login failure (exit 10) a monitor is rescheduled to retry in 10 minutes
+rather than the loop blocking, so nobody's monitors wait out someone else's
+retry. Transient email/webhook failures retry with exponential backoff
+(2s / 4s / 8s).
+
+Pausing a monitor clears its schedule, so re-enabling it makes it due
+immediately rather than resuming an old countdown.
+
+`run_monitor.py` (the CLI loop, unused if you drive things from the web UI) keeps
+the original run-everything-then-sleep behaviour.
 
 For persistent background operation, register it with Windows Task Scheduler
 (Program: `JobMonitor.venv\Scripts\python.exe`, Arguments: `run_monitor.py`,

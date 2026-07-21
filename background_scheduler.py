@@ -7,6 +7,7 @@ Runs in a daemon thread so it dies when the Flask app exits.
 
 import json
 import logging
+import random
 import subprocess
 import sys
 import threading
@@ -14,11 +15,28 @@ import time
 from datetime import datetime
 from pathlib import Path
 
-from run_monitor import get_eastern_time, get_sleep_interval, is_business_hours, EXIT_CODE_DESCRIPTIONS
+from run_monitor import (
+    EXIT_CODE_DESCRIPTIONS,
+    get_eastern_time,
+    get_min_interval_minutes,
+    get_sleep_interval,
+    is_business_hours,
+)
 
 # Cap run history at this many entries
 MAX_HISTORY = 500
 HISTORY_PATH = Path("data/run_history.json")
+
+# How often the loop wakes to see whether anything is due
+TICK_SECONDS = 20
+
+# Minimum spacing between any two monitor runs. Runs stay serialized and spaced
+# no matter what intervals users pick, so LinkedIn sees a steady trickle rather
+# than bursts however many monitors come due together.
+MIN_GAP_SECONDS = 120
+
+# Longest interval a monitor may ask for
+MAX_INTERVAL_MINUTES = 1440
 
 
 def _load_history():
@@ -54,6 +72,10 @@ class MonitorScheduler:
         self._run_in_progress = False
         self._on_demand_threads = []
         self._custom_interval_minutes = None
+        # name -> epoch seconds when that monitor is next due
+        self._next_due = {}
+        # monitors whose next run is a login-failure retry
+        self._retry_pending = set()
 
     @property
     def running(self):
@@ -81,6 +103,9 @@ class MonitorScheduler:
         self._stop_event.clear()
         self._running = True
         self._custom_interval_minutes = custom_interval_minutes
+        # Everything is due immediately on a fresh start
+        self._next_due = {}
+        self._retry_pending = set()
         self._thread = threading.Thread(target=self._loop, daemon=True, name="monitor-scheduler")
         self._thread.start()
         if custom_interval_minutes:
@@ -99,9 +124,13 @@ class MonitorScheduler:
         return True
 
     def _sleep_interruptible(self, seconds):
-        """Sleep in 1-second increments so we can respond to stop signals."""
+        """
+        Sleep in 1-second increments so we can respond to stop signals.
+
+        Deliberately does not touch _next_run_time: with per-monitor schedules
+        the next run is the earliest due time, not the end of this nap.
+        """
         end_time = time.time() + seconds
-        self._next_run_time = end_time
         while time.time() < end_time:
             if self._stop_event.is_set():
                 return False
@@ -172,97 +201,152 @@ class MonitorScheduler:
         history.append(entry)
         _save_history(history)
 
+    def interval_seconds_for(self, monitor):
+        """
+        How long until this monitor should run again.
+
+        A monitor may set its own `interval_minutes`, clamped to the admin's
+        floor so nobody can schedule themselves into a rate limit. Without one
+        it keeps the shared business-hours / off-hours behaviour. An admin's
+        custom interval, chosen when starting the scheduler, overrides both.
+
+        The result is jittered so repeated runs do not land on a machine-perfect
+        cadence.
+        """
+        if self._custom_interval_minutes:
+            return self._custom_interval_minutes * 60
+
+        raw = monitor.get("interval_minutes")
+        minutes = 0
+        if raw not in (None, ""):
+            try:
+                minutes = int(raw)
+            except (TypeError, ValueError):
+                logging.warning(
+                    f"Scheduler: {monitor.get('name')} has an unreadable "
+                    f"interval_minutes ({raw!r}) - using the default schedule"
+                )
+                minutes = 0
+
+        if minutes <= 0:
+            return get_sleep_interval(get_eastern_time())
+
+        floor = get_min_interval_minutes()
+        clamped = max(floor, min(minutes, MAX_INTERVAL_MINUTES))
+        if clamped != minutes:
+            logging.info(
+                f"Scheduler: {monitor.get('name')} asked for {minutes} min, "
+                f"using {clamped} min (allowed range {floor}-{MAX_INTERVAL_MINUTES})"
+            )
+
+        base = clamped * 60
+        jitter = int(base * 0.1)
+        return random.randint(base - jitter, base + jitter)
+
+    def _due_monitors(self, enabled, now):
+        """Enabled monitors whose turn has come, soonest first."""
+        due = [m for m in enabled if self._next_due.get(m["name"], 0) <= now]
+        due.sort(key=lambda m: self._next_due.get(m["name"], 0))
+        return due
+
     def _loop(self):
-        """Main scheduler loop - runs all monitors, then sleeps."""
+        """
+        Main scheduler loop.
+
+        Each monitor carries its own next-due time, so one person's cadence does
+        not dictate anyone else's. Runs stay serialized and spaced by
+        MIN_GAP_SECONDS: users pick how often their monitor runs, not how hard
+        LinkedIn gets hit.
+        """
         logging.info("Scheduler loop started")
 
-        # Load monitor names from config
         import yaml
         config_path = Path("monitors.yaml")
+        last_finished = 0.0
+        announced_skips = set()
 
         while not self._stop_event.is_set():
-            # Reload monitors each cycle
             try:
                 with open(config_path, "r", encoding="utf-8") as f:
                     cfg = yaml.safe_load(f) or {}
-                all_monitors = cfg.get("monitors", [])
-                monitor_names = [m["name"] for m in all_monitors if "name" in m and m.get("enabled", True)]
-                skipped = [m["name"] for m in all_monitors if "name" in m and not m.get("enabled", True)]
-                if skipped:
-                    logging.info(f"Scheduler: skipping disabled monitor(s): {', '.join(skipped)}")
+                all_monitors = [m for m in cfg.get("monitors", []) if m.get("name")]
             except Exception as e:
                 logging.error(f"Scheduler: cannot read monitors.yaml: {e}")
                 self._sleep_interruptible(60)
                 continue
 
-            if not monitor_names:
-                logging.warning("Scheduler: no enabled monitors configured")
+            enabled = [m for m in all_monitors if m.get("enabled", True)]
+            enabled_names = {m["name"] for m in enabled}
+
+            skipped = {m["name"] for m in all_monitors} - enabled_names
+            if skipped and skipped != announced_skips:
+                logging.info(f"Scheduler: skipping disabled monitor(s): {', '.join(sorted(skipped))}")
+            announced_skips = skipped
+
+            # Forget monitors that were paused or deleted, so re-enabling one
+            # makes it due immediately rather than resuming an old countdown
+            for gone in set(self._next_due) - enabled_names:
+                self._next_due.pop(gone, None)
+                self._retry_pending.discard(gone)
+
+            if not enabled:
+                self._next_run_time = None
                 self._sleep_interruptible(60)
                 continue
 
+            now = time.time()
+            for m in enabled:
+                self._next_due.setdefault(m["name"], now)
+
+            self._next_run_time = min(self._next_due.values())
+
+            # Keep runs spaced apart no matter how many came due at once
+            since_last = now - last_finished
+            if since_last < MIN_GAP_SECONDS:
+                self._sleep_interruptible(min(TICK_SECONDS, MIN_GAP_SECONDS - since_last))
+                continue
+
+            due = self._due_monitors(enabled, now)
+            if not due:
+                self._sleep_interruptible(TICK_SECONDS)
+                continue
+
+            monitor = due[0]
+            name = monitor["name"]
+
+            # Config was read a moment ago; confirm before spending a run on it
+            if not self._is_monitor_enabled(name):
+                logging.info(f"Scheduler: {name} was paused - skipping")
+                self._next_due.pop(name, None)
+                continue
+
+            was_retry = name in self._retry_pending
+            self._retry_pending.discard(name)
+
             self._run_in_progress = True
-
-            # Run each monitor
-            for idx, name in enumerate(monitor_names):
-                if self._stop_event.is_set():
-                    break
-
-                # The list was captured minutes ago - honor a pause made since then
-                if not self._is_monitor_enabled(name):
-                    logging.info(f"Scheduler: {name} was paused mid-cycle - skipping")
-                    continue
-
-                start_time = time.time()
-                exit_code = self._run_single_monitor(name)
-                duration = time.time() - start_time
-                self._record_run(name, exit_code, duration)
-
-                et_now = get_eastern_time()
-                self._last_run = et_now.strftime("%Y-%m-%d %H:%M:%S ET")
-
-                # 2-minute delay between monitors (skip after last one)
-                if idx < len(monitor_names) - 1 and not self._stop_event.is_set():
-                    logging.info(f"Waiting 2 minutes before next monitor...")
-                    if not self._sleep_interruptible(120):
-                        break
-
-                # Handle login failure with retry
-                if exit_code == 10:
-                    logging.warning(f"Login failed for {name} - retrying once after delay")
-                    if not self._sleep_interruptible(600):  # 10 min
-                        break
-                    if not self._is_monitor_enabled(name):
-                        logging.info(f"Scheduler: {name} was paused - skipping login retry")
-                        continue
-                    start_time = time.time()
-                    exit_code = self._run_single_monitor(name)
-                    duration = time.time() - start_time
-                    self._record_run(name, exit_code, duration)
-                    if exit_code != 0:
-                        logging.error(f"Retry also failed for {name} (exit {exit_code})")
-
+            start_time = time.time()
+            exit_code = self._run_single_monitor(name)
+            duration = time.time() - start_time
             self._run_in_progress = False
+            last_finished = time.time()
 
-            if self._stop_event.is_set():
-                break
+            self._record_run(name, exit_code, duration)
+            self._last_run = get_eastern_time().strftime("%Y-%m-%d %H:%M:%S ET")
 
-            # Sleep until next cycle
-            et_now = get_eastern_time()
-            if self._custom_interval_minutes:
-                sleep_seconds = self._custom_interval_minutes * 60
-                logging.info(
-                    f"Scheduler sleeping for {sleep_seconds}s "
-                    f"({self._custom_interval_minutes} min) [custom interval]"
-                )
+            if exit_code == 10 and not was_retry:
+                # Retry once, but by scheduling it rather than blocking here -
+                # other people's monitors should not wait out someone's retry
+                logging.warning(f"Login failed for {name} - retrying in 10 minutes")
+                self._retry_pending.add(name)
+                self._next_due[name] = last_finished + 600
             else:
-                sleep_seconds = get_sleep_interval(et_now)
-                logging.info(
-                    f"Scheduler sleeping for {sleep_seconds}s "
-                    f"({sleep_seconds / 60:.1f} min) "
-                    f"[{'business hours' if is_business_hours(et_now) else 'off-hours'}]"
-                )
-            if not self._sleep_interruptible(sleep_seconds):
-                break
+                if was_retry and exit_code != 0:
+                    logging.error(f"Retry also failed for {name} (exit {exit_code})")
+                interval = self.interval_seconds_for(monitor)
+                self._next_due[name] = last_finished + interval
+                logging.info(f"Scheduler: {name} next run in {interval / 60:.1f} min")
+
+            self._next_run_time = min(self._next_due.values())
 
         self._running = False
         self._next_run_time = None

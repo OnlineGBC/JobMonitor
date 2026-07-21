@@ -82,6 +82,9 @@ SCHED_DEFAULTS = {
     "SCHED_BUSINESS_MAX": 15,
     "SCHED_OFFHOURS_MIN": 115,
     "SCHED_OFFHOURS_MAX": 125,
+    # Floor for a per-monitor interval. Users choose their own cadence, but not
+    # one fast enough to get the LinkedIn account rate limited.
+    "SCHED_MIN_INTERVAL": 30,
 }
 
 
@@ -115,6 +118,11 @@ def get_scheduler_ranges() -> dict:
         "offhours_min": o_min,
         "offhours_max": o_max,
     }
+
+
+def get_min_interval_minutes() -> int:
+    """The smallest per-monitor interval a user is allowed to choose."""
+    return _read_sched_minutes("SCHED_MIN_INTERVAL")
 
 
 def get_sleep_interval(et_now: datetime) -> int:

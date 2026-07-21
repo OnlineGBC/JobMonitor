@@ -52,8 +52,13 @@ from monitor import (
     owner_state_path,
     write_owner_session,
 )
-from run_monitor import get_scheduler_ranges
-from background_scheduler import MonitorScheduler, get_run_history, get_total_run_count
+from run_monitor import get_min_interval_minutes, get_scheduler_ranges
+from background_scheduler import (
+    MAX_INTERVAL_MINUTES,
+    MonitorScheduler,
+    get_run_history,
+    get_total_run_count,
+)
 
 # ---------------------------------------------------------------------------
 # App setup
@@ -213,6 +218,7 @@ SETTINGS_GROUPS = {
         ("DISCORD_WEBHOOK_URL", "Discord webhook URL", False),
     ],
     "Scheduler (intervals in minutes)": [
+        ("SCHED_MIN_INTERVAL", "Floor for a user's own monitor interval (default 30)", False),
         ("SCHED_BUSINESS_MIN", "Business-hours minimum interval (default 10)", False),
         ("SCHED_BUSINESS_MAX", "Business-hours maximum interval (default 15)", False),
         ("SCHED_OFFHOURS_MIN", "Off-hours minimum interval (default 115)", False),
@@ -589,7 +595,12 @@ def monitors():
 
 @app.route("/monitors/new")
 def monitor_new():
-    return render_template("monitor_edit.html", monitor=None)
+    return render_template(
+        "monitor_edit.html",
+        monitor=None,
+        min_interval=get_min_interval_minutes(),
+        max_interval=MAX_INTERVAL_MINUTES,
+    )
 
 
 @app.route("/monitors/<name>/edit")
@@ -598,7 +609,12 @@ def monitor_edit(name):
     monitor, error = _require_owned(cfg, name)
     if error:
         return error
-    return render_template("monitor_edit.html", monitor=dict(monitor))
+    return render_template(
+        "monitor_edit.html",
+        monitor=dict(monitor),
+        min_interval=get_min_interval_minutes(),
+        max_interval=MAX_INTERVAL_MINUTES,
+    )
 
 
 @app.route("/monitors/<name>/screenshots")
@@ -709,6 +725,30 @@ def api_linkedin_delete():
 # API routes
 # ---------------------------------------------------------------------------
 
+def _resolve_interval(form, monitor_name="monitor"):
+    """
+    Read interval_minutes from a form.
+
+    Returns (minutes_or_None, error). Blank means "use the default schedule".
+    Rejects rather than silently clamping, so a user who types 5 learns the
+    floor exists instead of quietly getting 30.
+    """
+    raw = (form.get("interval_minutes") or "").strip()
+    if not raw:
+        return None, None
+    try:
+        minutes = int(raw)
+    except ValueError:
+        return None, "Interval must be a whole number of minutes."
+
+    floor = get_min_interval_minutes()
+    if minutes < floor:
+        return None, f"Interval must be at least {floor} minutes."
+    if minutes > MAX_INTERVAL_MINUTES:
+        return None, f"Interval cannot exceed {MAX_INTERVAL_MINUTES} minutes (24 hours)."
+    return minutes, None
+
+
 def _resolve_owner(user, existing_owner=None):
     """
     Decide the owner to store for a monitor being created or updated.
@@ -747,6 +787,11 @@ def api_monitor_create():
             flash(f"Monitor '{name}' already exists.", "error")
             return redirect(url_for("monitor_new"))
 
+    interval, interval_error = _resolve_interval(request.form, name)
+    if interval_error:
+        flash(interval_error, "error")
+        return redirect(url_for("monitor_new"))
+
     user = current_user()
     new_monitor = {
         "name": name,
@@ -758,6 +803,8 @@ def api_monitor_create():
     to_addrs = request.form.get("to_addrs", "").strip()
     if to_addrs:
         new_monitor["to_addrs"] = to_addrs
+    if interval:
+        new_monitor["interval_minutes"] = interval
     monitors_list.append(new_monitor)
     cfg["monitors"] = monitors_list
     _save_monitors_yaml(cfg)
@@ -772,10 +819,20 @@ def api_monitor_update(name):
     if error:
         return error
 
+    interval, interval_error = _resolve_interval(request.form, name)
+    if interval_error:
+        flash(interval_error, "error")
+        return redirect(url_for("monitor_edit", name=name))
+
     m["url"] = request.form.get("url", "").strip()
     m["headless"] = "headless" in request.form
     m["enabled"] = "enabled" in request.form
     m["owner"] = _resolve_owner(current_user(), m.get("owner"))
+    # Blank means "use the default schedule" - drop the key rather than store 0
+    if interval:
+        m["interval_minutes"] = interval
+    else:
+        m.pop("interval_minutes", None)
     # Blank means "use the global TO_ADDRS" - drop the key entirely so
     # the YAML does not carry an empty field that looks configured.
     to_addrs = request.form.get("to_addrs", "").strip()
