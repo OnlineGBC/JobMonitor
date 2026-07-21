@@ -17,6 +17,7 @@
                 <hr>
 
                 <form method="POST" action="{{ url_for('login') }}">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                     <input type="hidden" name="next" value="{{ next or '' }}">
                     <div class="mb-3">
                         <label class="form-label fw-bold" for="email">Email</label>

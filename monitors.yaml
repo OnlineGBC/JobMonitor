@@ -34,3 +34,11 @@ monitors:
   headless: true
   enabled: true
   to_addrs: roopaonline@gmail.com
+  owner: roopaonline@gmail.com
+- name: Test raja.gbc
+  url: 
+    https://www.linkedin.com/jobs/search/?currentJobId=4442768032&f_AL=true&f_EA=true&f_JT=C&f_TPR=r86400&f_WT=2&keywords=SAP%20AI&origin=JOB_SEARCH_PAGE_JOB_FILTER&sortBy=R
+  headless: true
+  enabled: true
+  owner: raja.gbc@gmail.com
+  to_addrs: raja.gbc@gmail.com

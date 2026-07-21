@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>{% block title %}JobMonitor GBC-ai4org{% endblock %}</title>
     <!-- Apply saved theme immediately to prevent flash -->
     <script>
@@ -163,6 +164,31 @@
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
     <script>
+        // ── CSRF ──
+        // Attach the token to every same-origin state-changing fetch. Done once
+        // here rather than at each call site, so a new fetch() cannot be added
+        // without it and silently start failing.
+        (function() {
+            var meta = document.querySelector('meta[name="csrf-token"]');
+            var token = meta ? meta.getAttribute('content') : '';
+            var nativeFetch = window.fetch;
+            var SAFE = ['GET', 'HEAD', 'OPTIONS', 'TRACE'];
+
+            window.fetch = function(resource, options) {
+                options = options || {};
+                var method = (options.method || 'GET').toUpperCase();
+                var url = (typeof resource === 'string') ? resource : (resource && resource.url) || '';
+                var sameOrigin = url.indexOf('://') === -1 || url.indexOf(window.location.origin) === 0;
+
+                if (SAFE.indexOf(method) === -1 && sameOrigin) {
+                    var headers = new Headers(options.headers || {});
+                    headers.set('X-CSRFToken', token);
+                    options = Object.assign({}, options, {headers: headers});
+                }
+                return nativeFetch(resource, options);
+            };
+        })();
+
         // ── Theme Switcher Logic ──
         function setTheme(theme) {
             localStorage.setItem('jm-theme', theme);

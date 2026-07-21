@@ -19,6 +19,7 @@ import argparse
 import json
 import logging
 import os
+import secrets
 import shutil
 import time
 from datetime import datetime
@@ -211,6 +212,65 @@ def _get_settings_groups():
             })
         groups[group_name] = vars_list
     return groups
+
+
+# ---------------------------------------------------------------------------
+# CSRF protection
+# ---------------------------------------------------------------------------
+
+# Without this, any page on the internet could make your logged-in browser POST
+# here - deleting monitors, rewriting settings - simply because the session
+# cookie rides along automatically. The token lives in the session, which an
+# attacker's page cannot read, so it cannot forge a valid request.
+
+CSRF_SESSION_KEY = "csrf_token"
+CSRF_FORM_FIELD = "csrf_token"
+CSRF_HEADER = "X-CSRFToken"
+SAFE_METHODS = {"GET", "HEAD", "OPTIONS", "TRACE"}
+
+
+def csrf_token():
+    """The session's CSRF token, minting one on first use."""
+    token = session.get(CSRF_SESSION_KEY)
+    if not token:
+        token = secrets.token_urlsafe(32)
+        session[CSRF_SESSION_KEY] = token
+    return token
+
+
+@app.before_request
+def verify_csrf():
+    """
+    Reject any state-changing request without a valid token.
+
+    Registered before the login check so it applies to every route including
+    the login form itself, and denies by default - a new POST route is
+    protected without anyone remembering to opt in.
+    """
+    if request.method in SAFE_METHODS:
+        return None
+    if request.endpoint == "static":
+        return None
+
+    expected = session.get(CSRF_SESSION_KEY)
+    supplied = request.form.get(CSRF_FORM_FIELD) or request.headers.get(CSRF_HEADER, "")
+
+    if expected and supplied and secrets.compare_digest(str(expected), str(supplied)):
+        return None
+
+    logging.warning(
+        f"CSRF check failed for {request.method} {request.path} from {request.remote_addr}"
+    )
+    if _wants_json():
+        return jsonify({"status": "error", "message": "Security token expired. Reload the page."}), 400
+    flash("Your session expired. Please try again.", "error")
+    return redirect(request.referrer or url_for("dashboard"))
+
+
+@app.context_processor
+def inject_csrf_token():
+    """Make csrf_token() callable from every template."""
+    return {"csrf_token": csrf_token}
 
 
 # ---------------------------------------------------------------------------

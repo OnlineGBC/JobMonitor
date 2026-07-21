@@ -17,6 +17,7 @@
                 <hr>
 
                 <form method="POST" action="{{ url_for('login_verify') }}">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                     <input type="hidden" name="next" value="{{ next or '' }}">
                     <div class="mb-3">
                         <label class="form-label fw-bold" for="code">Sign-in code</label>
@@ -34,6 +35,7 @@
 
                 <hr>
                 <form method="POST" action="{{ url_for('login') }}" class="d-inline">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                     <input type="hidden" name="email" value="{{ email }}">
                     <input type="hidden" name="next" value="{{ next or '' }}">
                     <button type="submit" class="btn btn-link btn-sm p-0">

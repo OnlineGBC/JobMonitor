@@ -243,13 +243,25 @@ account or changing its role takes effect immediately rather than at next login.
 `FLASK_SECRET_KEY` is generated into `.env` on first run. It signs session
 cookies — if you delete it, everyone is logged out.
 
+### Request forgery protection
+
+Every state-changing request (anything that is not a GET) must carry a CSRF
+token tied to the session. Without it, any page on the internet could make a
+logged-in browser POST here — deleting monitors or rewriting settings — purely
+because the session cookie rides along automatically.
+
+Forms carry the token in a hidden field. JavaScript gets it from the
+`<meta name="csrf-token">` tag in `base.html`, which wraps `fetch` once so every
+call sends the `X-CSRFToken` header — a new `fetch` cannot be written without it.
+The check runs in `before_request` ahead of the login check, so it applies to
+every route including login, and a newly added POST route is protected without
+anyone remembering to opt in.
+
 ### Exposing the UI beyond localhost
 
 The app binds to `127.0.0.1` and is reachable only from the machine it runs on.
-Before putting it anywhere else, note that it has **no CSRF protection**, so a
-logged-in user visiting a hostile page could have actions performed as them. If
-you expose it (Cloudflare Tunnel, Tailscale, a reverse proxy), add CSRF tokens
-first, and serve it over HTTPS so session cookies are not sent in the clear.
+If you expose it (Cloudflare Tunnel, Tailscale, a reverse proxy), serve it over
+HTTPS — session cookies and sign-in codes should not travel in the clear.
 
 ## Troubleshooting
 
