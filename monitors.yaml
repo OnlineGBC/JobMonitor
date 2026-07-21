@@ -42,3 +42,11 @@ monitors:
   enabled: true
   owner: raja.gbc@gmail.com
   to_addrs: raja.gbc@gmail.com
+- name: Oracle
+  url: 
+    https://www.linkedin.com/jobs/search/?currentJobId=4415345525&f_E=6&f_TPR=r86400&f_WT=2&geoId=105080838&keywords=oracle&origin=JOB_SEARCH_PAGE_JOB_FILTER&refresh=true
+  headless: true
+  enabled: true
+  owner: raja.gbc@gmail.com
+  to_addrs: raja.gbc@gmail.com
+  interval_minutes: 30

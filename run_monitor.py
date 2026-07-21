@@ -122,8 +122,21 @@ def get_scheduler_ranges() -> dict:
 
 
 def get_min_interval_minutes() -> int:
-    """The smallest per-monitor interval a user is allowed to choose."""
-    return _read_sched_minutes("SCHED_MIN_INTERVAL")
+    """
+    The smallest per-monitor interval a user is allowed to choose.
+
+    Never above the default schedule's own fastest setting. SCHED_MIN_INTERVAL
+    and SCHED_BUSINESS_MIN both describe how often monitors may run, but nothing
+    ties them together, so they can be set to contradict each other - and did:
+    a 30 minute floor against a default that runs every 10. That made the app
+    advertise "default: every 10-15 min" and then refuse a request for 10.
+
+    Whichever is smaller wins, so the app can never refuse a cadence it is
+    already using itself, whatever the two are set to.
+    """
+    floor = _read_sched_minutes("SCHED_MIN_INTERVAL")
+    business_min = _read_sched_minutes("SCHED_BUSINESS_MIN")
+    return min(floor, business_min)
 
 
 def get_sleep_interval(et_now: datetime) -> int:

@@ -223,7 +223,7 @@ SETTINGS_GROUPS = {
         ("DISCORD_WEBHOOK_URL", "Discord webhook URL", False),
     ],
     "Scheduler (intervals in minutes)": [
-        ("SCHED_MIN_INTERVAL", "Floor for a user's own monitor interval (default 30)", False),
+        ("SCHED_MIN_INTERVAL", "Floor for a user's own monitor interval (default 30; never above the business-hours minimum below)", False),
         ("SCHED_BUSINESS_MIN", "Business-hours minimum interval (default 10)", False),
         ("SCHED_BUSINESS_MAX", "Business-hours maximum interval (default 15)", False),
         ("SCHED_OFFHOURS_MIN", "Off-hours minimum interval (default 115)", False),

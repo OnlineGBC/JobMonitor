@@ -86,7 +86,7 @@ Edit `monitors.yaml`. Only these fields are read:
 | `enabled` | bool | Default `true`. When `false`, the scheduler and "Run All Once" skip this monitor. The per-card **Run** button and `python monitor.py --monitor NAME` still run it. |
 | `to_addrs` | string or list | Optional. Who receives this monitor's emails. Omit to use the global `TO_ADDRS`. |
 | `owner` | string | Optional. Email of the account that can see and edit this monitor in the web UI. Omit and it is admin-only. |
-| `interval_minutes` | int | Optional. How often this monitor runs. Omit for the shared business-hours / off-hours schedule. Floor is `SCHED_MIN_INTERVAL` (default 30), ceiling 1440. |
+| `interval_minutes` | int | Optional. How often this monitor runs. Omit for the shared business-hours / off-hours schedule. Floor is `SCHED_MIN_INTERVAL` (default 30) or `SCHED_BUSINESS_MIN`, whichever is smaller; ceiling 1440. |
 
 ```yaml
 monitors:
@@ -184,6 +184,11 @@ dictate anyone else's.
 - Users set their own interval on the monitor's edit page. The floor is
   `SCHED_MIN_INTERVAL` (default 30 minutes) — an admin setting, so nobody can
   schedule the shared LinkedIn account into a rate limit
+- The floor never rises above `SCHED_BUSINESS_MIN`. Both settings describe how
+  often monitors may run, and nothing otherwise stops them contradicting each
+  other — a 30-minute floor against a default that runs every 10 would advertise
+  "default: every 10–15 min" and then refuse a request for 10. Whichever is
+  smaller wins, so the app cannot refuse a cadence it already uses itself
 - Starting the scheduler with a custom interval overrides every monitor's own
 
 Runs stay **serialized and spaced at least 2 minutes apart** no matter how many
