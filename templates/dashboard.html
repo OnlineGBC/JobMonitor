@@ -96,7 +96,8 @@
                         <i class="bi bi-save"></i> Save Intervals
                     </button>
                 </div>
-                {% else %}
+                {% endif %}
+
                 <hr>
                 {% if my_monitor_count %}
                 <div class="mb-3">
@@ -116,36 +117,28 @@
                     <div class="form-text">Affects only your own monitors.</div>
                 </div>
                 {% endif %}
-                <p class="mb-2"><small class="text-muted fw-bold">Your schedules</small></p>
+                <p class="mb-2"><small class="text-muted fw-bold">
+                    {% if is_admin %}Schedules{% else %}Your schedules{% endif %}
+                </small></p>
                 {% if monitors %}
                     <ul class="list-unstyled mb-2">
-                        {% for m in monitors %}
+                        {% for monitor in monitors %}
                         <li class="d-flex justify-content-between align-items-center py-1">
                             <span class="text-truncate me-2">
-                                {% if not m.get('enabled', true) %}
+                                {% if not monitor.get('enabled', true) %}
                                     <i class="bi bi-pause-circle text-warning" title="Paused"></i>
                                 {% endif %}
-                                {{ m.name }}
+                                {{ monitor.name }}
                             </span>
-                            <a href="{{ url_for('monitor_edit', name=m.name) }}"
-                               class="badge text-bg-light text-decoration-none flex-shrink-0"
-                               title="Change how often this runs">
-                                {% if m.get('interval_minutes') %}
-                                    every {{ m.interval_minutes }} min
-                                {% else %}
-                                    default
-                                {% endif %}
-                            </a>
+                            <span class="flex-shrink-0">{% include "_schedule_badge.html" %}</span>
                         </li>
                         {% endfor %}
                     </ul>
                     <p class="mb-2"><small class="text-muted">
-                        Set how often each monitor runs on its <strong>Edit</strong> page —
-                        minimum {{ min_interval }} minutes. "default" means
-                        every {{ sched_ranges.business_min }}–{{ sched_ranges.business_max }} min
-                        during business hours and
-                        every {{ sched_ranges.offhours_min }}–{{ sched_ranges.offhours_max }} min
-                        overnight and at weekends.
+                        Click a schedule to change it — minimum {{ min_interval }} minutes.
+                        <strong>Default</strong> is {{ default_sched.business }} during business
+                        hours and {{ default_sched.offhours }} overnight and at weekends
+                        ({{ default_sched.now_text }} right now, {{ default_sched.now_mode }}).
                     </small></p>
                 {% else %}
                     <p class="mb-2"><small class="text-muted">
@@ -153,7 +146,7 @@
                     </small></p>
                 {% endif %}
 
-                {% if not scheduler.running %}
+                {% if not scheduler.running and not is_admin %}
                 <div class="alert alert-warning py-2 px-3 mb-0">
                     <small>
                         <i class="bi bi-exclamation-triangle"></i>
@@ -162,7 +155,6 @@
                         a monitor yourself from the Monitors page.
                     </small>
                 </div>
-                {% endif %}
                 {% endif %}
             </div>
         </div>
@@ -254,6 +246,7 @@
                         {% if monitor.last_modified %}
                             <p class="mb-1"><small class="text-muted">Last: {{ monitor.last_modified }}</small></p>
                         {% endif %}
+                        <p class="mb-2">{% include "_schedule_badge.html" %}</p>
                         <p class="url-display mb-2">{{ monitor.url[:80] }}{% if monitor.url|length > 80 %}...{% endif %}</p>
                         <div class="d-flex gap-1 flex-wrap">
                             <button class="btn btn-success btn-sm" onclick="runMonitor('{{ monitor.name }}')" id="btn-run-{{ monitor.name }}">
@@ -324,6 +317,65 @@
                 showFlash('Request failed', 'error');
                 if (btn) { btn.disabled = false; btn.innerHTML = '<i class="bi bi-lightning"></i> Run All Once'; }
             });
+    }
+
+    // Swap a schedule badge for a small editor. Saving reloads, so the page
+    // never has to reconcile a half-updated view with the server.
+    function beginEditInterval(badge) {
+        if (badge.dataset.editing === '1') { return; }
+        badge.dataset.editing = '1';
+
+        var name = badge.dataset.monitor;
+        var editor = document.createElement('span');
+        editor.className = 'schedule-edit d-inline-flex align-items-center gap-1';
+        editor.innerHTML =
+            '<input type="number" class="form-control form-control-sm" style="width:5.5rem"' +
+            ' min="' + badge.dataset.min + '" max="' + badge.dataset.max + '"' +
+            ' placeholder="default" value="' + (badge.dataset.interval || '') + '">' +
+            '<button class="btn btn-success btn-sm py-0 px-1" title="Save"><i class="bi bi-check-lg"></i></button>' +
+            '<button class="btn btn-outline-secondary btn-sm py-0 px-1" title="Cancel"><i class="bi bi-x-lg"></i></button>';
+
+        badge.replaceWith(editor);
+        var input = editor.querySelector('input');
+        var btns = editor.querySelectorAll('button');
+        input.focus();
+        input.select();
+
+        function cancel() { editor.replaceWith(badge); badge.dataset.editing = '0'; }
+
+        function save() {
+            var value = input.value.trim();
+            btns.forEach(function(b) { b.disabled = true; });
+            fetch('/api/monitors/' + encodeURIComponent(name) + '/interval', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                // Empty means "back to the default schedule"
+                body: JSON.stringify({interval_minutes: value === '' ? null : value})
+            })
+                .then(r => r.json().then(d => ({ok: r.ok, data: d})))
+                .then(res => {
+                    showFlash(res.data.message,
+                              res.data.status === 'ok' ? 'success'
+                              : (res.data.status === 'warning' ? 'warning' : 'error'));
+                    if (res.ok && res.data.status === 'ok') {
+                        setTimeout(() => location.reload(), 600);
+                    } else {
+                        btns.forEach(function(b) { b.disabled = false; });
+                        input.focus();
+                    }
+                })
+                .catch(() => {
+                    showFlash('Request failed', 'error');
+                    btns.forEach(function(b) { b.disabled = false; });
+                });
+        }
+
+        btns[0].onclick = save;
+        btns[1].onclick = cancel;
+        input.onkeydown = function(e) {
+            if (e.key === 'Enter') { e.preventDefault(); save(); }
+            if (e.key === 'Escape') { cancel(); }
+        };
     }
 
     function setMyMonitors(enabled) {

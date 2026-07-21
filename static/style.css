@@ -118,6 +118,22 @@ body {
     background-color: rgba(255, 255, 255, 0.12);
 }
 
+/* ── Schedule badge ──
+   Reads as a value, but has to look changeable or nobody will click it. */
+.schedule-badge {
+    cursor: pointer;
+    border: 1px dashed var(--jm-border);
+    font-weight: 500;
+    transition: all 0.15s ease;
+}
+
+.schedule-badge:hover,
+.schedule-badge:focus {
+    border-style: solid;
+    border-color: var(--jm-primary);
+    color: var(--jm-primary) !important;
+}
+
 /* ── User menu ──
    The navbar is dark in both themes, but .btn inherits the body text colour,
    which is dark in the light theme. Pin it light like the nav links. */

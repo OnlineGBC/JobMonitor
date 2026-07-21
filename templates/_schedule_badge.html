@@ -1,0 +1,19 @@
+{# Editable schedule badge.
+   Click to change how often a monitor runs. "Default" spells out the cadence
+   actually in force right now, so nobody has to remember what it means. #}
+<span class="schedule-badge badge text-bg-light text-decoration-none"
+      role="button" tabindex="0"
+      data-monitor="{{ monitor.name }}"
+      data-interval="{{ monitor.get('interval_minutes', '') }}"
+      data-min="{{ min_interval }}"
+      data-max="{{ max_interval }}"
+      onclick="beginEditInterval(this)"
+      onkeydown="if(event.key==='Enter'){beginEditInterval(this)}"
+      title="{% if monitor.get('interval_minutes') %}Runs every {{ monitor.interval_minutes }} minutes. Click to change.{% else %}Default schedule: {{ default_sched.full }}. Click to set your own.{% endif %}">
+    <i class="bi bi-clock"></i>
+    {% if monitor.get('interval_minutes') %}
+        every {{ monitor.interval_minutes }} min
+    {% else %}
+        default · {{ default_sched.now_text }}
+    {% endif %}
+</span>

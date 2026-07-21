@@ -52,7 +52,12 @@ from monitor import (
     owner_state_path,
     write_owner_session,
 )
-from run_monitor import get_min_interval_minutes, get_scheduler_ranges
+from run_monitor import (
+    get_eastern_time,
+    get_min_interval_minutes,
+    get_scheduler_ranges,
+    is_business_hours,
+)
 from background_scheduler import (
     MAX_INTERVAL_MINUTES,
     MonitorScheduler,
@@ -546,6 +551,26 @@ def logout():
 # Page routes
 # ---------------------------------------------------------------------------
 
+def _default_schedule_text():
+    """
+    Spell out what "default" currently means, so nobody has to remember.
+
+    The default cadence changes with the time of day, so the figure shown is
+    the one in force right now, with the other available as a tooltip.
+    """
+    r = get_scheduler_ranges()
+    business = f"{r['business_min']}–{r['business_max']} min"
+    offhours = f"{r['offhours_min']}–{r['offhours_max']} min"
+    now_is_business = is_business_hours(get_eastern_time())
+    return {
+        "business": business,
+        "offhours": offhours,
+        "now_text": business if now_is_business else offhours,
+        "now_mode": "business hours" if now_is_business else "overnight/weekend",
+        "full": f"{business} during business hours, {offhours} overnight and at weekends",
+    }
+
+
 def _scoped_status(user, visible_names, history):
     """
     Scheduler status as this user should see it.
@@ -600,6 +625,8 @@ def dashboard():
         min_interval=get_min_interval_minutes(),
         my_monitor_count=len(my_monitors),
         my_monitors_all_paused=my_all_paused,
+        default_sched=_default_schedule_text(),
+        max_interval=MAX_INTERVAL_MINUTES,
     )
 
 
@@ -962,6 +989,46 @@ def api_my_monitors_enabled():
         "status": "ok",
         "message": f"{changed} monitor{'s' if changed != 1 else ''} {word}.",
     })
+
+
+@app.route("/api/monitors/<name>/interval", methods=["POST"])
+def api_monitor_interval(name):
+    """
+    Set just this monitor's interval.
+
+    Deliberately narrow: the edit form rewrites every field from what it
+    rendered, which would be wrong to reuse from a dashboard control that shows
+    only the interval. This touches one key and cannot clobber the rest.
+    """
+    cfg = _load_monitors_yaml()
+    m, error = _require_owned(cfg, name)
+    if error:
+        return error
+
+    payload = request.get_json(silent=True) or {}
+    raw = payload.get("interval_minutes")
+
+    # Blank or null means "back to the default schedule"
+    if raw in (None, "", "default"):
+        had = m.pop("interval_minutes", None)
+        if had is None:
+            return jsonify({"status": "warning", "message": f"'{name}' already uses the default schedule."})
+        _save_monitors_yaml(cfg)
+        logging.info(f"{current_user()['email']} set {name} to the default schedule")
+        return jsonify({"status": "ok", "message": f"'{name}' now uses the default schedule."})
+
+    # Reuse the form validator so both paths enforce the floor identically
+    minutes, err = _resolve_interval({"interval_minutes": str(raw)}, name)
+    if err:
+        return jsonify({"status": "error", "message": err}), 400
+
+    if m.get("interval_minutes") == minutes:
+        return jsonify({"status": "warning", "message": f"'{name}' already runs every {minutes} min."})
+
+    m["interval_minutes"] = minutes
+    _save_monitors_yaml(cfg)
+    logging.info(f"{current_user()['email']} set {name} to every {minutes} min")
+    return jsonify({"status": "ok", "message": f"'{name}' now runs every {minutes} minutes."})
 
 
 @app.route("/api/monitors/<name>/clear", methods=["POST"])

@@ -176,6 +176,11 @@ dictate anyone else's.
   not machine-perfect
 - A monitor without one uses the shared schedule: weekdays 8 AM – 8 PM ET every
   10–15 minutes, nights and weekends every 115–125 minutes
+- Every monitor card and the dashboard's schedule summary show the current
+  cadence. Click it to change it — the summary and the cards are editable in
+  place, and the monitor's edit page carries the same field alongside everything
+  else. "Default" is shown with the figure actually in force, so nobody has to
+  remember what it stands for
 - Users set their own interval on the monitor's edit page. The floor is
   `SCHED_MIN_INTERVAL` (default 30 minutes) — an admin setting, so nobody can
   schedule the shared LinkedIn account into a rate limit
