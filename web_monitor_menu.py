@@ -30,6 +30,7 @@ from dotenv import load_dotenv
 from flask import (
     Flask,
     flash,
+    has_request_context,
     jsonify,
     redirect,
     render_template,
@@ -58,6 +59,26 @@ app = Flask(__name__)
 app.secret_key = auth.get_or_create_secret_key()
 app.config["SESSION_COOKIE_HTTPONLY"] = True
 app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
+
+# Set PUBLIC_URL in .env when the app is served through a tunnel or reverse
+# proxy (see README). Its presence means "we are behind a proxy speaking HTTPS".
+PUBLIC_URL = os.getenv("PUBLIC_URL", "").strip()
+
+if PUBLIC_URL:
+    # The proxy terminates TLS and talks plain HTTP to 127.0.0.1, so Flask sees
+    # an insecure request and would otherwise refuse to mark cookies Secure and
+    # would log every visitor's IP as 127.0.0.1. ProxyFix reads the X-Forwarded-*
+    # headers to recover the real scheme and client address.
+    #
+    # Those headers are attacker-controlled on a directly reachable port. This is
+    # only safe because the app stays bound to 127.0.0.1, so the proxy is the
+    # only thing that can reach it. Do not bind to 0.0.0.0 with this enabled.
+    from werkzeug.middleware.proxy_fix import ProxyFix
+
+    app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1)
+    app.config["SESSION_COOKIE_SECURE"] = True
+    app.config["PREFERRED_URL_SCHEME"] = "https"
+    logging.info(f"Public mode: serving behind a proxy at {PUBLIC_URL}")
 
 # Single scheduler instance shared across requests
 scheduler = MonitorScheduler()
@@ -294,24 +315,43 @@ def _wants_json():
 # Code requests per email - stops the form being used to flood an inbox
 _code_requests = {}
 MAX_CODE_REQUESTS = 5
+
+# Code requests per source address. The per-email cap alone is useless against
+# someone cycling through addresses, which matters once the UI is public.
+_code_requests_by_ip = {}
+MAX_CODE_REQUESTS_PER_IP = 20
+
 LOCKOUT_SECONDS = 900
 
 
-def _record_request(email):
+def _client_ip():
+    """The caller's address, or a placeholder outside a request context."""
+    return request.remote_addr if has_request_context() else "-"
+
+
+def _prune(store, key):
     now = time.time()
-    recent = [t for t in _code_requests.get(email, []) if now - t < LOCKOUT_SECONDS]
-    recent.append(now)
-    _code_requests[email] = recent
+    recent = [t for t in store.get(key, []) if now - t < LOCKOUT_SECONDS]
+    store[key] = recent
+    return recent
+
+
+def _record_request(email):
+    _prune(_code_requests, email).append(time.time())
+    _prune(_code_requests_by_ip, _client_ip()).append(time.time())
 
 
 def _seconds_locked_out(email):
-    """Seconds remaining before this email may request another code, 0 if free."""
+    """Seconds remaining before another code may be requested, 0 if free."""
     now = time.time()
-    recent = [t for t in _code_requests.get(email, []) if now - t < LOCKOUT_SECONDS]
-    _code_requests[email] = recent
-    if len(recent) < MAX_CODE_REQUESTS:
-        return 0
-    return int(LOCKOUT_SECONDS - (now - min(recent)))
+    for store, key, cap in (
+        (_code_requests, email, MAX_CODE_REQUESTS),
+        (_code_requests_by_ip, _client_ip(), MAX_CODE_REQUESTS_PER_IP),
+    ):
+        recent = _prune(store, key)
+        if len(recent) >= cap:
+            return int(LOCKOUT_SECONDS - (now - min(recent)))
+    return 0
 
 
 def current_user():

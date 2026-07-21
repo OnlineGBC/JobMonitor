@@ -260,8 +260,63 @@ anyone remembering to opt in.
 ### Exposing the UI beyond localhost
 
 The app binds to `127.0.0.1` and is reachable only from the machine it runs on.
-If you expose it (Cloudflare Tunnel, Tailscale, a reverse proxy), serve it over
-HTTPS — session cookies and sign-in codes should not travel in the clear.
+To let someone else reach it, put a tunnel in front rather than opening a port —
+the app keeps listening only on localhost, and the tunnel makes the outbound
+connection.
+
+**1. Install cloudflared**
+
+```powershell
+winget install --id Cloudflare.cloudflared
+```
+
+**2. Try it with a throwaway URL first**
+
+```powershell
+cloudflared tunnel --url http://localhost:5000
+```
+
+This prints a random `https://<something>.trycloudflare.com` address that works
+immediately, with no account. It changes every restart, so it is for testing —
+but it proves the path works before you commit to a name.
+
+**3. Tell the app it is behind a proxy**
+
+Add the public address to `.env` and restart the web UI:
+
+```
+PUBLIC_URL=https://your-name.trycloudflare.com
+```
+
+This matters. Without it Flask sees a plain HTTP request from 127.0.0.1 and
+will not mark the session cookie `Secure`, and every visitor is logged as
+127.0.0.1. With it set, the app reads the `X-Forwarded-*` headers to recover the
+real scheme and client address.
+
+> Only set `PUBLIC_URL` when something really is proxying to the app, and never
+> bind the app to `0.0.0.0` while it is set. Those headers are trivially forged
+> by anyone who can reach the port directly.
+
+**4. For a permanent address**, you need a Cloudflare account and a domain:
+
+```powershell
+cloudflared tunnel login
+cloudflared tunnel create jobmonitor
+cloudflared tunnel route dns jobmonitor jobs.yourdomain.com
+cloudflared tunnel run --url http://localhost:5000 jobmonitor
+```
+
+Then set `PUBLIC_URL=https://jobs.yourdomain.com`.
+
+**What protects it once it is public**
+
+Sign-in is by emailed one-time code, every state-changing request needs a CSRF
+token, and code requests are capped both per email address and per source
+address (20 per 15 minutes) so someone cycling through addresses cannot keep the
+form working. The scheduler, settings, and logs stay admin-only.
+
+Cloudflare Access can be layered in front for a second gate, if you want the
+tunnel to refuse strangers before a request ever reaches the app.
 
 ## Troubleshooting
 
