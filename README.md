@@ -347,9 +347,12 @@ Finally set the address in `.env` and restart the web UI:
 PUBLIC_URL=https://jobmonitor.onlinegbc.com
 ```
 
-On restart the log should show `Public mode: serving behind a proxy at ...`.
-That line is the confirmation it took effect — without it, cookies are not
-marked `Secure` and visitors are all logged as 127.0.0.1.
+On restart the log shows either `Public mode: behind a proxy at ...` or
+`Local mode: no PUBLIC_URL set`, so it is always clear which one is in force.
+
+The other confirmation is in the login lines: with the proxy configured they
+record the visitor's real address. If every login says `127.0.0.1` while the app
+is being reached through the tunnel, `PUBLIC_URL` is not taking effect.
 
 Local access on `http://127.0.0.1:5000` keeps working after this: browsers treat
 localhost as a secure context, so `Secure` cookies are still sent.

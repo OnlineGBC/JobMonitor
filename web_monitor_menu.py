@@ -78,7 +78,8 @@ if PUBLIC_URL:
     app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1)
     app.config["SESSION_COOKIE_SECURE"] = True
     app.config["PREFERRED_URL_SCHEME"] = "https"
-    logging.info(f"Public mode: serving behind a proxy at {PUBLIC_URL}")
+    # Announced from main() instead of here - this runs at import, before
+    # configure_logging(), so anything logged now never reaches the log file.
 
 # Single scheduler instance shared across requests
 scheduler = MonitorScheduler()
@@ -918,6 +919,10 @@ def main():
     host = "0.0.0.0" if _os.getenv("K_SERVICE") else "127.0.0.1"
 
     logging.info(f"Starting JobMonitor Web UI on http://{host}:{args.port}")
+    if PUBLIC_URL:
+        logging.info(f"Public mode: behind a proxy at {PUBLIC_URL} - cookies marked Secure")
+    else:
+        logging.info("Local mode: no PUBLIC_URL set - cookies are not marked Secure")
 
     # Ensure data directory exists
     Path("data").mkdir(exist_ok=True)
