@@ -81,6 +81,24 @@
                 </div>
                 {% else %}
                 <hr>
+                {% if my_monitor_count %}
+                <div class="mb-3">
+                    {% if my_monitors_all_paused %}
+                        <button class="btn btn-success btn-sm" id="btn-mine-toggle"
+                                onclick="setMyMonitors(true)"
+                                title="Resume automatic runs for your monitors">
+                            <i class="bi bi-play-circle"></i> Resume my monitors
+                        </button>
+                    {% else %}
+                        <button class="btn btn-outline-danger btn-sm" id="btn-mine-toggle"
+                                onclick="setMyMonitors(false)"
+                                title="Stop automatic runs for your monitors. Others are unaffected.">
+                            <i class="bi bi-pause-circle"></i> Pause my monitors
+                        </button>
+                    {% endif %}
+                    <div class="form-text">Affects only your own monitors.</div>
+                </div>
+                {% endif %}
                 <p class="mb-2"><small class="text-muted fw-bold">Your schedules</small></p>
                 {% if monitors %}
                     <ul class="list-unstyled mb-2">
@@ -288,6 +306,25 @@
             .catch(() => {
                 showFlash('Request failed', 'error');
                 if (btn) { btn.disabled = false; btn.innerHTML = '<i class="bi bi-lightning"></i> Run All Once'; }
+            });
+    }
+
+    function setMyMonitors(enabled) {
+        var btn = document.getElementById('btn-mine-toggle');
+        if (btn) { btn.disabled = true; }
+        fetch('/api/monitors/mine/enabled', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({enabled: enabled})
+        })
+            .then(r => r.json())
+            .then(data => {
+                showFlash(data.message, data.status === 'ok' ? 'success' : 'warning');
+                setTimeout(() => location.reload(), 700);
+            })
+            .catch(() => {
+                showFlash('Request failed', 'error');
+                if (btn) { btn.disabled = false; }
             });
     }
 

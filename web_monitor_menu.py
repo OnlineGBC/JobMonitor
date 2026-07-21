@@ -226,6 +226,7 @@ SETTINGS_GROUPS = {
     ],
     "Other": [
         ("CONFIG_PATH", "Path to monitors.yaml config file", False),
+        ("SCHEDULER_AUTOSTART", "1 = start the scheduler with the web UI (default 1)", False),
         ("PUBLIC_URL", "Public address if served through a tunnel/proxy - restart required", False),
     ],
 }
@@ -571,6 +572,13 @@ def dashboard():
         history = [r for r in get_run_history(get_total_run_count())
                    if r.get("monitor") in visible_names]
 
+    # Drives the pause/resume-all button: offer "Resume" only when there is
+    # nothing left running to pause
+    my_monitors = _my_monitors(cfg, user)
+    my_all_paused = bool(my_monitors) and all(
+        not m.get("enabled", True) for m in my_monitors
+    )
+
     total_runs = len(history)
     show_runs = request.args.get("runs", 20, type=int)
     show_runs = max(1, min(show_runs, total_runs)) if total_runs > 0 else 0
@@ -583,6 +591,8 @@ def dashboard():
         show_runs=show_runs,
         sched_ranges=get_scheduler_ranges(),
         min_interval=get_min_interval_minutes(),
+        my_monitor_count=len(my_monitors),
+        my_monitors_all_paused=my_all_paused,
     )
 
 
@@ -895,6 +905,58 @@ def api_monitor_run_all():
     return jsonify({"status": "warning", "message": "A run is already in progress."})
 
 
+def _my_monitors(cfg, user):
+    """
+    The monitors this user's own pause/resume button acts on.
+
+    Strictly theirs: monitors whose owner is them, plus — for an admin — ones
+    with no owner at all, which are admin-only anyway. It never touches a
+    monitor belonging to somebody else, so an admin pressing it cannot
+    accidentally pause another person's job search.
+    """
+    email = auth.normalize_email(user.get("email"))
+    mine = []
+    for m in cfg.get("monitors", []):
+        owner = auth.normalize_email(m.get("owner"))
+        if owner == email or (auth.is_admin(user) and not owner):
+            mine.append(m)
+    return mine
+
+
+@app.route("/api/monitors/mine/enabled", methods=["POST"])
+def api_my_monitors_enabled():
+    """Pause or resume every monitor belonging to the current user."""
+    payload = request.get_json(silent=True) or {}
+    if "enabled" not in payload:
+        return jsonify({"status": "error", "message": "Missing 'enabled'."}), 400
+    enabled = bool(payload["enabled"])
+
+    user = current_user()
+    cfg = _load_monitors_yaml()
+    mine = _my_monitors(cfg, user)
+
+    if not mine:
+        return jsonify({"status": "warning", "message": "You have no monitors."})
+
+    changed = 0
+    for m in mine:
+        if bool(m.get("enabled", True)) != enabled:
+            m["enabled"] = enabled
+            changed += 1
+
+    if changed:
+        _save_monitors_yaml(cfg)
+
+    word = "resumed" if enabled else "paused"
+    logging.info(f"{user['email']} {word} {changed} of their {len(mine)} monitor(s)")
+    if not changed:
+        return jsonify({"status": "warning", "message": f"Your monitors are already {word}."})
+    return jsonify({
+        "status": "ok",
+        "message": f"{changed} monitor{'s' if changed != 1 else ''} {word}.",
+    })
+
+
 @app.route("/api/monitors/<name>/clear", methods=["POST"])
 def api_monitor_clear(name):
     cfg = _load_monitors_yaml()
@@ -1045,6 +1107,17 @@ def main():
     host = "0.0.0.0" if _os.getenv("K_SERVICE") else "127.0.0.1"
 
     logging.info(f"Starting JobMonitor Web UI on http://{host}:{args.port}")
+
+    # Start the scheduler with the app. Each monitor carries its own interval and
+    # its own enabled flag, so "is the engine running" is not a per-user concern -
+    # leaving it stopped by default just meant nobody's schedule took effect and
+    # only an admin could notice. Set SCHEDULER_AUTOSTART=0 to opt out.
+    if os.getenv("SCHEDULER_AUTOSTART", "1").strip() not in ("0", "false", "False", ""):
+        if scheduler.start():
+            logging.info("Scheduler started automatically with the web UI")
+    else:
+        logging.info("SCHEDULER_AUTOSTART is off - the scheduler must be started manually")
+
     if PUBLIC_URL:
         logging.info(f"Public mode: behind a proxy at {PUBLIC_URL} - cookies marked Secure")
     else:

@@ -193,6 +193,18 @@ retry. Transient email/webhook failures retry with exponential backoff
 Pausing a monitor clears its schedule, so re-enabling it makes it due
 immediately rather than resuming an old countdown.
 
+The scheduler starts automatically with the web UI. Set `SCHEDULER_AUTOSTART=0`
+to leave it stopped until an admin starts it by hand. Because each monitor has
+its own interval and its own enabled flag, whether the engine is running is not
+something individual users need to think about — they pause their own monitors,
+not the scheduler.
+
+**Pause my monitors** on the dashboard stops automatic runs for everything the
+signed-in user owns, leaving everyone else's alone. For an admin it also covers
+monitors with no owner, which are admin-only anyway; it never touches a monitor
+belonging to somebody else. Only an admin can stop the scheduler itself, since
+that would halt everyone's monitors at once.
+
 `run_monitor.py` (the CLI loop, unused if you drive things from the web UI) keeps
 the original run-everything-then-sleep behaviour.
 
@@ -268,8 +280,9 @@ newly created account by accident.
 **4. Make it reachable**, if people are not sitting at this machine — see
 [Exposing the UI beyond localhost](#exposing-the-ui-beyond-localhost).
 
-**5. Start the scheduler** from the dashboard. Leave the custom-interval box
-empty so each monitor uses its own schedule; filling it in overrides everyone.
+**5. Nothing to start.** The scheduler comes up with the web UI. If you do start
+it by hand, leave the custom-interval box empty so each monitor uses its own
+schedule — filling it in overrides everyone's.
 
 ### Then, each user
 
@@ -293,6 +306,7 @@ controls.
 | | Admin | User |
 |---|---|---|
 | Their own monitors: URL, recipients, schedule, pause, run | ✅ | ✅ |
+| Pause/resume all of their own monitors at once | ✅ | ✅ |
 | Their own LinkedIn session | ✅ | ✅ |
 | Other people's monitors | ✅ | ❌ |
 | Monitor ownership | ✅ | ❌ |
