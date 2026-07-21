@@ -118,6 +118,40 @@ body {
     background-color: rgba(255, 255, 255, 0.12);
 }
 
+/* ── User menu ──
+   The navbar is dark in both themes, but .btn inherits the body text colour,
+   which is dark in the light theme. Pin it light like the nav links. */
+.user-menu .dropdown-toggle {
+    color: rgba(255, 255, 255, 0.85) !important;
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    border-radius: 8px;
+    padding: 0.35rem 0.65rem;
+    font-size: 0.9rem;
+    background: transparent;
+    transition: all 0.2s ease;
+}
+
+.user-menu .dropdown-toggle:hover,
+.user-menu .dropdown-toggle:focus,
+.user-menu .dropdown-toggle.show {
+    color: #ffffff !important;
+    background-color: rgba(255, 255, 255, 0.08);
+    border-color: rgba(255, 255, 255, 0.3);
+}
+
+.user-menu .dropdown-toggle .bi {
+    opacity: 0.85;
+}
+
+/* Readable against the dark navbar in both themes */
+.user-menu-badge {
+    background-color: rgba(255, 255, 255, 0.18);
+    color: #ffffff;
+    font-weight: 600;
+    font-size: 0.7rem;
+    vertical-align: middle;
+}
+
 /* ── Theme switcher ── */
 .theme-switcher .dropdown-toggle {
     color: rgba(255, 255, 255, 0.75) !important;
@@ -129,7 +163,12 @@ body {
     background: transparent;
 }
 
-.theme-switcher .dropdown-toggle:hover {
+/* :focus and .show matter as much as :hover here - without them Bootstrap's
+   own active/focus background paints a pale box on the dark navbar, which the
+   light theme makes obvious the moment the button is clicked. */
+.theme-switcher .dropdown-toggle:hover,
+.theme-switcher .dropdown-toggle:focus,
+.theme-switcher .dropdown-toggle.show {
     color: #ffffff !important;
     border-color: rgba(255, 255, 255, 0.3);
     background-color: rgba(255, 255, 255, 0.08);
