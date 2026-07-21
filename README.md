@@ -48,6 +48,9 @@ SMTP_USE_TLS=1
 FROM_ADDR=you@gmail.com
 TO_ADDRS=you@gmail.com,also@you.com
 
+# Only when served through a tunnel or reverse proxy - see "Exposing the UI"
+# PUBLIC_URL=https://jobmonitor1103.onlinegbc.com
+
 # LinkedIn (recommended — reduces rate limiting)
 LINKEDIN_USERNAME=you@example.com
 LINKEDIN_PASSWORD=your-linkedin-password
@@ -297,16 +300,59 @@ real scheme and client address.
 > bind the app to `0.0.0.0` while it is set. Those headers are trivially forged
 > by anyone who can reach the port directly.
 
-**4. For a permanent address**, you need a Cloudflare account and a domain:
+**4. For a permanent address** — this deployment uses
+`https://jobmonitor1103.onlinegbc.com`. Requires `onlinegbc.com` to be an active
+zone in your Cloudflare account.
 
 ```powershell
+# Opens a browser; pick the onlinegbc.com zone. Writes a cert to ~/.cloudflared
 cloudflared tunnel login
+
+# Creates the tunnel and its credentials file. Note the tunnel ID it prints
 cloudflared tunnel create jobmonitor
-cloudflared tunnel route dns jobmonitor jobs.yourdomain.com
-cloudflared tunnel run --url http://localhost:5000 jobmonitor
+
+# Points the hostname at the tunnel (creates the DNS record for you)
+cloudflared tunnel route dns jobmonitor jobmonitor1103.onlinegbc.com
 ```
 
-Then set `PUBLIC_URL=https://jobs.yourdomain.com`.
+Then create `C:\Users\<you>\.cloudflared\config.yml`:
+
+```yaml
+tunnel: jobmonitor
+credentials-file: C:\Users\<you>\.cloudflared\<TUNNEL-ID>.json
+
+ingress:
+  - hostname: jobmonitor1103.onlinegbc.com
+    service: http://localhost:5000
+  - service: http_status:404
+```
+
+Run it in the foreground to check it works:
+
+```powershell
+cloudflared tunnel run jobmonitor
+```
+
+Once it does, install it as a Windows service so it survives reboots and does
+not need a terminal window open:
+
+```powershell
+# Run this in an elevated (Administrator) PowerShell
+cloudflared service install
+```
+
+Finally set the address in `.env` and restart the web UI:
+
+```
+PUBLIC_URL=https://jobmonitor1103.onlinegbc.com
+```
+
+On restart the log should show `Public mode: serving behind a proxy at ...`.
+That line is the confirmation it took effect — without it, cookies are not
+marked `Secure` and visitors are all logged as 127.0.0.1.
+
+Local access on `http://127.0.0.1:5000` keeps working after this: browsers treat
+localhost as a secure context, so `Secure` cookies are still sent.
 
 **What protects it once it is public**
 

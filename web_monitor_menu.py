@@ -213,6 +213,7 @@ SETTINGS_GROUPS = {
     ],
     "Other": [
         ("CONFIG_PATH", "Path to monitors.yaml config file", False),
+        ("PUBLIC_URL", "Public address if served through a tunnel/proxy - restart required", False),
     ],
 }
 
