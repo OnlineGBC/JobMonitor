@@ -5,6 +5,10 @@ Screenshots the page, compares against the baseline using a perceptual hash,
 and (only if the visual fingerprint differs) extracts the new job listings and
 sends a digest email.
 
+Runs for one person out of the box. It also serves several: each gets their own
+login, their own monitors, their own LinkedIn account, and their own schedule —
+see [Setting it up for more than one person](#setting-it-up-for-more-than-one-person).
+
 ## How it works
 
 1. Loads the LinkedIn search URL in a headless Chromium (Playwright).
@@ -215,15 +219,84 @@ monitor.py                Core: screenshot, phash compare, extract, notify
 run_monitor.py            CLI scheduling loop with smart timing
 monitor_menu.py           Interactive CLI menu
 web_monitor_menu.py       Flask web UI (localhost:5000)
-background_scheduler.py   Background thread scheduler used by the web UI
+background_scheduler.py   Per-monitor scheduler used by the web UI
+auth.py                   Accounts, one-time login codes, ownership rules
+manage_users.py           CLI for creating and managing accounts
 monitors.yaml             Monitor definitions
+users.yaml                Accounts (gitignored). See users.example.yaml
 requirements.txt          Python dependencies
 templates/                Jinja2 templates for the web UI
 static/                   CSS + logo for the web UI
 data/run_history.json     Structured run history (capped at 500 entries)
-snapshots/                Per-monitor baseline PNGs, page text, and session state
+snapshots/                Baselines, page text, and LinkedIn session state
+  <name>_screenshot1.png    Per-monitor baseline
+  <name>_linkedin_state.json    Shared-account session
+  owner_<email>_linkedin_state.json    A user's own session
 logs/screen_compare.log   Rotated at 5MB, keeps 3 backups
 ```
+
+## Setting it up for more than one person
+
+JobMonitor can serve several people from one machine: each has their own login,
+sees only their own monitors, gets their own emails, runs on their own LinkedIn
+account, and picks their own schedule. The sections below cover each piece in
+detail — this is the order to do them in.
+
+### Once, as the administrator
+
+**1. Create the accounts.** There is no sign-up page.
+
+```bash
+python manage_users.py add you@example.com --role admin   # yourself, first
+python manage_users.py add colleague@example.com          # everyone else
+```
+
+**2. Set the interval floor** in Settings → Scheduler, or in `.env`:
+
+```
+SCHED_MIN_INTERVAL=30
+```
+
+This is the fastest cadence any user may choose. It exists to protect the
+LinkedIn account from rate limiting, so it is deliberately not user-editable.
+
+**3. Give each monitor an owner.** Open the monitor's edit page and set **Owner**
+to the person's email. The Owner field is visible to admins only. A monitor with
+no owner stays admin-only, which is why existing monitors are not exposed to a
+newly created account by accident.
+
+**4. Make it reachable**, if people are not sitting at this machine — see
+[Exposing the UI beyond localhost](#exposing-the-ui-beyond-localhost).
+
+**5. Start the scheduler** from the dashboard. Leave the custom-interval box
+empty so each monitor uses its own schedule; filling it in overrides everyone.
+
+### Then, each user
+
+Send them the URL. They:
+
+**1. Sign in.** Enter your email, receive a 6-digit code, enter it. No password.
+
+**2. Add a LinkedIn session** at **LinkedIn** in the nav — paste the `li_at`
+cookie from their own browser. Until they do, their searches run on the shared
+account. Instructions are on that page.
+
+**3. Set their schedule** on their monitor's edit page — **Check every N
+minutes**, or blank for the default. They can also edit the URL, the recipients,
+and pause the monitor.
+
+They cannot see anyone else's monitors, Settings, the logs, or the scheduler
+controls.
+
+### What each person controls
+
+| | Admin | User |
+|---|---|---|
+| Their own monitors: URL, recipients, schedule, pause, run | ✅ | ✅ |
+| Their own LinkedIn session | ✅ | ✅ |
+| Other people's monitors | ✅ | ❌ |
+| Monitor ownership | ✅ | ❌ |
+| Interval floor, Settings, Logs, start/stop scheduler | ✅ | ❌ |
 
 ## Whose LinkedIn account a monitor uses
 
@@ -435,10 +508,34 @@ tunnel to refuse strangers before a request ever reaches the app.
 **SMTP auth failed** → Use an App Password (Gmail requires this). Verify
 `SMTP_USE_TLS`. Check firewall for port 587.
 
-**LinkedIn login fails** → Set `headless: false` on the monitor and rerun so
-you can see the login page and solve any captcha. To force a fresh login you
-must delete *every* `snapshots/*_linkedin_state.json`, not just this monitor's
-— a monitor with no session of its own seeds from the newest remaining one.
+**LinkedIn login fails** → If the monitor's owner supplied their own session, it
+has probably expired: they should paste a fresh `li_at` at **LinkedIn** in the
+nav. Otherwise it is the shared account — set `headless: false` on the monitor
+and rerun so you can see the login page and solve any captcha. To force a fresh
+login on the shared account you must delete *every* shared
+`snapshots/*_linkedin_state.json`, not just this monitor's, since a monitor with
+no session seeds from the newest remaining one. `owner_*` files are never used
+for seeding.
+
+**No sign-in code arrives** → The code goes out over the same SMTP config the
+monitors use, so if email is broken nobody can log in. Check
+`logs/screen_compare.log` for `Login code sent to ...` — if it is there, the send
+succeeded and the problem is at the recipient end. Requesting a code for an
+address with no account looks identical to one that has an account and sends
+nothing, so confirm the account exists with `python manage_users.py list`.
+Codes expire in 10 minutes, work once, and are refused within 60 seconds of the
+previous one.
+
+**A monitor is not running when expected** → Check the scheduler is started on
+the dashboard. Runs are serialized and spaced at least 2 minutes apart, so a
+monitor due at the same moment as others waits its turn. If the scheduler was
+started with a custom interval, that overrides every monitor's own setting —
+restart it with the box empty. An interval below `SCHED_MIN_INTERVAL` is
+rejected when saving, not silently applied.
+
+**A user cannot see their monitor** → Its `owner` is probably unset or set to a
+different address. Owner is matched case-insensitively against the account
+email. A monitor with no owner is visible to admins only.
 
 **Too many false-positive emails** → Raise `PHASH_THRESHOLD` in `monitor.py`
 (default `0` triggers on any visual difference). Values 2–3 absorb minor
