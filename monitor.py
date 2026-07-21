@@ -51,6 +51,7 @@ import base64
 import smtplib
 import logging
 import argparse
+import functools
 import traceback
 from datetime import datetime
 from email.mime.text import MIMEText
@@ -871,9 +872,13 @@ def send_email_with_image(
             server.quit()
 
 
-def send_alert(email_cfg: Dict[str, Any], subject: str, body: str, image_path: Optional[Path] = None) -> bool:
+def send_alert(email_cfg: Dict[str, Any], subject: str, body: str, image_path: Optional[Path] = None) -> tuple:
     """
-    Send an email alert with retry logic. Returns True if successful, False otherwise.
+    Send an email alert with retry logic.
+
+    Returns (success, error_message). error_message is None on success, and the
+    final exception text when every retry failed - the caller reports it to the
+    global address so a bad per-monitor recipient does not fail silently.
     """
     def _send():
         # Deduplicate email addresses while preserving order
@@ -895,11 +900,11 @@ def send_alert(email_cfg: Dict[str, Any], subject: str, body: str, image_path: O
 
     try:
         retry_with_backoff(_send, operation_name="Email send")
-        return True
+        return (True, None)
     except Exception as e:
         logging.error(f"Error sending email after retries: {e}")
         logging.debug(traceback.format_exc())
-        return False
+        return (False, str(e))
 
 
 # =============================================================================
@@ -999,17 +1004,95 @@ def send_discord_webhook(webhook_url: str, subject: str, body: str, image_path: 
         return False
 
 
+def resolve_recipients(monitor: Dict[str, Any], global_to_addrs: str) -> tuple:
+    """
+    Work out who should receive this monitor's email.
+
+    A monitor may set its own `to_addrs` in monitors.yaml, as either a
+    comma-separated string or a YAML list. When it sets none, the global
+    TO_ADDRS is used instead.
+
+    Returns (to_addrs_string, used_global_fallback).
+    """
+    raw = monitor.get("to_addrs")
+
+    if isinstance(raw, (list, tuple)):
+        addrs = [str(a).strip() for a in raw if str(a).strip()]
+    elif isinstance(raw, str):
+        addrs = [a.strip() for a in raw.split(",") if a.strip()]
+    else:
+        addrs = []
+
+    if addrs:
+        return (", ".join(addrs), False)
+    return (global_to_addrs or "", True)
+
+
+def _report_delivery_failure(
+    email_cfg: Dict[str, Any],
+    global_to_addrs: Optional[str],
+    monitor_name: Optional[str],
+    failed_recipients: str,
+    failed_subject: str,
+    error: Optional[str]
+) -> None:
+    """
+    Tell the global address that an email to a monitor's own recipients failed.
+
+    Best effort: this goes over the same SMTP server that just failed, so if the
+    server itself is down this will fail too. It exists for the case the server
+    is fine but a recipient is not - a typo'd address, or one the server rejects.
+    """
+    if not global_to_addrs:
+        logging.error("No global TO_ADDRS configured - cannot report delivery failure")
+        return
+
+    if failed_recipients.strip() == global_to_addrs.strip():
+        # The failing recipient IS the global address; a second attempt is pointless.
+        logging.error("Delivery failed to the global address - not re-sending a report")
+        return
+
+    fallback_cfg = dict(email_cfg)
+    fallback_cfg["to_addrs"] = global_to_addrs
+
+    body = (
+        f"An email for monitor '{monitor_name}' could not be delivered.\n\n"
+        f"Intended recipients: {failed_recipients}\n"
+        f"Original subject: {failed_subject}\n"
+        f"Error: {error}\n"
+        f"Timestamp: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n"
+        f"Check the to_addrs for this monitor in monitors.yaml.\n"
+        f"The alert will be retried on the next run until it is delivered."
+    )
+
+    sent, err = send_alert(fallback_cfg, f"DELIVERY FAILED - {failed_subject}", body)
+    if sent:
+        logging.warning(f"Reported delivery failure for '{monitor_name}' to {global_to_addrs}")
+    else:
+        logging.error(f"Could not report delivery failure to {global_to_addrs}: {err}")
+
+
 def send_notifications(
     email_cfg: Dict[str, Any],
     subject: str,
     body: str,
     image_path: Optional[Path] = None,
-    dry_run: bool = False
+    dry_run: bool = False,
+    monitor_name: Optional[str] = None,
+    global_to_addrs: Optional[str] = None,
+    used_global_fallback: bool = False
 ) -> bool:
     """
     Send notifications via all configured channels (email, Slack, Discord).
 
-    Returns True if at least one notification was sent successfully.
+    email_cfg["to_addrs"] holds the recipients already resolved for this monitor.
+    When they were resolved by falling back to the global address, the body says
+    so. When a send to a monitor's own recipients fails outright, the global
+    address is told which email failed and why.
+
+    Returns True if at least one notification was sent successfully. A fallback
+    notice does NOT count - the intended recipient still has not been reached,
+    so the baseline should not rotate and the next run will try again.
     """
     if dry_run:
         logging.info(f"[DRY RUN] Would send notification: {subject}")
@@ -1020,8 +1103,29 @@ def send_notifications(
 
     # Send email
     if email_cfg.get("to_addrs"):
-        if send_alert(email_cfg, subject, body, image_path):
+        email_body = body
+        if used_global_fallback and monitor_name:
+            email_body = (
+                f"{body}\n\n"
+                f"--\n"
+                f"Sent to the global address because monitor '{monitor_name}' "
+                f"has no to_addrs configured."
+            )
+
+        sent, error = send_alert(email_cfg, subject, email_body, image_path)
+        if sent:
             success = True
+        elif not used_global_fallback:
+            # These were the monitor's own recipients. Tell the global address
+            # what failed, rather than dropping the alert on the floor.
+            _report_delivery_failure(
+                email_cfg=email_cfg,
+                global_to_addrs=global_to_addrs,
+                monitor_name=monitor_name,
+                failed_recipients=email_cfg.get("to_addrs", ""),
+                failed_subject=subject,
+                error=error,
+            )
 
     # Send Slack webhook
     slack_url = os.getenv("SLACK_WEBHOOK_URL")
@@ -1078,6 +1182,21 @@ def process_monitor(
     url = monitor["url"]
     headless = bool(monitor.get("headless", defaults.get("headless", False)))
 
+    # Resolve who gets this monitor's email, then send everything below through
+    # a config carrying those recipients instead of the global ones.
+    global_to_addrs = email_cfg.get("to_addrs", "")
+    recipients, used_global_fallback = resolve_recipients(monitor, global_to_addrs)
+    email_cfg = dict(email_cfg)
+    email_cfg["to_addrs"] = recipients
+    notify = functools.partial(
+        send_notifications,
+        monitor_name=name,
+        global_to_addrs=global_to_addrs,
+        used_global_fallback=used_global_fallback,
+    )
+    if not used_global_fallback:
+        logging.info(f"[{name}] Notifying: {recipients}")
+
     if dry_run:
         logging.info(f"[{name}] DRY RUN MODE - notifications will be skipped")
 
@@ -1123,7 +1242,7 @@ def process_monitor(
                 f"The monitor job has been stopped.\n"
                 f"Please check your LinkedIn credentials or session."
             )
-            send_notifications(email_cfg, f"{subject_prefix} {name}: LOGIN FAILED - JOB STOPPED", body, dry_run=dry_run)
+            notify(email_cfg, f"{subject_prefix} {name}: LOGIN FAILED - JOB STOPPED", body, dry_run=dry_run)
             return 10
 
         if not success:
@@ -1138,7 +1257,7 @@ def process_monitor(
             f"This is the baseline. Future runs will compare against this screenshot."
         )
 
-        if send_notifications(email_cfg, f"Initial Baseline Email - {subject_prefix} {name}: Initial Screenshot", body, screenshot1_path, dry_run=dry_run):
+        if notify(email_cfg, f"Initial Baseline Email - {subject_prefix} {name}: Initial Screenshot", body, screenshot1_path, dry_run=dry_run):
             logging.info(f"[{name}] Initial baseline notification sent successfully")
         else:
             logging.warning(f"[{name}] Failed to send initial baseline notification")
@@ -1166,7 +1285,7 @@ def process_monitor(
                 f"The monitor job has been stopped.\n"
                 f"Please check your LinkedIn credentials or session."
             )
-            send_notifications(email_cfg, f"{subject_prefix} {name}: LOGIN FAILED - JOB STOPPED", body, dry_run=dry_run)
+            notify(email_cfg, f"{subject_prefix} {name}: LOGIN FAILED - JOB STOPPED", body, dry_run=dry_run)
             return 10
 
         if not success:
@@ -1269,7 +1388,7 @@ def process_monitor(
                     f"See attached screenshot for current state."
                 )
 
-                notification_sent = send_notifications(
+                notification_sent = notify(
                     email_cfg, f"{subject_prefix} {name}: CHANGE DETECTED", body, screenshot2_path, dry_run=dry_run
                 )
                 if notification_sent:

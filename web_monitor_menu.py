@@ -318,6 +318,9 @@ def api_monitor_create():
         "headless": "headless" in request.form,
         "enabled": "enabled" in request.form,
     }
+    to_addrs = request.form.get("to_addrs", "").strip()
+    if to_addrs:
+        new_monitor["to_addrs"] = to_addrs
     monitors_list.append(new_monitor)
     cfg["monitors"] = monitors_list
     _save_monitors_yaml(cfg)
@@ -336,6 +339,13 @@ def api_monitor_update(name):
             m["url"] = request.form.get("url", "").strip()
             m["headless"] = "headless" in request.form
             m["enabled"] = "enabled" in request.form
+            # Blank means "use the global TO_ADDRS" - drop the key entirely so
+            # the YAML does not carry an empty field that looks configured.
+            to_addrs = request.form.get("to_addrs", "").strip()
+            if to_addrs:
+                m["to_addrs"] = to_addrs
+            else:
+                m.pop("to_addrs", None)
             found = True
             break
 

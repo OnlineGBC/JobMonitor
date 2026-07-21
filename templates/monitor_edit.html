@@ -26,6 +26,18 @@
                 <div class="form-text">The LinkedIn job search URL to monitor.</div>
             </div>
 
+            <div class="mb-3">
+                <label class="form-label fw-bold">Recipients</label>
+                <input type="text" class="form-control" name="to_addrs"
+                       placeholder="someone@example.com, another@example.com"
+                       value="{% if monitor and monitor.get('to_addrs') %}{{ monitor.get('to_addrs') | join(', ') if monitor.get('to_addrs') is not string else monitor.get('to_addrs') }}{% endif %}">
+                <div class="form-text">
+                    Comma-separated. Who gets this monitor's emails. Leave blank to use
+                    the global <code>TO_ADDRS</code> from Settings. If delivery to these
+                    addresses fails, the global address is told what failed.
+                </div>
+            </div>
+
             <div class="mb-3 form-check form-switch">
                 <input class="form-check-input" type="checkbox" name="headless" id="headless"
                        {% if monitor and monitor.get('headless', true) %}checked{% elif not monitor %}checked{% endif %}>

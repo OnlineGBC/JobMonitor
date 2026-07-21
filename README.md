@@ -74,6 +74,7 @@ Edit `monitors.yaml`. Only these fields are read:
 | `url` | string | The full LinkedIn job search URL |
 | `headless` | bool | Run browser without a window. Set `false` for first login so you can solve captcha / 2FA |
 | `enabled` | bool | Default `true`. When `false`, the scheduler and "Run All Once" skip this monitor. The per-card **Run** button and `python monitor.py --monitor NAME` still run it. |
+| `to_addrs` | string or list | Optional. Who receives this monitor's emails. Omit to use the global `TO_ADDRS`. |
 
 ```yaml
 monitors:
@@ -81,7 +82,31 @@ monitors:
     url: "https://www.linkedin.com/jobs/search/?keywords=..."
     headless: true
     enabled: true
+
+  - name: "Roopa Chief Strategy Innovation"
+    url: "https://www.linkedin.com/jobs/search/?keywords=..."
+    headless: true
+    enabled: true
+    to_addrs: "roopa@example.com, raja@onlinegbc.com"
 ```
+
+### Who gets each email
+
+Every email for a monitor — change detected, initial baseline, login failure —
+goes to that monitor's `to_addrs`, or to the global `TO_ADDRS` when it sets none.
+A monitor's recipients can also be set from the web UI on the monitor's edit page.
+
+Two cases are called out explicitly so a misdirected alert is never silent:
+
+- **No `to_addrs` configured** → the email goes to the global address and its
+  body says it went there because that monitor has no recipients configured.
+- **Delivery to a monitor's own recipients fails** → the global address gets a
+  `DELIVERY FAILED` email naming the monitor, the intended recipients, the
+  original subject, and the SMTP error. The baseline is not rotated, so the
+  alert is retried on the next run until it gets through.
+
+The global `TO_ADDRS` is still required — it is the fallback and the destination
+for delivery-failure reports.
 
 To build a URL: run the search on LinkedIn, then copy the address bar. LinkedIn
 supports boolean filters in `keywords=` (e.g. `title:"VP" AND title:"AI"`,
