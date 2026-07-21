@@ -16,18 +16,18 @@ monitors:
   headless: true
 
   enabled: true
-  to_addrs: raja@onlinegbc.c.om
+  to_addrs: raja@onlinegbc.com
 - name: "HybridNYC"
   url: "https://www.linkedin.com/jobs/search/?currentJobId=4442292124&f_E=5%2C6&f_EA=true&f_TPR=r86400&geoId=105080838&keywords=(title%3A%22Director%22%20OR%20title%3A%22VP%22%20OR%20title%3A%22Vice%20President%22%20OR%20title%3A%22Vice-President%22%20OR%20title%3A%22Head%22%20OR%20title%3A%22Leader%22%20OR%20title%3A%22Fractional%20CIO%22%20OR%20title%3A%22Fractional%20CTO%22%20)%20AND%20(title%3A%22AI%22%20OR%20title%3A%22Artificial%20Intelligence%22)%20AND%20NOT%20(%22Crossover%22%20OR%20%22Get%20IT%22%20OR%20%22Talentify%22%20OR%20%22Toptal%22%20OR%20%22Stealth%20Stanford%20AI%20Startup%22%20OR%20%22Lensa%22%20OR%20%22Harnham%22%20OR%20%22Swooped%22%20%20OR%20%22Jobgether%22%20OR%20%22Ladders%22)&origin=JOB_SEARCH_PAGE_SEARCH_BUTTON&refresh=true&sortBy=R"
   headless: true
 
   enabled: true
-  to_addrs: raja@onlinegbc.c.om
+  to_addrs: raja@onlinegbc.com
 - name: "Chief AI Officer"
   url: "https://www.linkedin.com/jobs/search/?currentJobId=4440012633&f_EA=true&f_TPR=r86400&geoId=103644278&keywords=%22chief%20AI%20officer%22&origin=JOB_SEARCH_PAGE_JOB_FILTER&refresh=true&sortBy=R"
   headless: true
   enabled: true
-  to_addrs: raja@onlinegbc.c.om
+  to_addrs: raja@onlinegbc.com
 - name: Roopa C-Suite SVP
   url: 
     https://www.linkedin.com/jobs/search-results/?currentJobId=4440177777&keywords=title%3A%20%22SVP%22%20OR%20%22Chief%20strategy%20officer%22%20OR%20%22Chief%20Transformation%20Officer%22&origin=JOB_SEARCH_PAGE_JOB_FILTER&referralSearchId=7SNPDWrPEA7LFFOWExfQ9A%3D%3D&f_TPR=r604800&f_EA=true&f_SAL=f_SA_id_227001%3A279001
