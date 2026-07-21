@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+
+{% block title %}Enter your code — JobMonitor{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-5 col-lg-4">
+        <div class="card mt-4">
+            <div class="card-body">
+                <h4 class="card-title mb-1">
+                    <i class="bi bi-envelope-check"></i> Check your email
+                </h4>
+                <p class="text-muted small">
+                    If <strong>{{ email }}</strong> has an account, a sign-in code is
+                    on its way. It expires in 10 minutes.
+                </p>
+                <hr>
+
+                <form method="POST" action="{{ url_for('login_verify') }}">
+                    <input type="hidden" name="next" value="{{ next or '' }}">
+                    <div class="mb-3">
+                        <label class="form-label fw-bold" for="code">Sign-in code</label>
+                        <input type="text" class="form-control form-control-lg text-center"
+                               id="code" name="code" required autofocus
+                               inputmode="numeric" pattern="[0-9]*" maxlength="6"
+                               autocomplete="one-time-code" placeholder="000000"
+                               style="letter-spacing: 0.4em;">
+                    </div>
+
+                    <button type="submit" class="btn btn-primary w-100">
+                        <i class="bi bi-box-arrow-in-right"></i> Sign in
+                    </button>
+                </form>
+
+                <hr>
+                <form method="POST" action="{{ url_for('login') }}" class="d-inline">
+                    <input type="hidden" name="email" value="{{ email }}">
+                    <input type="hidden" name="next" value="{{ next or '' }}">
+                    <button type="submit" class="btn btn-link btn-sm p-0">
+                        Send a new code
+                    </button>
+                </form>
+                <span class="text-muted small">·</span>
+                <a href="{{ url_for('login') }}" class="btn btn-link btn-sm p-0">
+                    Use a different email
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -3,7 +3,10 @@
 #   python manage_users.py add you@example.com --role admin
 #   python manage_users.py add colleague@example.com
 #
-# users.yaml is gitignored. Never commit real password hashes.
+# users.yaml is gitignored.
+#
+# There are no passwords. Signing in emails a one-time code to the address, so
+# each address here must be a real inbox the person can read.
 #
 # role: admin  -> sees every monitor, plus Settings, Logs and scheduler controls
 # role: user   -> sees only monitors whose `owner` matches their email
@@ -12,9 +15,7 @@
 
 users:
   - email: you@example.com
-    password_hash: "scrypt:32768:8:1$REPLACE$ME"
     role: admin
 
   - email: colleague@example.com
-    password_hash: "scrypt:32768:8:1$REPLACE$ME"
     role: user

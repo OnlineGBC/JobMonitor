@@ -10,31 +10,29 @@
                 <h4 class="card-title mb-1">
                     <i class="bi bi-box-arrow-in-right"></i> Sign in
                 </h4>
-                <p class="text-muted small">Use the email address your monitors are registered to.</p>
+                <p class="text-muted small">
+                    Enter your email and we'll send you a sign-in code. There is no
+                    password to remember.
+                </p>
                 <hr>
 
                 <form method="POST" action="{{ url_for('login') }}">
+                    <input type="hidden" name="next" value="{{ next or '' }}">
                     <div class="mb-3">
                         <label class="form-label fw-bold" for="email">Email</label>
                         <input type="email" class="form-control" id="email" name="email"
-                               value="{{ email or '' }}" required autofocus autocomplete="username">
-                    </div>
-
-                    <div class="mb-3">
-                        <label class="form-label fw-bold" for="password">Password</label>
-                        <input type="password" class="form-control" id="password" name="password"
-                               required autocomplete="current-password">
+                               value="{{ email or '' }}" required autofocus autocomplete="email">
                     </div>
 
                     <button type="submit" class="btn btn-primary w-100">
-                        <i class="bi bi-box-arrow-in-right"></i> Sign in
+                        <i class="bi bi-envelope"></i> Email me a code
                     </button>
                 </form>
 
                 <hr>
                 <p class="text-muted small mb-0">
                     Accounts are created from the command line. Ask an administrator
-                    if you need one or have forgotten your password.
+                    if you need one.
                 </p>
             </div>
         </div>

@@ -207,12 +207,22 @@ from the command line, so having shell access is the only way to grant one.
 python manage_users.py add you@example.com --role admin   # do this first
 python manage_users.py add colleague@example.com          # a regular user
 python manage_users.py list
-python manage_users.py passwd colleague@example.com
 python manage_users.py delete colleague@example.com
 ```
 
-Accounts live in `users.yaml` (gitignored). Only Werkzeug password hashes are
-stored, never passwords. See `users.example.yaml` for the shape.
+**There are no passwords.** To sign in you enter your email and get a one-time
+code sent to it, using the same SMTP settings the monitors use. Proving you can
+read that inbox is the whole login — so the address must be a real one the
+person can access.
+
+Codes are 6 digits, expire in 10 minutes, and work once. Five wrong guesses
+burns the code; five requests in 15 minutes locks the address out; and a second
+code cannot be requested within 60 seconds of the first. Requesting a code for
+an address with no account looks identical to requesting one for an address that
+has one, so the form cannot be used to discover who has accounts.
+
+Accounts live in `users.yaml` (gitignored) and hold only an email and a role.
+See `users.example.yaml` for the shape.
 
 | | `admin` | `user` |
 |---|---|---|
@@ -227,7 +237,6 @@ A monitor with no `owner` is **admin-only**, so monitors that predate accounts
 are never exposed to a newly created user. Set the owner from the monitor's edit
 page — the Owner field is shown to admins only.
 
-Failed logins are throttled: 5 failures for an email locks it out for 5 minutes.
 Sessions are checked against `users.yaml` on every request, so deleting an
 account or changing its role takes effect immediately rather than at next login.
 

@@ -219,7 +219,7 @@ def _get_settings_groups():
 
 # Endpoints reachable without logging in. Everything else is denied by default,
 # so adding a route cannot accidentally expose it.
-PUBLIC_ENDPOINTS = {"login", "static"}
+PUBLIC_ENDPOINTS = {"login", "login_verify", "static"}
 
 # Routes that live under /api/ but are posted by an HTML <form> and redirect
 # afterwards. Denying one must flash and redirect, not return JSON the browser
@@ -231,25 +231,25 @@ def _wants_json():
     """Whether this request should be answered with JSON rather than a redirect."""
     return request.path.startswith("/api/") and request.endpoint not in FORM_ENDPOINTS
 
-# Failed logins per email, as [(timestamp, ...)] - throttles password guessing
-_failed_logins = {}
-MAX_FAILED_LOGINS = 5
-LOCKOUT_SECONDS = 300
+# Code requests per email - stops the form being used to flood an inbox
+_code_requests = {}
+MAX_CODE_REQUESTS = 5
+LOCKOUT_SECONDS = 900
 
 
-def _record_failure(email):
+def _record_request(email):
     now = time.time()
-    recent = [t for t in _failed_logins.get(email, []) if now - t < LOCKOUT_SECONDS]
+    recent = [t for t in _code_requests.get(email, []) if now - t < LOCKOUT_SECONDS]
     recent.append(now)
-    _failed_logins[email] = recent
+    _code_requests[email] = recent
 
 
 def _seconds_locked_out(email):
-    """Seconds remaining before this email may try again, 0 if not locked out."""
+    """Seconds remaining before this email may request another code, 0 if free."""
     now = time.time()
-    recent = [t for t in _failed_logins.get(email, []) if now - t < LOCKOUT_SECONDS]
-    _failed_logins[email] = recent
-    if len(recent) < MAX_FAILED_LOGINS:
+    recent = [t for t in _code_requests.get(email, []) if now - t < LOCKOUT_SECONDS]
+    _code_requests[email] = recent
+    if len(recent) < MAX_CODE_REQUESTS:
         return 0
     return int(LOCKOUT_SECONDS - (now - min(recent)))
 
@@ -329,42 +329,92 @@ def inject_user():
     return {"current_user": user, "is_admin": auth.is_admin(user)}
 
 
+def _safe_next():
+    """The post-login destination, restricted to same-site relative paths."""
+    nxt = request.args.get("next") or request.form.get("next") or ""
+    if nxt.startswith("/") and not nxt.startswith("//"):
+        return nxt
+    return url_for("dashboard")
+
+
 @app.route("/login", methods=["GET", "POST"])
 def login():
+    """Step one: ask for an email address and send it a code."""
     if current_user():
         return redirect(url_for("dashboard"))
 
+    nxt = _safe_next()
+
     if request.method == "POST":
         email = auth.normalize_email(request.form.get("email"))
-        password = request.form.get("password", "")
+        if not email:
+            flash("Enter your email address.", "error")
+            return render_template("login.html", email="", next=nxt)
 
         locked = _seconds_locked_out(email)
         if locked:
-            flash(f"Too many failed attempts. Try again in {locked // 60 + 1} minute(s).", "error")
-            return render_template("login.html", email=email)
+            flash(f"Too many code requests. Try again in {locked // 60 + 1} minute(s).", "error")
+            return render_template("login.html", email=email, next=nxt)
 
-        user = auth.verify_credentials(email, password)
-        if not user:
-            _record_failure(email)
-            logging.warning(f"Failed login for '{email}' from {request.remote_addr}")
-            flash("Incorrect email or password.", "error")
-            return render_template("login.html", email=email)
+        wait = auth.seconds_until_resend(email)
+        if wait:
+            flash(f"A code was just sent. Wait {wait} second(s) before asking for another.", "warning")
+            session["pending_email"] = email
+            return render_template("login_code.html", email=email, next=nxt)
 
-        _failed_logins.pop(email, None)
-        session.clear()
-        session["user_email"] = auth.normalize_email(user["email"])
-        session.permanent = False
-        logging.info(f"Login: {user['email']} ({user.get('role')}) from {request.remote_addr}")
+        _record_request(email)
+        user = auth.get_user(email)
 
-        # Only allow same-site relative redirects
-        nxt = request.args.get("next", "")
-        if nxt.startswith("/") and not nxt.startswith("//"):
-            return redirect(nxt)
-        return redirect(url_for("dashboard"))
+        if user:
+            code = auth.issue_login_code(email)
+            sent, error = auth.send_login_code(email, code)
+            if not sent:
+                # A server-side mail failure is worth showing plainly - the user
+                # would otherwise wait for a code that is never coming.
+                flash(error, "error")
+                return render_template("login.html", email=email, next=nxt)
+            logging.info(f"Login code sent to {email}")
+        else:
+            # Same response either way, so the form cannot be used to discover
+            # which addresses have accounts.
+            logging.warning(f"Login code requested for unknown address '{email}' from {request.remote_addr}")
+
+        session["pending_email"] = email
+        flash("If that address has an account, a sign-in code is on its way.", "success")
+        return render_template("login_code.html", email=email, next=nxt)
 
     if not auth.load_users():
         flash("No accounts exist yet. Run: python manage_users.py add you@example.com --role admin", "warning")
-    return render_template("login.html", email="")
+    return render_template("login.html", email="", next=nxt)
+
+
+@app.route("/login/verify", methods=["POST"])
+def login_verify():
+    """Step two: check the code and start the session."""
+    if current_user():
+        return redirect(url_for("dashboard"))
+
+    nxt = _safe_next()
+    # Trust the session for the address, not the form, so the submitted code
+    # can only ever be checked against the address that requested it.
+    email = auth.normalize_email(session.get("pending_email"))
+    code = request.form.get("code", "")
+
+    if not email:
+        flash("Start again - your sign-in attempt timed out.", "error")
+        return redirect(url_for("login"))
+
+    user, error = auth.verify_login_code(email, code)
+    if not user:
+        flash(error, "error")
+        return render_template("login_code.html", email=email, next=nxt)
+
+    session.clear()
+    session["user_email"] = auth.normalize_email(user["email"])
+    session.permanent = False
+    _code_requests.pop(email, None)
+    logging.info(f"Login: {user['email']} ({user.get('role')}) from {request.remote_addr}")
+    return redirect(nxt)
 
 
 @app.route("/logout")
