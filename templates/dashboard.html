@@ -19,13 +19,30 @@
             <div class="card-body">
                 <div id="sched-details">
                     {% if scheduler.running %}
-                        <p class="mb-1"><small class="text-muted">Next run in:</small></p>
-                        <p class="countdown mb-2" id="countdown">--:--</p>
+                        <p class="mb-1"><small class="text-muted">
+                            {% if is_admin %}Next run in:{% else %}Your next run in:{% endif %}
+                        </small></p>
+                        <p class="countdown mb-2" id="countdown">
+                            {% if scheduler.next_run_seconds is none %}
+                                —
+                            {% elif scheduler.next_run_seconds < 60 %}
+                                any moment
+                            {% else %}
+                                {{ scheduler.next_run_seconds // 60 }}:{{ '%02d' % (scheduler.next_run_seconds % 60) }}
+                            {% endif %}
+                        </p>
                         {% if scheduler.current_monitor %}
                             <p class="mb-1"><small><span class="status-dot blue"></span>Running: {{ scheduler.current_monitor }}</small></p>
                         {% endif %}
                         {% if scheduler.last_run %}
-                            <p class="mb-0"><small class="text-muted">Last run: {{ scheduler.last_run }}</small></p>
+                            <p class="mb-0"><small class="text-muted">
+                                {% if is_admin %}Last run:{% else %}Your last run:{% endif %}
+                                {{ scheduler.last_run }}
+                            </small></p>
+                        {% elif not is_admin %}
+                            <p class="mb-0"><small class="text-muted">
+                                Your monitors have not run yet.
+                            </small></p>
                         {% endif %}
                     {% else %}
                     {% endif %}
@@ -394,12 +411,17 @@
             .then(data => {
                 // Update countdown
                 var countdownEl = document.getElementById('countdown');
-                if (countdownEl && data.next_run_seconds > 0) {
-                    var mins = Math.floor(data.next_run_seconds / 60);
-                    var secs = data.next_run_seconds % 60;
-                    countdownEl.textContent = mins + ':' + String(secs).padStart(2, '0');
-                } else if (countdownEl) {
-                    countdownEl.textContent = '--:--';
+                if (countdownEl) {
+                    if (data.next_run_seconds === null || data.next_run_seconds === undefined) {
+                        // Nothing scheduled for this viewer - a dash, not a stuck clock
+                        countdownEl.textContent = '—';
+                    } else if (data.next_run_seconds < 60) {
+                        countdownEl.textContent = 'any moment';
+                    } else {
+                        var mins = Math.floor(data.next_run_seconds / 60);
+                        var secs = data.next_run_seconds % 60;
+                        countdownEl.textContent = mins + ':' + String(secs).padStart(2, '0');
+                    }
                 }
 
                 // Update scheduler badge

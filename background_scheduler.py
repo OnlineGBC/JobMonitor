@@ -39,6 +39,11 @@ MIN_GAP_SECONDS = 120
 MAX_INTERVAL_MINUTES = 1440
 
 
+def now_seconds():
+    """Wall clock, wrapped so tests can stub the module's time source."""
+    return time.time()
+
+
 def _load_history():
     """Load run history from disk."""
     if HISTORY_PATH.exists():
@@ -81,15 +86,44 @@ class MonitorScheduler:
     def running(self):
         return self._running and self._thread is not None and self._thread.is_alive()
 
-    def get_status(self):
-        """Return scheduler status as a dict."""
-        now = time.time()
-        next_run_seconds = 0
-        if self._next_run_time and self._running:
-            next_run_seconds = max(0, int(self._next_run_time - now))
+    def next_due_for(self, names=None):
+        """
+        Seconds until the next run among `names`, or None if nothing is scheduled.
+
+        Passing a name set answers "when does something of *mine* run next",
+        which is what a user should see - the global next-due time belongs to
+        whichever monitor happens to be first, quite possibly someone else's.
+        """
+        if not self._running:
+            return None
+        due = self._next_due
+        if names is not None:
+            due = {k: v for k, v in due.items() if k in names}
+        if not due:
+            return None
+        return max(0, int(min(due.values()) - time.time()))
+
+    def get_status(self, names=None):
+        """
+        Return scheduler status as a dict.
+
+        With `names`, the countdown and the currently-running monitor are limited
+        to that set, so one user's panel never reports another user's activity.
+        """
+        if names is None:
+            next_run_seconds = 0
+            if self._next_run_time and self._running:
+                next_run_seconds = max(0, int(self._next_run_time - now_seconds()))
+        else:
+            next_run_seconds = self.next_due_for(names)
+
+        current = self._current_monitor
+        if names is not None and current not in names:
+            current = None
+
         return {
             "running": self.running,
-            "current_monitor": self._current_monitor,
+            "current_monitor": current,
             "last_run": self._last_run,
             "next_run_seconds": next_run_seconds,
             "run_in_progress": self._run_in_progress or self._current_monitor is not None,

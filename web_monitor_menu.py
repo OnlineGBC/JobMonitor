@@ -546,13 +546,20 @@ def logout():
 # Page routes
 # ---------------------------------------------------------------------------
 
-def _visible_status(user, status, visible_names):
-    """Blank out a running monitor's name if it is not one the user may see."""
+def _scoped_status(user, visible_names, history):
+    """
+    Scheduler status as this user should see it.
+
+    An admin gets the global picture. Everyone else gets a countdown and a
+    last-run time drawn only from their own monitors - the global values belong
+    to whichever monitor ran or is due first, which is usually somebody else's
+    and is not theirs to know about.
+    """
     if auth.is_admin(user):
-        return status
-    status = dict(status)
-    if status.get("current_monitor") not in visible_names:
-        status["current_monitor"] = None
+        return scheduler.get_status()
+
+    status = scheduler.get_status(names=visible_names)
+    status["last_run"] = history[0]["timestamp"] if history else None
     return status
 
 
@@ -585,7 +592,7 @@ def dashboard():
     return render_template(
         "dashboard.html",
         monitors=monitors,
-        scheduler=_visible_status(user, scheduler.get_status(), visible_names),
+        scheduler=_scoped_status(user, visible_names, history),
         run_history=history[:show_runs],
         total_runs=total_runs,
         show_runs=show_runs,
@@ -998,11 +1005,15 @@ def api_scheduler_stop():
 
 @app.route("/api/scheduler/status")
 def api_scheduler_status():
-    # Polled continuously by the dashboard - same name-leak guard as the page
+    # Polled continuously by the dashboard - same scoping as the page itself
     user = current_user()
     cfg = _load_monitors_yaml()
     visible_names = {m.get("name") for m in auth.visible_monitors(user, cfg.get("monitors", []))}
-    return jsonify(_visible_status(user, scheduler.get_status(), visible_names))
+    history = []
+    if not auth.is_admin(user):
+        history = [r for r in get_run_history(get_total_run_count())
+                   if r.get("monitor") in visible_names]
+    return jsonify(_scoped_status(user, visible_names, history))
 
 
 @app.route("/api/scheduler/intervals", methods=["POST"])
