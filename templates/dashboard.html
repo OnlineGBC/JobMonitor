@@ -81,11 +81,53 @@
                 </div>
                 {% else %}
                 <hr>
-                <p class="mb-0"><small class="text-muted">
-                    The schedule is managed by an administrator. Your monitors run
-                    automatically on it, and you can run any of them yourself from
-                    the Monitors page.
-                </small></p>
+                <p class="mb-2"><small class="text-muted fw-bold">Your schedules</small></p>
+                {% if monitors %}
+                    <ul class="list-unstyled mb-2">
+                        {% for m in monitors %}
+                        <li class="d-flex justify-content-between align-items-center py-1">
+                            <span class="text-truncate me-2">
+                                {% if not m.get('enabled', true) %}
+                                    <i class="bi bi-pause-circle text-warning" title="Paused"></i>
+                                {% endif %}
+                                {{ m.name }}
+                            </span>
+                            <a href="{{ url_for('monitor_edit', name=m.name) }}"
+                               class="badge text-bg-light text-decoration-none flex-shrink-0"
+                               title="Change how often this runs">
+                                {% if m.get('interval_minutes') %}
+                                    every {{ m.interval_minutes }} min
+                                {% else %}
+                                    default
+                                {% endif %}
+                            </a>
+                        </li>
+                        {% endfor %}
+                    </ul>
+                    <p class="mb-2"><small class="text-muted">
+                        Set how often each monitor runs on its <strong>Edit</strong> page —
+                        minimum {{ min_interval }} minutes. "default" means
+                        every {{ sched_ranges.business_min }}–{{ sched_ranges.business_max }} min
+                        during business hours and
+                        every {{ sched_ranges.offhours_min }}–{{ sched_ranges.offhours_max }} min
+                        overnight and at weekends.
+                    </small></p>
+                {% else %}
+                    <p class="mb-2"><small class="text-muted">
+                        You have no monitors yet. Add one to set a schedule.
+                    </small></p>
+                {% endif %}
+
+                {% if not scheduler.running %}
+                <div class="alert alert-warning py-2 px-3 mb-0">
+                    <small>
+                        <i class="bi bi-exclamation-triangle"></i>
+                        Automatic runs are stopped right now, so nothing runs on its
+                        schedule until an administrator starts them. You can still run
+                        a monitor yourself from the Monitors page.
+                    </small>
+                </div>
+                {% endif %}
                 {% endif %}
             </div>
         </div>

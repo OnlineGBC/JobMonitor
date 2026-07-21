@@ -582,6 +582,7 @@ def dashboard():
         total_runs=total_runs,
         show_runs=show_runs,
         sched_ranges=get_scheduler_ranges(),
+        min_interval=get_min_interval_minutes(),
     )
 
 
