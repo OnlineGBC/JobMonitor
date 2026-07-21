@@ -18,12 +18,15 @@ sends a digest email.
    and emails a digest (subject + direct links). If no new URLs, no email.
 5. Rotates the new screenshot into the baseline only after a successful send.
 
-Session cookies are saved per monitor in `snapshots/<name>_linkedin_state.json`
-so subsequent runs stay logged in. A newly added monitor has no session file, so
-it seeds from the most recently saved one (all monitors use the same LinkedIn
-account) and writes its own copy after the first successful run. This avoids a
-full username/password login, which LinkedIn tends to answer with a 2FA/captcha
-checkpoint.
+Session cookies are saved so subsequent runs stay logged in — see
+[Whose LinkedIn account](#whose-linkedin-account-a-monitor-uses) for which
+account a given monitor uses.
+
+A monitor on the shared account keeps its cookies in
+`snapshots/<name>_linkedin_state.json`. A newly added one has no session file,
+so it seeds from the most recently saved shared file and writes its own copy
+after the first successful run. This avoids a full username/password login,
+which LinkedIn tends to answer with a 2FA/captcha checkpoint.
 
 ## Setup
 
@@ -200,6 +203,43 @@ data/run_history.json     Structured run history (capped at 500 entries)
 snapshots/                Per-monitor baseline PNGs, page text, and session state
 logs/screen_compare.log   Rotated at 5MB, keeps 3 backups
 ```
+
+## Whose LinkedIn account a monitor uses
+
+By default every monitor signs in with the shared credentials in `.env`
+(`LINKEDIN_USERNAME` / `LINKEDIN_PASSWORD`). That means other people's searches
+run as you, appear in your activity, and any rate limiting lands on your account.
+
+Each user can supply their own LinkedIn session instead, from **LinkedIn** in the
+web UI nav. They paste their `li_at` cookie — copied from their own browser — and
+from then on their monitors search as them.
+
+| Monitor | Session used |
+|---|---|
+| Owner has supplied a session | `snapshots/owner_<email>_linkedin_state.json` — searches as them |
+| Owner has supplied none | The shared account, exactly as before |
+| No `owner` set | The shared account, exactly as before |
+
+Nothing changes until someone adds a cookie, so there is no migration: each user
+becomes independent the moment they supply one, and existing monitors keep
+working untouched. A user's monitors all share one session, since a person has
+one LinkedIn account.
+
+**Passwords are never collected for other users** — only the session cookie. The
+first login is the hard part of automating LinkedIn (it answers fresh logins with
+a captcha or 2FA challenge, in a browser window on the server), and letting the
+user log in normally in their own browser sidesteps it entirely.
+
+Two things to know:
+
+- The cookie is as powerful as a password — whoever holds it can act as that
+  person on LinkedIn. It is stored on the server, never displayed back, and can
+  be removed from the same page. Signing out of LinkedIn everywhere invalidates it.
+- LinkedIn expires sessions, so this needs redoing occasionally. When a session
+  goes stale that user's monitors fail to log in and alert them as usual.
+
+Seeding never crosses users: a file named `owner_*` is excluded from the seed
+search, so one person's cookies can never be handed to another person's monitor.
 
 ## Accounts
 

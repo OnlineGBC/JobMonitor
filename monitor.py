@@ -117,21 +117,98 @@ def get_snapshot_paths(monitor_name: str) -> tuple:
     )
 
 
+def safe_owner(owner_email: str) -> str:
+    """Turn an email into something usable as a filename."""
+    return "".join(c if c.isalnum() or c in "-_" else "_" for c in (owner_email or "").strip().lower())
+
+
+def owner_state_path(owner_email: str) -> Path:
+    """
+    Where a user's own LinkedIn session lives.
+
+    One file per person, not per monitor: a user has one LinkedIn account, and
+    all of their monitors should sign in as them.
+    """
+    return Path("snapshots") / f"owner_{safe_owner(owner_email)}_linkedin_state.json"
+
+
+def resolve_state_path(monitor_name: str, owner_email: Optional[str]) -> tuple:
+    """
+    Decide which LinkedIn session a monitor should use.
+
+    Returns (state_path, using_own_session).
+
+    A monitor whose owner has supplied their own LinkedIn session runs as that
+    person. Everything else keeps the original per-monitor file, which is the
+    shared account the app has always used. That keeps existing monitors working
+    untouched, and each user becomes independent the moment they add a cookie -
+    no flag day, no migration.
+    """
+    if owner_email:
+        own = owner_state_path(owner_email)
+        if own.exists():
+            return own, True
+
+    safe_name = "".join(c if c.isalnum() or c in "-_" else "_" for c in monitor_name)
+    return Path(f"snapshots/{safe_name}_linkedin_state.json"), False
+
+
+def write_owner_session(owner_email: str, li_at: str, jsessionid: str = "") -> Path:
+    """
+    Store a user's LinkedIn session from the cookie value they pasted.
+
+    Only the session cookie is kept - never a LinkedIn password. Written in
+    Playwright's storage_state shape so it loads like any session the app
+    captured itself.
+
+    li_at is set on `.www.linkedin.com`, but requests are also made to
+    `.linkedin.com`, so it is recorded for both.
+    """
+    expires = int(time.time()) + 365 * 24 * 3600
+
+    def cookie(name, value, domain):
+        return {
+            "name": name,
+            "value": value,
+            "domain": domain,
+            "path": "/",
+            "expires": expires,
+            "httpOnly": True,
+            "secure": True,
+            "sameSite": "None",
+        }
+
+    cookies = []
+    for domain in (".linkedin.com", ".www.linkedin.com"):
+        cookies.append(cookie("li_at", li_at.strip(), domain))
+        if jsessionid.strip():
+            cookies.append(cookie("JSESSIONID", jsessionid.strip(), domain))
+
+    path = owner_state_path(owner_email)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with open(path, "w", encoding="utf-8") as f:
+        json.dump({"cookies": cookies, "origins": []}, f, indent=2)
+    return path
+
+
 def find_seed_state_path(exclude_path: Path) -> Optional[Path]:
     """
     Find another monitor's saved LinkedIn session to seed a new monitor with.
 
-    All monitors sign in as the same LinkedIn account, so a session saved by one
-    is valid for the rest. Without this, a newly added monitor has no cookies and
-    is forced through a full username/password login, which LinkedIn tends to
-    answer with a 2FA/captcha checkpoint.
+    Without this, a newly added monitor has no cookies and is forced through a
+    full username/password login, which LinkedIn tends to answer with a
+    2FA/captcha checkpoint.
 
-    Returns the most recently modified state file other than exclude_path,
-    or None if there isn't one.
+    Only shared-account files are considered. A file named `owner_*` belongs to
+    a specific person, and handing their cookies to someone else's monitor would
+    make that person's monitor search LinkedIn as the wrong user - exactly what
+    per-user sessions exist to prevent.
+
+    Returns the most recently modified eligible file, or None.
     """
     candidates = [
         p for p in Path("snapshots").glob("*_linkedin_state.json")
-        if p.resolve() != exclude_path.resolve()
+        if not p.name.startswith("owner_") and p.resolve() != exclude_path.resolve()
     ]
     if not candidates:
         return None
@@ -1201,7 +1278,18 @@ def process_monitor(
         logging.info(f"[{name}] DRY RUN MODE - notifications will be skipped")
 
     # Get monitor-specific snapshot paths
-    screenshot1_path, screenshot2_path, text1_path, text2_path, state_path = get_snapshot_paths(name)
+    screenshot1_path, screenshot2_path, text1_path, text2_path, _default_state = get_snapshot_paths(name)
+
+    # Which LinkedIn identity this monitor searches as
+    owner = monitor.get("owner")
+    state_path, using_own_session = resolve_state_path(name, owner)
+    if using_own_session:
+        logging.info(f"[{name}] Using {owner}'s own LinkedIn session")
+    elif owner:
+        logging.warning(
+            f"[{name}] {owner} has no LinkedIn session of their own - "
+            f"running on the shared account. Add a session cookie in the web UI."
+        )
     safe_name = "".join(c if c.isalnum() or c in "-_" else "_" for c in name)
     jobs1_path = Path("snapshots") / f"{safe_name}_jobs1.json"
     jobs2_path = Path("snapshots") / f"{safe_name}_jobs2.json"
