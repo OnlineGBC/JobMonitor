@@ -75,6 +75,7 @@ Edit `monitors.yaml`. Only these fields are read:
 | `headless` | bool | Run browser without a window. Set `false` for first login so you can solve captcha / 2FA |
 | `enabled` | bool | Default `true`. When `false`, the scheduler and "Run All Once" skip this monitor. The per-card **Run** button and `python monitor.py --monitor NAME` still run it. |
 | `to_addrs` | string or list | Optional. Who receives this monitor's emails. Omit to use the global `TO_ADDRS`. |
+| `owner` | string | Optional. Email of the account that can see and edit this monitor in the web UI. Omit and it is admin-only. |
 
 ```yaml
 monitors:
@@ -196,6 +197,50 @@ data/run_history.json     Structured run history (capped at 500 entries)
 snapshots/                Per-monitor baseline PNGs, page text, and session state
 logs/screen_compare.log   Rotated at 5MB, keeps 3 backups
 ```
+
+## Accounts
+
+The web UI requires a login. There is no sign-up page — accounts are created
+from the command line, so having shell access is the only way to grant one.
+
+```bash
+python manage_users.py add you@example.com --role admin   # do this first
+python manage_users.py add colleague@example.com          # a regular user
+python manage_users.py list
+python manage_users.py passwd colleague@example.com
+python manage_users.py delete colleague@example.com
+```
+
+Accounts live in `users.yaml` (gitignored). Only Werkzeug password hashes are
+stored, never passwords. See `users.example.yaml` for the shape.
+
+| | `admin` | `user` |
+|---|---|---|
+| Monitors visible | all | only those whose `owner` is their email |
+| Create / edit / delete monitors | any | only their own |
+| Run a single monitor | any | only their own |
+| Run All Once, start/stop scheduler, intervals | yes | no |
+| Settings, Logs | yes | no |
+| Reassign a monitor's `owner` | yes | no |
+
+A monitor with no `owner` is **admin-only**, so monitors that predate accounts
+are never exposed to a newly created user. Set the owner from the monitor's edit
+page — the Owner field is shown to admins only.
+
+Failed logins are throttled: 5 failures for an email locks it out for 5 minutes.
+Sessions are checked against `users.yaml` on every request, so deleting an
+account or changing its role takes effect immediately rather than at next login.
+
+`FLASK_SECRET_KEY` is generated into `.env` on first run. It signs session
+cookies — if you delete it, everyone is logged out.
+
+### Exposing the UI beyond localhost
+
+The app binds to `127.0.0.1` and is reachable only from the machine it runs on.
+Before putting it anywhere else, note that it has **no CSRF protection**, so a
+logged-in user visiting a hostile page could have actions performed as them. If
+you expose it (Cloudflare Tunnel, Tailscale, a reverse proxy), add CSRF tokens
+first, and serve it over HTTPS so session cookies are not sent in the clear.
 
 ## Troubleshooting
 

@@ -30,6 +30,7 @@
                     {% else %}
                     {% endif %}
                 </div>
+                {% if is_admin %}
                 <hr>
                 <div class="d-flex gap-2 flex-wrap">
                     {% if scheduler.running %}
@@ -78,6 +79,14 @@
                         <i class="bi bi-save"></i> Save Intervals
                     </button>
                 </div>
+                {% else %}
+                <hr>
+                <p class="mb-0"><small class="text-muted">
+                    The schedule is managed by an administrator. Your monitors run
+                    automatically on it, and you can run any of them yourself from
+                    the Monitors page.
+                </small></p>
+                {% endif %}
             </div>
         </div>
 

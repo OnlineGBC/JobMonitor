@@ -5,6 +5,7 @@ __pycache__/
 
 # --- JobMonitor specific ---
 linkedin_state.json
+users.yaml
 logs/
 *.log
 nohup.out

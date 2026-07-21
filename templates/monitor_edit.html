@@ -26,6 +26,19 @@
                 <div class="form-text">The LinkedIn job search URL to monitor.</div>
             </div>
 
+            {% if is_admin %}
+            <div class="mb-3">
+                <label class="form-label fw-bold">Owner</label>
+                <input type="email" class="form-control" name="owner"
+                       placeholder="{{ current_user.email }}"
+                       value="{{ monitor.get('owner', '') if monitor else '' }}">
+                <div class="form-text">
+                    The account that can see and edit this monitor. Blank means you.
+                    Admins can see every monitor regardless of owner.
+                </div>
+            </div>
+            {% endif %}
+
             <div class="mb-3">
                 <label class="form-label fw-bold">Recipients</label>
                 <input type="text" class="form-control" name="to_addrs"

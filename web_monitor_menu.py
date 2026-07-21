@@ -20,7 +20,9 @@ import json
 import logging
 import os
 import shutil
+import time
 from datetime import datetime
+from functools import wraps
 from pathlib import Path
 
 from dotenv import load_dotenv
@@ -32,8 +34,11 @@ from flask import (
     render_template,
     request,
     send_from_directory,
+    session,
     url_for,
 )
+
+import auth
 
 # ruamel.yaml preserves comments when editing monitors.yaml
 from ruamel.yaml import YAML
@@ -48,7 +53,10 @@ from background_scheduler import MonitorScheduler, get_run_history, get_total_ru
 load_dotenv()
 
 app = Flask(__name__)
-app.secret_key = os.urandom(24)
+# Stable across restarts, so a restart does not log everyone out
+app.secret_key = auth.get_or_create_secret_key()
+app.config["SESSION_COOKIE_HTTPONLY"] = True
+app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
 
 # Single scheduler instance shared across requests
 scheduler = MonitorScheduler()
@@ -206,22 +214,207 @@ def _get_settings_groups():
 
 
 # ---------------------------------------------------------------------------
+# Authentication
+# ---------------------------------------------------------------------------
+
+# Endpoints reachable without logging in. Everything else is denied by default,
+# so adding a route cannot accidentally expose it.
+PUBLIC_ENDPOINTS = {"login", "static"}
+
+# Routes that live under /api/ but are posted by an HTML <form> and redirect
+# afterwards. Denying one must flash and redirect, not return JSON the browser
+# would render as raw text.
+FORM_ENDPOINTS = {"api_monitor_create", "api_monitor_update"}
+
+
+def _wants_json():
+    """Whether this request should be answered with JSON rather than a redirect."""
+    return request.path.startswith("/api/") and request.endpoint not in FORM_ENDPOINTS
+
+# Failed logins per email, as [(timestamp, ...)] - throttles password guessing
+_failed_logins = {}
+MAX_FAILED_LOGINS = 5
+LOCKOUT_SECONDS = 300
+
+
+def _record_failure(email):
+    now = time.time()
+    recent = [t for t in _failed_logins.get(email, []) if now - t < LOCKOUT_SECONDS]
+    recent.append(now)
+    _failed_logins[email] = recent
+
+
+def _seconds_locked_out(email):
+    """Seconds remaining before this email may try again, 0 if not locked out."""
+    now = time.time()
+    recent = [t for t in _failed_logins.get(email, []) if now - t < LOCKOUT_SECONDS]
+    _failed_logins[email] = recent
+    if len(recent) < MAX_FAILED_LOGINS:
+        return 0
+    return int(LOCKOUT_SECONDS - (now - min(recent)))
+
+
+def current_user():
+    """The logged-in user dict, or None.
+
+    Re-read from users.yaml on each request rather than trusted from the cookie,
+    so a deleted account or a changed role takes effect immediately.
+    """
+    email = session.get("user_email")
+    if not email:
+        return None
+    return auth.get_user(email)
+
+
+@app.before_request
+def require_login():
+    """Deny every request that is not from a logged-in user."""
+    if request.endpoint in PUBLIC_ENDPOINTS:
+        return None
+
+    if current_user():
+        return None
+
+    # Session refers to an account that no longer exists
+    session.pop("user_email", None)
+
+    if _wants_json():
+        return jsonify({"status": "error", "message": "Not logged in."}), 401
+    return redirect(url_for("login", next=request.path))
+
+
+def admin_required(view):
+    """Restrict a route to admins."""
+    @wraps(view)
+    def wrapper(*args, **kwargs):
+        if not auth.is_admin(current_user()):
+            if _wants_json():
+                return jsonify({"status": "error", "message": "Admins only."}), 403
+            flash("That page is for administrators only.", "error")
+            return redirect(url_for("dashboard"))
+        return view(*args, **kwargs)
+    return wrapper
+
+
+def _find_monitor(cfg, name):
+    """Return the monitor dict with this name, or None."""
+    for m in cfg.get("monitors", []):
+        if m.get("name") == name:
+            return m
+    return None
+
+
+def _require_owned(cfg, name):
+    """
+    Fetch a monitor the current user is allowed to touch.
+
+    Returns (monitor, error_response). A monitor that exists but belongs to
+    someone else gives the same answer as one that does not exist, so the UI
+    cannot be used to enumerate other people's monitor names.
+    """
+    monitor = _find_monitor(cfg, name)
+    if monitor is not None and auth.owns_monitor(current_user(), monitor):
+        return monitor, None
+
+    if _wants_json():
+        return None, (jsonify({"status": "error", "message": f"Monitor '{name}' not found."}), 404)
+    flash(f"Monitor '{name}' not found.", "error")
+    return None, redirect(url_for("monitors"))
+
+
+@app.context_processor
+def inject_user():
+    """Make the current user available to every template."""
+    user = current_user()
+    return {"current_user": user, "is_admin": auth.is_admin(user)}
+
+
+@app.route("/login", methods=["GET", "POST"])
+def login():
+    if current_user():
+        return redirect(url_for("dashboard"))
+
+    if request.method == "POST":
+        email = auth.normalize_email(request.form.get("email"))
+        password = request.form.get("password", "")
+
+        locked = _seconds_locked_out(email)
+        if locked:
+            flash(f"Too many failed attempts. Try again in {locked // 60 + 1} minute(s).", "error")
+            return render_template("login.html", email=email)
+
+        user = auth.verify_credentials(email, password)
+        if not user:
+            _record_failure(email)
+            logging.warning(f"Failed login for '{email}' from {request.remote_addr}")
+            flash("Incorrect email or password.", "error")
+            return render_template("login.html", email=email)
+
+        _failed_logins.pop(email, None)
+        session.clear()
+        session["user_email"] = auth.normalize_email(user["email"])
+        session.permanent = False
+        logging.info(f"Login: {user['email']} ({user.get('role')}) from {request.remote_addr}")
+
+        # Only allow same-site relative redirects
+        nxt = request.args.get("next", "")
+        if nxt.startswith("/") and not nxt.startswith("//"):
+            return redirect(nxt)
+        return redirect(url_for("dashboard"))
+
+    if not auth.load_users():
+        flash("No accounts exist yet. Run: python manage_users.py add you@example.com --role admin", "warning")
+    return render_template("login.html", email="")
+
+
+@app.route("/logout")
+def logout():
+    user = current_user()
+    if user:
+        logging.info(f"Logout: {user['email']}")
+    session.clear()
+    flash("Signed out.", "success")
+    return redirect(url_for("login"))
+
+
+# ---------------------------------------------------------------------------
 # Page routes
 # ---------------------------------------------------------------------------
 
+def _visible_status(user, status, visible_names):
+    """Blank out a running monitor's name if it is not one the user may see."""
+    if auth.is_admin(user):
+        return status
+    status = dict(status)
+    if status.get("current_monitor") not in visible_names:
+        status["current_monitor"] = None
+    return status
+
+
 @app.route("/")
 def dashboard():
+    user = current_user()
     cfg = _load_monitors_yaml()
-    monitors_list = cfg.get("monitors", [])
+    monitors_list = auth.visible_monitors(user, cfg.get("monitors", []))
     monitors = [_get_monitor_info(m) for m in monitors_list]
-    total_runs = get_total_run_count()
+    visible_names = {m.get("name") for m in monitors_list}
+
+    # Run history covers every monitor, so a non-admin would otherwise read
+    # other people's monitor names straight off the dashboard.
+    if auth.is_admin(user):
+        history = get_run_history(get_total_run_count())
+    else:
+        history = [r for r in get_run_history(get_total_run_count())
+                   if r.get("monitor") in visible_names]
+
+    total_runs = len(history)
     show_runs = request.args.get("runs", 20, type=int)
     show_runs = max(1, min(show_runs, total_runs)) if total_runs > 0 else 0
     return render_template(
         "dashboard.html",
         monitors=monitors,
-        scheduler=scheduler.get_status(),
-        run_history=get_run_history(show_runs),
+        scheduler=_visible_status(user, scheduler.get_status(), visible_names),
+        run_history=history[:show_runs],
         total_runs=total_runs,
         show_runs=show_runs,
         sched_ranges=get_scheduler_ranges(),
@@ -231,7 +424,7 @@ def dashboard():
 @app.route("/monitors")
 def monitors():
     cfg = _load_monitors_yaml()
-    monitors_list = cfg.get("monitors", [])
+    monitors_list = auth.visible_monitors(current_user(), cfg.get("monitors", []))
     monitors_info = [_get_monitor_info(m) for m in monitors_list]
     return render_template("monitors.html", monitors=monitors_info)
 
@@ -244,19 +437,18 @@ def monitor_new():
 @app.route("/monitors/<name>/edit")
 def monitor_edit(name):
     cfg = _load_monitors_yaml()
-    monitor = None
-    for m in cfg.get("monitors", []):
-        if m.get("name") == name:
-            monitor = dict(m)
-            break
-    if not monitor:
-        flash(f"Monitor '{name}' not found.", "error")
-        return redirect(url_for("monitors"))
-    return render_template("monitor_edit.html", monitor=monitor)
+    monitor, error = _require_owned(cfg, name)
+    if error:
+        return error
+    return render_template("monitor_edit.html", monitor=dict(monitor))
 
 
 @app.route("/monitors/<name>/screenshots")
 def screenshots(name):
+    cfg = _load_monitors_yaml()
+    _, error = _require_owned(cfg, name)
+    if error:
+        return error
     safe_name = "".join(c if c.isalnum() or c in "-_" else "_" for c in name)
     snapshots_dir = Path("snapshots")
     screenshot_files = []
@@ -272,6 +464,7 @@ def screenshots(name):
 
 
 @app.route("/settings", methods=["GET", "POST"])
+@admin_required
 def settings():
     if request.method == "POST":
         # Collect all form fields
@@ -287,6 +480,7 @@ def settings():
 
 
 @app.route("/logs")
+@admin_required
 def logs():
     return render_template("logs.html")
 
@@ -294,6 +488,27 @@ def logs():
 # ---------------------------------------------------------------------------
 # API routes
 # ---------------------------------------------------------------------------
+
+def _resolve_owner(user, existing_owner=None):
+    """
+    Decide the owner to store for a monitor being created or updated.
+
+    Admins may hand a monitor to anyone via the Owner field; the field is not
+    rendered for regular users, and is ignored if one posts it anyway, so a user
+    cannot assign a monitor away from themselves or claim someone else's.
+
+    An admin editing someone else's monitor keeps that owner unless they
+    deliberately type a different one - a blank field must not quietly transfer
+    the monitor to the admin.
+    """
+    if auth.is_admin(user):
+        requested = auth.normalize_email(request.form.get("owner"))
+        if requested:
+            return requested
+        if existing_owner:
+            return auth.normalize_email(existing_owner)
+    return auth.normalize_email(user.get("email"))
+
 
 @app.route("/api/monitors", methods=["POST"])
 def api_monitor_create():
@@ -312,11 +527,13 @@ def api_monitor_create():
             flash(f"Monitor '{name}' already exists.", "error")
             return redirect(url_for("monitor_new"))
 
+    user = current_user()
     new_monitor = {
         "name": name,
         "url": url_val,
         "headless": "headless" in request.form,
         "enabled": "enabled" in request.form,
+        "owner": _resolve_owner(user),
     }
     to_addrs = request.form.get("to_addrs", "").strip()
     if to_addrs:
@@ -331,27 +548,21 @@ def api_monitor_create():
 @app.route("/api/monitors/<name>", methods=["POST"])
 def api_monitor_update(name):
     cfg = _load_monitors_yaml()
-    monitors_list = cfg.get("monitors", [])
+    m, error = _require_owned(cfg, name)
+    if error:
+        return error
 
-    found = False
-    for m in monitors_list:
-        if m.get("name") == name:
-            m["url"] = request.form.get("url", "").strip()
-            m["headless"] = "headless" in request.form
-            m["enabled"] = "enabled" in request.form
-            # Blank means "use the global TO_ADDRS" - drop the key entirely so
-            # the YAML does not carry an empty field that looks configured.
-            to_addrs = request.form.get("to_addrs", "").strip()
-            if to_addrs:
-                m["to_addrs"] = to_addrs
-            else:
-                m.pop("to_addrs", None)
-            found = True
-            break
-
-    if not found:
-        flash(f"Monitor '{name}' not found.", "error")
-        return redirect(url_for("monitors"))
+    m["url"] = request.form.get("url", "").strip()
+    m["headless"] = "headless" in request.form
+    m["enabled"] = "enabled" in request.form
+    m["owner"] = _resolve_owner(current_user(), m.get("owner"))
+    # Blank means "use the global TO_ADDRS" - drop the key entirely so
+    # the YAML does not carry an empty field that looks configured.
+    to_addrs = request.form.get("to_addrs", "").strip()
+    if to_addrs:
+        m["to_addrs"] = to_addrs
+    else:
+        m.pop("to_addrs", None)
 
     _save_monitors_yaml(cfg)
     flash(f"Monitor '{name}' updated.", "success")
@@ -361,13 +572,11 @@ def api_monitor_update(name):
 @app.route("/api/monitors/<name>/delete", methods=["POST"])
 def api_monitor_delete(name):
     cfg = _load_monitors_yaml()
-    monitors_list = cfg.get("monitors", [])
-    original_len = len(monitors_list)
-    monitors_list = [m for m in monitors_list if m.get("name") != name]
+    _, error = _require_owned(cfg, name)
+    if error:
+        return error
 
-    if len(monitors_list) == original_len:
-        return jsonify({"status": "error", "message": f"Monitor '{name}' not found."})
-
+    monitors_list = [m for m in cfg.get("monitors", []) if m.get("name") != name]
     cfg["monitors"] = monitors_list
     _save_monitors_yaml(cfg)
 
@@ -384,8 +593,15 @@ def api_monitor_delete(name):
 @app.route("/api/monitors/<name>/run", methods=["POST"])
 def api_monitor_run(name):
     if name == "all":
+        # "Run All" walks every monitor in the config, including other people's
+        if not auth.is_admin(current_user()):
+            return jsonify({"status": "error", "message": "Admins only."}), 403
         started = scheduler.run_on_demand(None)
     else:
+        cfg = _load_monitors_yaml()
+        _, error = _require_owned(cfg, name)
+        if error:
+            return error
         started = scheduler.run_on_demand(name)
     if started:
         return jsonify({"status": "ok", "message": f"Running {'all monitors' if name == 'all' else name}..."})
@@ -393,6 +609,7 @@ def api_monitor_run(name):
 
 
 @app.route("/api/monitors/all/run", methods=["POST"])
+@admin_required
 def api_monitor_run_all():
     started = scheduler.run_on_demand(None)
     if started:
@@ -402,6 +619,10 @@ def api_monitor_run_all():
 
 @app.route("/api/monitors/<name>/clear", methods=["POST"])
 def api_monitor_clear(name):
+    cfg = _load_monitors_yaml()
+    _, error = _require_owned(cfg, name)
+    if error:
+        return error
     try:
         clear_baseline(name)
         return jsonify({"status": "ok", "message": f"Baseline cleared for '{name}'."})
@@ -410,6 +631,7 @@ def api_monitor_clear(name):
 
 
 @app.route("/api/scheduler/start", methods=["POST"])
+@admin_required
 def api_scheduler_start():
     custom_interval = None
     if request.is_json:
@@ -427,6 +649,7 @@ def api_scheduler_start():
 
 
 @app.route("/api/scheduler/stop", methods=["POST"])
+@admin_required
 def api_scheduler_stop():
     if scheduler.stop():
         return jsonify({"status": "ok", "message": "Scheduler stopped."})
@@ -435,10 +658,15 @@ def api_scheduler_stop():
 
 @app.route("/api/scheduler/status")
 def api_scheduler_status():
-    return jsonify(scheduler.get_status())
+    # Polled continuously by the dashboard - same name-leak guard as the page
+    user = current_user()
+    cfg = _load_monitors_yaml()
+    visible_names = {m.get("name") for m in auth.visible_monitors(user, cfg.get("monitors", []))}
+    return jsonify(_visible_status(user, scheduler.get_status(), visible_names))
 
 
 @app.route("/api/scheduler/intervals", methods=["POST"])
+@admin_required
 def api_scheduler_intervals():
     """Save the four randomized-interval ranges (in minutes) to .env."""
     if not request.is_json:
@@ -468,6 +696,7 @@ def api_scheduler_intervals():
 
 
 @app.route("/api/logs")
+@admin_required
 def api_logs():
     lines = request.args.get("lines", 300, type=int)
     log_path = Path("logs/screen_compare.log")
@@ -483,6 +712,7 @@ def api_logs():
 
 
 @app.route("/api/logs/download")
+@admin_required
 def api_log_download():
     log_path = Path("logs/screen_compare.log")
     if not log_path.exists():
@@ -494,6 +724,13 @@ def api_log_download():
 @app.route("/api/screenshots/<name>/<filename>")
 def api_screenshot(name, filename):
     """Serve a screenshot image file."""
+    # Ownership first: without this the URL is a way to read other people's
+    # screenshots by guessing monitor names, bypassing the dashboard filter.
+    cfg = _load_monitors_yaml()
+    monitor = _find_monitor(cfg, name)
+    if monitor is None or not auth.owns_monitor(current_user(), monitor):
+        return "Not found", 404
+
     # Security: only allow png files from the snapshots directory
     if not filename.endswith(".png"):
         return "Not found", 404

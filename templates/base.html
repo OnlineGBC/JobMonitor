@@ -37,6 +37,7 @@
             </button>
             <div class="collapse navbar-collapse" id="navbarNav">
                 <ul class="navbar-nav me-auto">
+                    {% if current_user %}
                     <li class="nav-item">
                         <a class="nav-link {% if request.endpoint == 'dashboard' %}active{% endif %}" href="{{ url_for('dashboard') }}">
                             <i class="bi bi-speedometer2"></i> Dashboard
@@ -47,6 +48,7 @@
                             <i class="bi bi-collection"></i> Monitors
                         </a>
                     </li>
+                    {% if is_admin %}
                     <li class="nav-item">
                         <a class="nav-link {% if request.endpoint == 'settings' %}active{% endif %}" href="{{ url_for('settings') }}">
                             <i class="bi bi-gear"></i> Settings
@@ -57,7 +59,28 @@
                             <i class="bi bi-file-text"></i> Logs
                         </a>
                     </li>
+                    {% endif %}
+                    {% endif %}
                 </ul>
+
+                {% if current_user %}
+                <div class="dropdown me-3">
+                    <button class="btn dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                        <i class="bi bi-person-circle"></i>
+                        <span class="d-none d-lg-inline">{{ current_user.email }}</span>
+                        {% if is_admin %}<span class="badge text-bg-secondary">admin</span>{% endif %}
+                    </button>
+                    <ul class="dropdown-menu dropdown-menu-end">
+                        <li><span class="dropdown-item-text small text-muted">{{ current_user.email }}</span></li>
+                        <li><hr class="dropdown-divider"></li>
+                        <li>
+                            <a class="dropdown-item" href="{{ url_for('logout') }}">
+                                <i class="bi bi-box-arrow-right"></i> Sign out
+                            </a>
+                        </li>
+                    </ul>
+                </div>
+                {% endif %}
 
                 <!-- Theme Switcher -->
                 <div class="theme-switcher dropdown me-3">

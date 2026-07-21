@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+
+{% block title %}Sign in — JobMonitor{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-5 col-lg-4">
+        <div class="card mt-4">
+            <div class="card-body">
+                <h4 class="card-title mb-1">
+                    <i class="bi bi-box-arrow-in-right"></i> Sign in
+                </h4>
+                <p class="text-muted small">Use the email address your monitors are registered to.</p>
+                <hr>
+
+                <form method="POST" action="{{ url_for('login') }}">
+                    <div class="mb-3">
+                        <label class="form-label fw-bold" for="email">Email</label>
+                        <input type="email" class="form-control" id="email" name="email"
+                               value="{{ email or '' }}" required autofocus autocomplete="username">
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label fw-bold" for="password">Password</label>
+                        <input type="password" class="form-control" id="password" name="password"
+                               required autocomplete="current-password">
+                    </div>
+
+                    <button type="submit" class="btn btn-primary w-100">
+                        <i class="bi bi-box-arrow-in-right"></i> Sign in
+                    </button>
+                </form>
+
+                <hr>
+                <p class="text-muted small mb-0">
+                    Accounts are created from the command line. Ask an administrator
+                    if you need one or have forgotten your password.
+                </p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

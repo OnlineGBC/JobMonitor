@@ -1,0 +1,20 @@
+# Web UI accounts. Copy to users.yaml - or better, let manage_users.py create it:
+#
+#   python manage_users.py add you@example.com --role admin
+#   python manage_users.py add colleague@example.com
+#
+# users.yaml is gitignored. Never commit real password hashes.
+#
+# role: admin  -> sees every monitor, plus Settings, Logs and scheduler controls
+# role: user   -> sees only monitors whose `owner` matches their email
+#
+# A monitor with no `owner` in monitors.yaml is visible to admins only.
+
+users:
+  - email: you@example.com
+    password_hash: "scrypt:32768:8:1$REPLACE$ME"
+    role: admin
+
+  - email: colleague@example.com
+    password_hash: "scrypt:32768:8:1$REPLACE$ME"
+    role: user
