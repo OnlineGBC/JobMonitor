@@ -49,7 +49,7 @@ FROM_ADDR=you@gmail.com
 TO_ADDRS=you@gmail.com,also@you.com
 
 # Only when served through a tunnel or reverse proxy - see "Exposing the UI"
-# PUBLIC_URL=https://jobmonitor1103.onlinegbc.com
+# PUBLIC_URL=https://jobmonitor.onlinegbc.com
 
 # LinkedIn (recommended — reduces rate limiting)
 LINKEDIN_USERNAME=you@example.com
@@ -301,7 +301,7 @@ real scheme and client address.
 > by anyone who can reach the port directly.
 
 **4. For a permanent address** — this deployment uses
-`https://jobmonitor1103.onlinegbc.com`. Requires `onlinegbc.com` to be an active
+`https://jobmonitor.onlinegbc.com`. Requires `onlinegbc.com` to be an active
 zone in your Cloudflare account.
 
 ```powershell
@@ -312,7 +312,7 @@ cloudflared tunnel login
 cloudflared tunnel create jobmonitor
 
 # Points the hostname at the tunnel (creates the DNS record for you)
-cloudflared tunnel route dns jobmonitor jobmonitor1103.onlinegbc.com
+cloudflared tunnel route dns jobmonitor jobmonitor.onlinegbc.com
 ```
 
 Then create `C:\Users\<you>\.cloudflared\config.yml`:
@@ -322,7 +322,7 @@ tunnel: jobmonitor
 credentials-file: C:\Users\<you>\.cloudflared\<TUNNEL-ID>.json
 
 ingress:
-  - hostname: jobmonitor1103.onlinegbc.com
+  - hostname: jobmonitor.onlinegbc.com
     service: http://localhost:5000
   - service: http_status:404
 ```
@@ -344,7 +344,7 @@ cloudflared service install
 Finally set the address in `.env` and restart the web UI:
 
 ```
-PUBLIC_URL=https://jobmonitor1103.onlinegbc.com
+PUBLIC_URL=https://jobmonitor.onlinegbc.com
 ```
 
 On restart the log should show `Public mode: serving behind a proxy at ...`.
