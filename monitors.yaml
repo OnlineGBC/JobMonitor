@@ -40,13 +40,6 @@ monitors:
   url: 
     https://www.linkedin.com/jobs/search/?currentJobId=4442768032&f_AL=true&f_EA=true&f_JT=C&f_TPR=r86400&f_WT=2&keywords=SAP%20AI&origin=JOB_SEARCH_PAGE_JOB_FILTER&sortBy=R
   headless: true
-  enabled: true
-  owner: raja.gbc@gmail.com
-  to_addrs: raja.gbc@gmail.com
-- name: AI
-  url: 
-    https://www.linkedin.com/jobs/search/?currentJobId=4443712400&f_E=4%2C5&f_EA=true&f_JT=P%2CC%2CT&f_T=30128&f_TPR=r86400&f_WT=2&geoId=103644278&keywords=ai%20%20-Mindrift%20-Alignerr&origin=JOB_SEARCH_PAGE_SEARCH_BUTTON&refresh=true&sortBy=R
-  headless: true
-  enabled: true
+  enabled: false
   owner: raja.gbc@gmail.com
   to_addrs: raja.gbc@gmail.com
