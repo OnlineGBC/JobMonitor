@@ -607,17 +607,9 @@ def capture_screenshot(
     timeout: int = 180,
     storage_state_path: Optional[Path] = None,
     jobs_output_path: Optional[Path] = None,
-    persist_session: bool = True,
 ) -> tuple:
     """
     Open a browser, navigate to the URL, and take a screenshot.
-
-    persist_session: when False, the session file is used read-only and never
-    overwritten with the post-run cookies. Used for a user's own pasted cookie -
-    LinkedIn rotates li_at on use, and saving the rotated jar back (plus the
-    bot-detection cookies it accumulates) appears to destabilise the session
-    once more than one monitor shares it. The cookie the user pasted is left
-    exactly as pasted.
 
     Returns a tuple: (success, login_failed, network_down)
         - (True, False, False)  = Screenshot captured successfully
@@ -731,14 +723,12 @@ def capture_screenshot(
                 login_success = login_to_linkedin(page, linkedin_username, linkedin_password)
                 if login_success:
                     is_authenticated = True
-                    # Save the session cookies for next time (shared account only;
-                    # a user's pasted cookie is left untouched)
-                    if persist_session:
-                        try:
-                            context.storage_state(path=str(storage_state_path))
-                            logging.info(f"Saved LinkedIn session to {storage_state_path}")
-                        except Exception as e:
-                            logging.warning(f"Could not save storage state: {e}")
+                    # Save the session cookies for next time
+                    try:
+                        context.storage_state(path=str(storage_state_path))
+                        logging.info(f"Saved LinkedIn session to {storage_state_path}")
+                    except Exception as e:
+                        logging.warning(f"Could not save storage state: {e}")
                 else:
                     logging.error("LinkedIn login failed!")
                     return (False, True, False)
@@ -790,9 +780,8 @@ def capture_screenshot(
                 except Exception as e:
                     logging.warning(f"Could not save job listings: {e}")
 
-            # Update the saved session cookies (shared account only; a user's
-            # pasted cookie is used read-only and never overwritten)
-            if needs_login and is_authenticated and persist_session:
+            # Update the saved session cookies
+            if needs_login and is_authenticated:
                 try:
                     context.storage_state(path=str(storage_state_path))
                 except Exception:
@@ -1367,7 +1356,6 @@ def process_monitor(
             headless=headless,
             storage_state_path=state_path,
             jobs_output_path=jobs1_path,
-            persist_session=not using_own_session,
         )
 
         if network_down:
@@ -1418,7 +1406,6 @@ def process_monitor(
             headless=headless,
             storage_state_path=state_path,
             jobs_output_path=jobs2_path,
-            persist_session=not using_own_session,
         )
 
         if network_down:
