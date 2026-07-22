@@ -234,6 +234,7 @@ Start in: project root) or a `@reboot` cron entry.
 | 5 | AI comparison failed |
 | 10 | LinkedIn login failed (scheduling loop retries once, then stops) |
 | 11 | Network unavailable — run skipped, no alert sent, retried at the monitor's next turn |
+| 12 | A person's pasted LinkedIn cookie expired — they're emailed once to re-paste; no fallback to the shared account |
 
 ## File layout
 

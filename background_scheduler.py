@@ -376,6 +376,16 @@ class MonitorScheduler:
                     f"Scheduler: {name} skipped (network unavailable), "
                     f"next attempt in {interval / 60:.1f} min"
                 )
+            elif exit_code == 12:
+                # A person's pasted cookie expired. Retrying won't help until they
+                # re-paste; the person was already emailed once. Just wait for the
+                # next turn - if still broken it stays quiet (re-paste marker).
+                interval = self.interval_seconds_for(monitor)
+                self._next_due[name] = last_finished + interval
+                logging.info(
+                    f"Scheduler: {name} needs a re-pasted LinkedIn cookie, "
+                    f"next check in {interval / 60:.1f} min"
+                )
             elif exit_code == 10 and not was_retry:
                 # Retry once, but by scheduling it rather than blocking here -
                 # other people's monitors should not wait out someone's retry

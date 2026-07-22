@@ -61,6 +61,7 @@ EXIT_CODE_DESCRIPTIONS = {
     5: "AI comparison call to LLM failed",
     10: "LinkedIn login failed",
     11: "Network unavailable - run skipped",
+    12: "Personal LinkedIn cookie expired - re-paste needed",
 }
 
 
