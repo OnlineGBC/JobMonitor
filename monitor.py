@@ -143,78 +143,18 @@ def is_network_error(error: Exception) -> bool:
     return any(marker in text for marker in NETWORK_ERROR_MARKERS)
 
 
-def safe_owner(owner_email: str) -> str:
-    """Turn an email into something usable as a filename."""
-    return "".join(c if c.isalnum() or c in "-_" else "_" for c in (owner_email or "").strip().lower())
-
-
-def owner_state_path(owner_email: str) -> Path:
+def resolve_state_path(monitor_name: str) -> Path:
     """
-    Where a user's own LinkedIn session lives.
+    Where a monitor's saved LinkedIn session lives.
 
-    One file per person, not per monitor: a user has one LinkedIn account, and
-    all of their monitors should sign in as them.
+    Every monitor signs in through the single shared account in .env. Per-user
+    pasted cookies were removed: a cookie created on someone's own device gets
+    bot-challenged when it is replayed from the server, so it never worked
+    reliably. `owner` and `to_addrs` now only decide web-UI access and email
+    recipients - they never select a LinkedIn identity.
     """
-    return Path("snapshots") / f"owner_{safe_owner(owner_email)}_linkedin_state.json"
-
-
-def resolve_state_path(monitor_name: str, owner_email: Optional[str]) -> tuple:
-    """
-    Decide which LinkedIn session a monitor should use.
-
-    Returns (state_path, using_own_session).
-
-    A monitor whose owner has supplied their own LinkedIn session runs as that
-    person. Everything else keeps the original per-monitor file, which is the
-    shared account the app has always used. That keeps existing monitors working
-    untouched, and each user becomes independent the moment they add a cookie -
-    no flag day, no migration.
-    """
-    if owner_email:
-        own = owner_state_path(owner_email)
-        if own.exists():
-            return own, True
-
     safe_name = "".join(c if c.isalnum() or c in "-_" else "_" for c in monitor_name)
-    return Path(f"snapshots/{safe_name}_linkedin_state.json"), False
-
-
-def write_owner_session(owner_email: str, li_at: str, jsessionid: str = "") -> Path:
-    """
-    Store a user's LinkedIn session from the cookie value they pasted.
-
-    Only the session cookie is kept - never a LinkedIn password. Written in
-    Playwright's storage_state shape so it loads like any session the app
-    captured itself.
-
-    li_at is set on `.www.linkedin.com`, but requests are also made to
-    `.linkedin.com`, so it is recorded for both.
-    """
-    expires = int(time.time()) + 365 * 24 * 3600
-
-    def cookie(name, value, domain):
-        return {
-            "name": name,
-            "value": value,
-            "domain": domain,
-            "path": "/",
-            "expires": expires,
-            "httpOnly": True,
-            "secure": True,
-            "sameSite": "None",
-        }
-
-    cookies = []
-    for domain in (".linkedin.com", ".www.linkedin.com"):
-        cookies.append(cookie("li_at", li_at.strip(), domain))
-        if jsessionid.strip():
-            cookies.append(cookie("JSESSIONID", jsessionid.strip(), domain))
-
-    path = owner_state_path(owner_email)
-    path.parent.mkdir(parents=True, exist_ok=True)
-    with open(path, "w", encoding="utf-8") as f:
-        json.dump({"cookies": cookies, "origins": []}, f, indent=2)
-    return path
+    return Path(f"snapshots/{safe_name}_linkedin_state.json")
 
 
 def find_seed_state_path(exclude_path: Path) -> Optional[Path]:
@@ -607,23 +547,17 @@ def capture_screenshot(
     timeout: int = 180,
     storage_state_path: Optional[Path] = None,
     jobs_output_path: Optional[Path] = None,
-    own_session: bool = False,
 ) -> tuple:
     """
     Open a browser, navigate to the URL, and take a screenshot.
 
-    own_session: True when the session file is a specific person's pasted cookie
-    (not the shared .env account). If their cookie fails, we do NOT fall back to
-    logging in with the shared credentials - that would run their monitor as the
-    wrong LinkedIn identity. Instead we report needs_repaste so the caller can
-    ask that person to paste a fresh cookie.
+    Every monitor signs in through the single shared .env account.
 
-    Returns a tuple: (success, login_failed, network_down, needs_repaste)
-        - (True, False, False, False)  = Screenshot captured successfully
-        - (False, True, False, False)  = LinkedIn login failed (shared account)
-        - (False, False, True, False)  = This machine could not reach the network
-        - (False, False, False, True)  = A person's pasted cookie is no longer valid
-        - (False, False, False, False) = Some other error occurred
+    Returns a tuple: (success, login_failed, network_down)
+        - (True, False, False)  = Screenshot captured successfully
+        - (False, True, False)  = LinkedIn login failed
+        - (False, False, True)  = This machine could not reach the network
+        - (False, False, False) = Some other error occurred
     """
     if not HAS_PLAYWRIGHT:
         raise RuntimeError("Playwright not installed. Run: pip install playwright && playwright install chromium")
@@ -719,18 +653,8 @@ def capture_screenshot(
                         # password login here would risk a checkpoint for the
                         # sake of an outage that will pass on its own.
                         logging.warning(f"Network unavailable - skipping this run: {e}")
-                        return (False, False, True, False)
+                        return (False, False, True)
                     logging.warning(f"Could not validate session: {e}")
-
-            # A person's pasted cookie is no longer valid. Do NOT log in with the
-            # shared credentials - that would run their monitor as the wrong
-            # LinkedIn identity. Stop and ask them to paste a fresh cookie.
-            if own_session and not session_valid:
-                logging.warning(
-                    "Personal LinkedIn cookie is no longer valid - not falling back "
-                    "to the shared account; the person needs to re-paste their cookie"
-                )
-                return (False, False, False, True)
 
             # Log in if we don't have a valid session (shared account only)
             if needs_login and not session_valid:
@@ -749,7 +673,7 @@ def capture_screenshot(
                         logging.warning(f"Could not save storage state: {e}")
                 else:
                     logging.error("LinkedIn login failed!")
-                    return (False, True, False, False)
+                    return (False, True, False)
 
             # Navigate to the target URL
             logging.info(f"Navigating to {url}")
@@ -806,20 +730,15 @@ def capture_screenshot(
                     pass
 
             logging.info("Screenshot captured successfully")
-            return (True, False, False, False)
+            return (True, False, False)
 
         except Exception as e:
             if is_network_error(e):
                 logging.warning(f"Network unavailable - skipping this run: {e}")
-                return (False, False, True, False)
-            # A personal cookie can also redirect-loop on the target page itself
-            # (not just /feed). Treat that as needing a re-paste, not a crash.
-            if own_session:
-                logging.warning(f"Personal LinkedIn cookie failed on the page - re-paste needed: {e}")
-                return (False, False, False, True)
+                return (False, False, True)
             logging.error(f"Screenshot capture failed: {e}")
             logging.debug(traceback.format_exc())
-            return (False, False, False, False)
+            return (False, False, False)
         finally:
             browser.close()
 
@@ -1279,61 +1198,6 @@ def send_notifications(
     return success
 
 
-def repaste_marker_path(monitor_name: str) -> Path:
-    """Marker recording that a re-paste email has already gone out for a monitor."""
-    safe = "".join(c if c.isalnum() or c in "-_" else "_" for c in monitor_name)
-    return Path("snapshots") / f"{safe}_repaste_notified"
-
-
-def clear_repaste_marker(monitor_name: str) -> None:
-    """Drop the marker after a successful run, so a future failure can re-notify."""
-    marker = repaste_marker_path(monitor_name)
-    if marker.exists():
-        try:
-            marker.unlink()
-        except Exception:
-            pass
-
-
-def notify_repaste_needed(name, owner, email_cfg, subject_prefix, dry_run) -> int:
-    """
-    A person's pasted LinkedIn cookie is no longer valid.
-
-    Email that person once (not every run) asking for a fresh cookie, and return
-    exit 12. We never fall back to the shared login here - that would run their
-    monitor as the wrong LinkedIn identity.
-    """
-    marker = repaste_marker_path(name)
-    if marker.exists():
-        logging.info(f"[{name}] Cookie still invalid - re-paste already requested, not emailing again")
-        return 12
-
-    recipient = owner or email_cfg.get("to_addrs", "")
-    body = (
-        f"The LinkedIn session for monitor '{name}' has stopped working.\n\n"
-        f"LinkedIn is no longer accepting the saved sign-in, so '{name}' cannot run.\n\n"
-        f"To fix it:\n"
-        f"  1. Sign in to JobMonitor.\n"
-        f"  2. Open the LinkedIn page.\n"
-        f"  3. Paste a fresh li_at cookie from your browser.\n\n"
-        f"'{name}' will not run until then. You will not get repeated emails about\n"
-        f"this - only one more if it fails again after you re-paste.\n\n"
-        f"Timestamp: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
-    )
-    cfg = dict(email_cfg)
-    cfg["to_addrs"] = recipient
-    send_notifications(cfg, f"{subject_prefix} {name}: LinkedIn session expired - re-paste needed",
-                       body, dry_run=dry_run)
-    if not dry_run:
-        try:
-            marker.parent.mkdir(parents=True, exist_ok=True)
-            marker.write_text(datetime.now().isoformat(), encoding="utf-8")
-        except Exception as e:
-            logging.warning(f"[{name}] Could not write re-paste marker: {e}")
-    logging.warning(f"[{name}] Personal cookie invalid - asked {recipient} to re-paste")
-    return 12
-
-
 # =============================================================================
 # Main Program
 # =============================================================================
@@ -1395,16 +1259,8 @@ def process_monitor(
     # Get monitor-specific snapshot paths
     screenshot1_path, screenshot2_path, text1_path, text2_path, _default_state = get_snapshot_paths(name)
 
-    # Which LinkedIn identity this monitor searches as
-    owner = monitor.get("owner")
-    state_path, using_own_session = resolve_state_path(name, owner)
-    if using_own_session:
-        logging.info(f"[{name}] Using {owner}'s own LinkedIn session")
-    elif owner:
-        logging.warning(
-            f"[{name}] {owner} has no LinkedIn session of their own - "
-            f"running on the shared account. Add a session cookie in the web UI."
-        )
+    # Every monitor signs in through the single shared .env account.
+    state_path = resolve_state_path(name)
     safe_name = "".join(c if c.isalnum() or c in "-_" else "_" for c in name)
     jobs1_path = Path("snapshots") / f"{safe_name}_jobs1.json"
     jobs2_path = Path("snapshots") / f"{safe_name}_jobs2.json"
@@ -1426,7 +1282,7 @@ def process_monitor(
         # FIRST RUN: No previous screenshot exists
         logging.info(f"[{name}] No existing screenshot found. Capturing initial screenshot...")
 
-        success, login_failed, network_down, needs_repaste = capture_screenshot(
+        success, login_failed, network_down = capture_screenshot(
             url=url,
             output_path=screenshot1_path,
             linkedin_username=linkedin_username,
@@ -1434,7 +1290,6 @@ def process_monitor(
             headless=headless,
             storage_state_path=state_path,
             jobs_output_path=jobs1_path,
-            own_session=using_own_session,
         )
 
         if network_down:
@@ -1443,9 +1298,6 @@ def process_monitor(
             # simply try again at this monitor's next turn.
             logging.warning(f"[{name}] Network unavailable - run skipped, will try again")
             return 11
-
-        if needs_repaste:
-            return notify_repaste_needed(name, owner, email_cfg, subject_prefix, dry_run)
 
         if login_failed:
             logging.error(f"[{name}] LinkedIn login failed - sending alert")
@@ -1462,10 +1314,6 @@ def process_monitor(
         if not success:
             logging.error(f"[{name}] Failed to capture initial screenshot")
             return 4
-
-        # A clean run - a personal cookie is working, so any prior re-paste
-        # request is resolved
-        clear_repaste_marker(name)
 
         # Send notification with the initial baseline screenshot
         body = (
@@ -1484,7 +1332,7 @@ def process_monitor(
         # SUBSEQUENT RUN: A previous screenshot exists
         logging.info(f"[{name}] Existing screenshot found. Capturing new screenshot for comparison...")
 
-        success, login_failed, network_down, needs_repaste = capture_screenshot(
+        success, login_failed, network_down = capture_screenshot(
             url=url,
             output_path=screenshot2_path,
             linkedin_username=linkedin_username,
@@ -1492,7 +1340,6 @@ def process_monitor(
             headless=headless,
             storage_state_path=state_path,
             jobs_output_path=jobs2_path,
-            own_session=using_own_session,
         )
 
         if network_down:
@@ -1501,9 +1348,6 @@ def process_monitor(
             # simply try again at this monitor's next turn.
             logging.warning(f"[{name}] Network unavailable - run skipped, will try again")
             return 11
-
-        if needs_repaste:
-            return notify_repaste_needed(name, owner, email_cfg, subject_prefix, dry_run)
 
         if login_failed:
             logging.error(f"[{name}] LinkedIn login failed - sending alert")
@@ -1520,9 +1364,6 @@ def process_monitor(
         if not success:
             logging.error(f"[{name}] Failed to capture comparison screenshot")
             return 4
-
-        # A clean run clears any pending re-paste request
-        clear_repaste_marker(name)
 
         # Check for "No matching jobs found" in screenshot2 (deterministic check)
         if has_no_matching_jobs(text2_path):

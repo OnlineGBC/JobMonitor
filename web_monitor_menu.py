@@ -49,8 +49,6 @@ from monitor import (
     clear_baseline,
     configure_logging,
     get_snapshot_paths,
-    owner_state_path,
-    write_owner_session,
 )
 from run_monitor import (
     get_eastern_time,
@@ -702,68 +700,6 @@ def settings():
 @admin_required
 def logs():
     return render_template("logs.html")
-
-
-def _linkedin_session_info(email):
-    """Whether this user has supplied a LinkedIn session, and when."""
-    path = owner_state_path(email)
-    if not path.exists():
-        return {"present": False, "updated": None}
-    return {
-        "present": True,
-        "updated": datetime.fromtimestamp(path.stat().st_mtime).strftime("%Y-%m-%d %H:%M:%S"),
-    }
-
-
-@app.route("/linkedin")
-def linkedin_session():
-    user = current_user()
-    return render_template(
-        "linkedin.html",
-        session_info=_linkedin_session_info(user["email"]),
-    )
-
-
-@app.route("/api/linkedin", methods=["POST"])
-def api_linkedin_save():
-    user = current_user()
-    li_at = request.form.get("li_at", "").strip()
-    jsessionid = request.form.get("jsessionid", "").strip()
-
-    # A pasted li_at is a long opaque token. Catching the obvious mistakes here
-    # is far kinder than a captcha-looking failure on the next scheduled run.
-    if not li_at:
-        flash("Paste your li_at cookie value.", "error")
-        return redirect(url_for("linkedin_session"))
-    if li_at.startswith("li_at="):
-        li_at = li_at.split("=", 1)[1].strip()
-    if len(li_at) < 20 or " " in li_at:
-        flash("That does not look like an li_at value - copy just the cookie's value.", "error")
-        return redirect(url_for("linkedin_session"))
-
-    try:
-        write_owner_session(user["email"], li_at, jsessionid)
-    except Exception as e:
-        logging.error(f"Could not save LinkedIn session for {user['email']}: {e}")
-        flash("Could not save the session. Check the logs.", "error")
-        return redirect(url_for("linkedin_session"))
-
-    logging.info(f"LinkedIn session saved for {user['email']}")
-    flash("LinkedIn session saved. Your monitors will now search as you.", "success")
-    return redirect(url_for("linkedin_session"))
-
-
-@app.route("/api/linkedin/delete", methods=["POST"])
-def api_linkedin_delete():
-    user = current_user()
-    path = owner_state_path(user["email"])
-    if path.exists():
-        path.unlink()
-        logging.info(f"LinkedIn session removed for {user['email']}")
-        flash("LinkedIn session removed. Your monitors fall back to the shared account.", "warning")
-    else:
-        flash("No LinkedIn session to remove.", "warning")
-    return redirect(url_for("linkedin_session"))
 
 
 # ---------------------------------------------------------------------------
