@@ -6,7 +6,8 @@ and (only if the visual fingerprint differs) extracts the new job listings and
 sends a digest email.
 
 Runs for one person out of the box. It also serves several: each gets their own
-login, their own monitors, their own LinkedIn account, and their own schedule —
+login, their own monitors, and their own schedule, all searching through one
+shared LinkedIn account —
 see [Setting it up for more than one person](#setting-it-up-for-more-than-one-person).
 
 ## How it works
@@ -234,7 +235,6 @@ Start in: project root) or a `@reboot` cron entry.
 | 5 | AI comparison failed |
 | 10 | LinkedIn login failed (scheduling loop retries once, then stops) |
 | 11 | Network unavailable — run skipped, no alert sent, retried at the monitor's next turn |
-| 12 | A person's pasted LinkedIn cookie expired — they're emailed once to re-paste; no fallback to the shared account |
 
 ## File layout
 
@@ -255,16 +255,15 @@ data/run_history.json     Structured run history (capped at 500 entries)
 snapshots/                Baselines, page text, and LinkedIn session state
   <name>_screenshot1.png    Per-monitor baseline
   <name>_linkedin_state.json    Shared-account session
-  owner_<email>_linkedin_state.json    A user's own session
 logs/screen_compare.log   Rotated at 5MB, keeps 3 backups
 ```
 
 ## Setting it up for more than one person
 
 JobMonitor can serve several people from one machine: each has their own login,
-sees only their own monitors, gets their own emails, runs on their own LinkedIn
-account, and picks their own schedule. The sections below cover each piece in
-detail — this is the order to do them in.
+sees only their own monitors, gets their own emails, and picks their own
+schedule. Every monitor searches through the one shared LinkedIn account. The
+sections below cover each piece in detail — this is the order to do them in.
 
 ### Once, as the administrator
 
@@ -302,11 +301,7 @@ Send them the URL. They:
 
 **1. Sign in.** Enter your email, receive a 6-digit code, enter it. No password.
 
-**2. Add a LinkedIn session** at **LinkedIn** in the nav — paste the `li_at`
-cookie from their own browser. Until they do, their searches run on the shared
-account. Instructions are on that page.
-
-**3. Set their schedule** on their monitor's edit page — **Check every N
+**2. Set their schedule** on their monitor's edit page — **Check every N
 minutes**, or blank for the default. They can also edit the URL, the recipients,
 and pause the monitor.
 
@@ -319,47 +314,30 @@ controls.
 |---|---|---|
 | Their own monitors: URL, recipients, schedule, pause, run | ✅ | ✅ |
 | Pause/resume all of their own monitors at once | ✅ | ✅ |
-| Their own LinkedIn session | ✅ | ✅ |
 | Other people's monitors | ✅ | ❌ |
 | Monitor ownership | ✅ | ❌ |
 | Interval floor, Settings, Logs, start/stop scheduler | ✅ | ❌ |
 
 ## Whose LinkedIn account a monitor uses
 
-By default every monitor signs in with the shared credentials in `.env`
-(`LINKEDIN_USERNAME` / `LINKEDIN_PASSWORD`). That means other people's searches
-run as you, appear in your activity, and any rate limiting lands on your account.
+Every monitor signs in with the shared credentials in `.env`
+(`LINKEDIN_USERNAME` / `LINKEDIN_PASSWORD`) — the single account for the whole
+app. All searches run as that account, appear in its activity, and any rate
+limiting lands on it.
 
-Each user can supply their own LinkedIn session instead, from **LinkedIn** in the
-web UI nav. They paste their `li_at` cookie — copied from their own browser — and
-from then on their monitors search as them.
+`owner` and `to_addrs` do **not** select a LinkedIn identity. They only decide
+who can edit a monitor in the web UI and who receives its notification emails.
 
-| Monitor | Session used |
-|---|---|
-| Owner has supplied a session | `snapshots/owner_<email>_linkedin_state.json` — searches as them |
-| Owner has supplied none | The shared account, exactly as before |
-| No `owner` set | The shared account, exactly as before |
+Per-user pasted cookies were removed: a `li_at` cookie created in someone's own
+browser gets bot-challenged when it is replayed from the server (LinkedIn
+redirect-loops it), so it could never work reliably. Routing everyone through the
+one shared session is the only path that holds up.
 
-Nothing changes until someone adds a cookie, so there is no migration: each user
-becomes independent the moment they supply one, and existing monitors keep
-working untouched. A user's monitors all share one session, since a person has
-one LinkedIn account.
-
-**Passwords are never collected for other users** — only the session cookie. The
-first login is the hard part of automating LinkedIn (it answers fresh logins with
-a captcha or 2FA challenge, in a browser window on the server), and letting the
-user log in normally in their own browser sidesteps it entirely.
-
-Two things to know:
-
-- The cookie is as powerful as a password — whoever holds it can act as that
-  person on LinkedIn. It is stored on the server, never displayed back, and can
-  be removed from the same page. Signing out of LinkedIn everywhere invalidates it.
-- LinkedIn expires sessions, so this needs redoing occasionally. When a session
-  goes stale that user's monitors fail to log in and alert them as usual.
-
-Seeding never crosses users: a file named `owner_*` is excluded from the seed
-search, so one person's cookies can never be handed to another person's monitor.
+The first login is the hard part of automating LinkedIn — it answers a fresh
+login with a captcha or 2FA challenge, in a browser window on the server. Once
+that session is captured to `snapshots/*_linkedin_state.json`, every monitor
+reuses it, and a new monitor seeds from the newest existing session rather than
+forcing another fresh login.
 
 ## Accounts
 
@@ -534,14 +512,11 @@ tunnel to refuse strangers before a request ever reaches the app.
 **SMTP auth failed** → Use an App Password (Gmail requires this). Verify
 `SMTP_USE_TLS`. Check firewall for port 587.
 
-**LinkedIn login fails** → If the monitor's owner supplied their own session, it
-has probably expired: they should paste a fresh `li_at` at **LinkedIn** in the
-nav. Otherwise it is the shared account — set `headless: false` on the monitor
-and rerun so you can see the login page and solve any captcha. To force a fresh
-login on the shared account you must delete *every* shared
+**LinkedIn login fails** → The shared session has probably expired. Set
+`headless: false` on the monitor and rerun so you can see the login page and
+solve any captcha. To force a fresh login you must delete *every*
 `snapshots/*_linkedin_state.json`, not just this monitor's, since a monitor with
-no session seeds from the newest remaining one. `owner_*` files are never used
-for seeding.
+no session seeds from the newest remaining one.
 
 **Runs logged as "Network unavailable"** → This machine could not reach the
 internet at that moment. The run is skipped and retried at the monitor's next
