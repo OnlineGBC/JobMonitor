@@ -34,7 +34,7 @@ monitors:
     https://www.linkedin.com/jobs/search-results/?currentJobId=4440177777&keywords=title%3A%20%22SVP%22%20OR%20%22Chief%20strategy%20officer%22%20OR%20%22Chief%20Transformation%20Officer%22&origin=JOB_SEARCH_PAGE_JOB_FILTER&referralSearchId=7SNPDWrPEA7LFFOWExfQ9A%3D%3D&f_TPR=r604800&f_EA=true&f_SAL=f_SA_id_227001%3A279001
   headless: true
   enabled: true
-  to_addrs: roopaonline@gmail.com
+  to_addrs: roopaonline@gmail.com, raja@onlinegbc.com
   owner: roopaonline@gmail.com
 - name: Test raja.gbc
   url: 
