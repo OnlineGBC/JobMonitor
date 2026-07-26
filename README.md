@@ -347,6 +347,7 @@ from the command line, so having shell access is the only way to grant one.
 ```bash
 python manage_users.py add you@example.com --role admin   # do this first
 python manage_users.py add colleague@example.com          # a regular user
+python manage_users.py role colleague@example.com --role admin   # change a role
 python manage_users.py list
 python manage_users.py delete colleague@example.com
 ```
