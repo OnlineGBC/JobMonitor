@@ -396,6 +396,40 @@ def get_new_jobs(old_jobs: list, new_jobs: list) -> list:
     return [job for job in new_jobs if job.get("url") not in old_urls]
 
 
+def parse_exclude_terms(raw) -> list:
+    """
+    Normalize a monitor's `exclude` field into a list of lowercased terms.
+
+    Accepts a YAML list or a comma-separated string; ignores blanks.
+    """
+    if not raw:
+        return []
+    items = raw.split(",") if isinstance(raw, str) else raw
+    return [str(t).strip().lower() for t in items if str(t).strip()]
+
+
+def filter_excluded_jobs(jobs: list, exclude_terms: list) -> list:
+    """
+    Drop jobs whose company or title contains any excluded term (case-insensitive).
+
+    LinkedIn injects *promoted* job ads into results regardless of the search
+    URL's `NOT (...)` clause, so a blocked advertiser (e.g. DataAnnotation)
+    reappears no matter how the query is written. This is the client-side
+    backstop: a per-monitor `exclude` list in monitors.yaml, enforced here after
+    extraction and before anything is emailed. Terms are expected pre-lowercased
+    by parse_exclude_terms.
+    """
+    if not exclude_terms:
+        return jobs
+    kept = []
+    for job in jobs:
+        haystack = f"{job.get('company', '')} {job.get('title', '')}".lower()
+        if any(term in haystack for term in exclude_terms):
+            continue
+        kept.append(job)
+    return kept
+
+
 def summarize_jobs_with_ai(jobs: list) -> list:
     """
     Add a one-sentence fit summary to each job dict using Claude Haiku.
@@ -1237,6 +1271,7 @@ def process_monitor(
         return 1
     url = monitor["url"]
     headless = bool(monitor.get("headless", defaults.get("headless", False)))
+    exclude_terms = parse_exclude_terms(monitor.get("exclude"))
 
     # Resolve who gets this monitor's email, then send everything below through
     # a config carrying those recipients instead of the global ones.
@@ -1426,6 +1461,16 @@ def process_monitor(
                     old_jobs = json.loads(jobs1_path.read_text(encoding="utf-8")) if jobs1_path.exists() else []
                     new_jobs_all = json.loads(jobs2_path.read_text(encoding="utf-8")) if jobs2_path.exists() else []
                     new_jobs = get_new_jobs(old_jobs, new_jobs_all)
+
+                    # Drop listings from excluded companies (e.g. promoted-ad spam
+                    # that bypasses LinkedIn's own NOT filter). If this empties the
+                    # list, the cosmetic-change skip below fires and no email goes out.
+                    if exclude_terms and new_jobs:
+                        kept = filter_excluded_jobs(new_jobs, exclude_terms)
+                        dropped = len(new_jobs) - len(kept)
+                        if dropped:
+                            logging.info(f"[{name}] Excluded {dropped} new job(s) from blocked companies")
+                        new_jobs = kept
 
                     # If both lists extracted successfully but no new URLs → cosmetic change, skip email
                     if old_jobs and new_jobs_all and not new_jobs:

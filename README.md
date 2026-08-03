@@ -88,6 +88,7 @@ Edit `monitors.yaml`. Only these fields are read:
 | `to_addrs` | string or list | Optional. Who receives this monitor's emails. Omit to use the global `TO_ADDRS`. |
 | `owner` | string | Optional. Email of the account that can see and edit this monitor in the web UI. Omit and it is admin-only. |
 | `interval_minutes` | int | Optional. How often this monitor runs. Omit for the shared business-hours / off-hours schedule. Floor is `SCHED_MIN_INTERVAL` (default 30) or `SCHED_BUSINESS_MIN`, whichever is smaller; ceiling 1440. |
+| `exclude` | list or string | Optional. Company/title terms to drop client-side, matched case-insensitively as substrings. Catches **promoted job ads**, which LinkedIn injects regardless of the URL's `NOT (...)` clause (e.g. `DataAnnotation`). Non-matching promoted ads still come through. |
 
 ```yaml
 monitors:
@@ -95,6 +96,8 @@ monitors:
     url: "https://www.linkedin.com/jobs/search/?keywords=..."
     headless: true
     enabled: true
+    exclude:
+      - DataAnnotation      # promoted-ad spam LinkedIn's NOT clause can't remove
 
   - name: "Roopa Chief Strategy Innovation"
     url: "https://www.linkedin.com/jobs/search/?keywords=..."
