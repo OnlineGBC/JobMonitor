@@ -12,6 +12,7 @@ nohup.out
 .claude/
 data/run_history.json
 snapshots/*_jobs*.json
+data/agent/
 
 # --- Distribution / packaging ---
 .env
