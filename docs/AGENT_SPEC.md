@@ -1,6 +1,6 @@
 # Job Agent Spec
 
-Branch: `main-agent`. Reporting and approvals go to **both chat and Gmail**. The Reporter has two channels: email (Gmail API, built first) and chat (transport to be chosen, e.g. Slack or Discord; the app already has both notifiers).
+Branch: `main-agent`. Reporting and approvals go to **both chat and Gmail**. The Reporter has two channels: email (Gmail API, built first) and chat via **WhatsApp (Meta WhatsApp Cloud API; no Twilio)**. Sender is Meta's test number; Raja's number is the verified recipient. Inbound replies arrive at a webhook route in the Flask app (`jobmonitor.onlinegbc.com`).
 
 ## Mission
 Find and apply to AI leadership roles for Raja Gopalan (VP / Director / Chief level) on LinkedIn and employer sites, fully autonomously under the rules below. Execute orders as given; where no order covers a choice, ask and wait.
@@ -59,5 +59,11 @@ For every application with a named job poster, draft the invite note and email R
 - If a run hits the 60-minute cap, report which run, when it started, and what it completed.
 - "What is pending" is answered by a daily digest email and on request (reply `PENDING` to any agent email): paused applications, queued postings, anything awaiting him.
 
+## WhatsApp rules
+- Free-form messages are only deliverable within 24 hours of Raja's last message to the sender number. Outside that window only approved templates can be sent.
+- Keepalive: every 12 hours the Reporter sends an approved template ("Job agent check-in. Reply OK to keep updates flowing."). Raja's reply, or any message from him, reopens the 24-hour window. A message from the agent does not extend it.
+- If WhatsApp cannot deliver (window closed), the same item goes by email only, and is marked so in the outbox. Nothing is lost.
+- Reply commands (`APPROVE <id>`, `PENDING`, `OK`) are accepted only from Raja's verified number.
+
 ## Credentials
-Gmail uses OAuth (one-time consent in the browser); the refresh token is stored in the Windows Credential Manager (DPAPI-encrypted) via `keyring`. Other passwords the agent needs (employer-site accounts) go in the same vault. No secrets in the repo or `.env`.
+Gmail uses OAuth (one-time consent in the browser); the refresh token is stored in the Windows Credential Manager (DPAPI-encrypted) via `keyring`. The WhatsApp access token (a permanent system-user token) and phone number ID go in the same vault. Other passwords the agent needs (employer-site accounts) go in the same vault. No secrets in the repo or `.env`.
