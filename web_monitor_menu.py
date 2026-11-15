@@ -41,6 +41,7 @@ from flask import (
 )
 
 import auth
+from agent import webhook as agent_webhook
 
 # ruamel.yaml preserves comments when editing monitors.yaml
 from ruamel.yaml import YAML
@@ -290,6 +291,8 @@ def verify_csrf():
         return None
     if request.endpoint == "static":
         return None
+    if request.endpoint == agent_webhook.WEBHOOK_ENDPOINT:
+        return None  # Meta posts here; protected by its HMAC signature instead
 
     expected = session.get(CSRF_SESSION_KEY)
     supplied = request.form.get(CSRF_FORM_FIELD) or request.headers.get(CSRF_HEADER, "")
@@ -318,7 +321,8 @@ def inject_csrf_token():
 
 # Endpoints reachable without logging in. Everything else is denied by default,
 # so adding a route cannot accidentally expose it.
-PUBLIC_ENDPOINTS = {"login", "login_verify", "static"}
+PUBLIC_ENDPOINTS = {"login", "login_verify", "static", agent_webhook.WEBHOOK_ENDPOINT}
+agent_webhook.register(app)
 
 # Routes that live under /api/ but are posted by an HTML <form> and redirect
 # afterwards. Denying one must flash and redirect, not return JSON the browser

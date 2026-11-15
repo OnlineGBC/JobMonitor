@@ -228,5 +228,56 @@ class WhatsApp(unittest.TestCase):
         self.assertEqual(self.w.parse_inbound(payload), [("12125551234", "APPROVE 7")])
 
 
+class Webhook(unittest.TestCase):
+    def setUp(self):
+        from flask import Flask
+        from agent import vault, webhook
+        self.fake = {"wa_verify_token": "vt", "wa_recipient": "12125551234", "wa_app_secret": "shh"}
+        self._g, self._r = vault.get, vault.require
+        vault.get = self.fake.get
+        vault.require = lambda n: self.fake[n]
+        write_json("whatsapp_state.json", {})
+        write_json("whatsapp_inbox.json", [])
+        app = Flask(__name__)
+        webhook.register(app)
+        self.c = app.test_client()
+
+    def tearDown(self):
+        from agent import vault
+        vault.get, vault.require = self._g, self._r
+
+    def sign(self, body):
+        import hashlib, hmac
+        return "sha256=" + hmac.new(b"shh", body, hashlib.sha256).hexdigest()
+
+    def test_verification(self):
+        ok = self.c.get("/whatsapp/webhook?hub.mode=subscribe&hub.verify_token=vt&hub.challenge=abc")
+        self.assertEqual((ok.status_code, ok.get_data(as_text=True)), (200, "abc"))
+        self.assertEqual(self.c.get("/whatsapp/webhook?hub.mode=subscribe&hub.verify_token=no&hub.challenge=abc").status_code, 403)
+        self.assertEqual(self.c.get("/whatsapp/webhook").status_code, 403)
+
+    def test_post_requires_signature_and_opens_window(self):
+        from agent import whatsapp
+        body = (b'{"entry":[{"changes":[{"value":{"messages":[{"from":"12125551234",'
+                b'"text":{"body":"APPROVE 7"}}]}}]}]}')
+        self.assertEqual(self.c.post("/whatsapp/webhook", data=body, content_type="application/json").status_code, 403)
+        self.assertFalse(whatsapp.window_open())
+        r = self.c.post("/whatsapp/webhook", data=body, content_type="application/json",
+                        headers={"X-Hub-Signature-256": self.sign(body)})
+        self.assertEqual(r.status_code, 200)
+        self.assertTrue(whatsapp.window_open())
+        self.assertEqual(read_json("whatsapp_inbox.json", [])[0]["text"], "APPROVE 7")
+
+    def test_stranger_is_ignored(self):
+        from agent import whatsapp
+        body = (b'{"entry":[{"changes":[{"value":{"messages":[{"from":"19998887777",'
+                b'"text":{"body":"APPROVE 7"}}]}}]}]}')
+        r = self.c.post("/whatsapp/webhook", data=body, content_type="application/json",
+                        headers={"X-Hub-Signature-256": self.sign(body)})
+        self.assertEqual(r.status_code, 200)
+        self.assertFalse(whatsapp.window_open())
+        self.assertEqual(read_json("whatsapp_inbox.json", []), [])
+
+
 if __name__ == "__main__":
     unittest.main()
