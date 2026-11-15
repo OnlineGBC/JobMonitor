@@ -1,0 +1,32 @@
+Always Yes
+Driver's license; background check; traveling for customer onboarding, partner events, and team summits; working in a hybrid setting; W2 contract-to-hire; presenting to executive stakeholders (CRO/CCO/VP level); drug test where local law allows; evenings, weekends and holidays; consent to text/SMS contact about a job; GenAI/LLM/agentic AI hands-on; established AI-assisted development practices; revamped or transformed a technology platform; employer's use of AI to review this one application; fluent in more than one language (Hindi; English Native).
+
+Years of experience
+
+15 — customer-facing delivery/implementation/transformation (B2B SaaS); full-cycle implementations led end-to-end; IT infrastructure / enterprise architecture / cybersecurity operations; GCP; SaaS; Microsoft-based technology; product management; cloud migration; SharePoint; leading data science, ML and AI product/platform engineering; Director-level-or-higher people leadership; solutions engineering; data science; platform engineering; SQL.
+10 — BFSI (banking, financial services, insurance); HIPAA-regulated environment (Yes, 10 years); primary day-to-day client lead for senior stakeholders (top range); management-consulting engagements advising executives (top range).
+5 — AI; Generative AI; Python; TensorFlow; PyTorch; Forward Deployed Engineering; pharma/biotech industry; AI/ML/analytics implementations delivered to customers: 5.
+3 — Anthropic Claude.
+2 — chemical manufacturing; hands-on Salesforce administration.
+Always No
+Okta/Active Directory hands-on; GTM platforms (Gainsight, Clari, Salesloft, Gong); felony history; military service; military spouse/partner; US security clearance; working relationship with government entities (you or immediate family); friends or former colleagues at the hiring company; personally built/pretrained an LLM from scratch; growth-stage startup experience; FINRA licenses; conflict-of-interest set (IP ownership, board memberships, outside employment, personal relationships at the company) — all No. Also all No: non-compete/non-solicitation, needing accommodations, outside business activities, ever involuntarily terminated.
+
+Fixed answers
+
+Commuting and relocation: Yes for every workplace type, anywhere in the US, including combined questions.
+Travel: up to 100%. Organisation size led: 50+ people. GPA: 4.
+Race/ethnicity: "I prefer not to specify." Hispanic or Latino (forced): No. Disability: "I do not want to answer." Gender (forced, no decline option): Male.
+Arbitration assent as a condition of applying: "I agree."
+Future-opportunities contact ("allow us to contact you for up to 1 year"): No — except when the form requires it to submit, then check it and submit.
+Licences/certifications (general): Yes. Specific named ones answered No before stand as No (named Azure certificates, TOGAF, healthcare certs).
+Master's in an AI-relevant field (equivalent-degree questions): Yes — Harvard AI certificate plus Columbia MBA.
+German degree form: Bachelor Yes; Diplom/Magister Yes; Doktor der Philosophie No.
+Agentic tools used: Cursor, Claude Code, Copilot CLI, Codex.
+Data governance / AI data classification frameworks at enterprise level, reporting to C-level or Board: Yes.
+Worked for or against a client of the hiring firm: No.
+Salary, address, and form defaults
+
+Desired salary: leave open/blank where allowed; a forced range dropdown takes the range containing 206000; a forced numeric field pauses rather than inventing.
+Address: 1 Main St, New York, NY 10001, New York County. Pacific Time schedule alignment: Yes.
+Preferred contact channel: SMS (email and SMS when possible). Current employer's work setting: Remotely. Current role start: January 2021.
+AI safety written answer (standing template): "Keeping advanced AI systems under human control as they get more capable, with the data and decisions behind them governed properly."
