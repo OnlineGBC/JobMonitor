@@ -176,5 +176,57 @@ class Discovery(unittest.TestCase):
         self.assertEqual(self.d.decide(card, det, lambda p: (False, "tool only"), [])[0], "skip")
 
 
+class WhatsApp(unittest.TestCase):
+    FAKE = {"wa_phone_number_id": "111", "wa_access_token": "tok", "wa_recipient": "12125551234",
+            "wa_app_secret": "shh"}
+
+    def setUp(self):
+        from agent import vault, whatsapp
+        self.w = whatsapp
+        self._g, self._r = vault.get, vault.require
+        vault.get = self.FAKE.get
+        vault.require = lambda n: self.FAKE[n]
+        write_json("whatsapp_state.json", {})
+        self.sent = []
+        outer = self
+
+        class S:
+            def post(self, url, headers=None, json=None, timeout=None):
+                outer.sent.append((url, headers, json))
+                return SimpleNamespace(status_code=200, json=lambda: {"ok": 1}, text="")
+        self.session = S()
+
+    def tearDown(self):
+        from agent import vault
+        vault.get, vault.require = self._g, self._r
+
+    def test_text_blocked_until_inbound_then_sent(self):
+        self.assertFalse(self.w.send_text("hi", self.session, now=1000))
+        self.assertEqual(self.sent, [])
+        self.w.note_inbound(now=1000)
+        self.assertTrue(self.w.send_text("hi", self.session, now=1000 + 23 * 3600))
+        self.assertEqual(self.sent[0][2]["to"], "12125551234")
+        self.assertEqual(self.sent[0][1]["Authorization"], "Bearer tok")
+        self.assertFalse(self.w.send_text("late", self.session, now=1000 + 25 * 3600))
+
+    def test_keepalive_once_per_12h(self):
+        self.assertTrue(self.w.send_keepalive(self.session, now=5000))
+        self.assertFalse(self.w.send_keepalive(self.session, now=5000 + 11 * 3600))
+        self.assertTrue(self.w.send_keepalive(self.session, now=5000 + 12 * 3600))
+        self.assertEqual(self.sent[0][2]["type"], "template")
+
+    def test_signature_and_sender_filter(self):
+        import hashlib, hmac
+        body = b'{"x":1}'
+        good = "sha256=" + hmac.new(b"shh", body, hashlib.sha256).hexdigest()
+        self.assertTrue(self.w.valid_signature(body, good))
+        self.assertFalse(self.w.valid_signature(body, "sha256=bad"))
+        self.assertFalse(self.w.valid_signature(body, ""))
+        payload = {"entry": [{"changes": [{"value": {"messages": [
+            {"from": "12125551234", "text": {"body": "APPROVE 7"}},
+            {"from": "19998887777", "text": {"body": "APPROVE 8"}}]}}]}]}
+        self.assertEqual(self.w.parse_inbound(payload), [("12125551234", "APPROVE 7")])
+
+
 if __name__ == "__main__":
     unittest.main()
