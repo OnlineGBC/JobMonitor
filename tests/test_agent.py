@@ -133,5 +133,48 @@ class Numbers(unittest.TestCase):
         self.assertEqual((next_number.reserve(), next_number.reserve()), (100, 101))
 
 
+class Discovery(unittest.TestCase):
+    def setUp(self):
+        write_json("pending_survivors.json", [])
+        from agent import discovery
+        self.d = discovery
+        self.card = dict(job_id="9", title="VP of AI", company="Acme", url="u")
+
+    def detail(self, **kw):
+        base = dict(loaded=True, title="VP of AI", company="Acme", description="Lead AI.",
+                    workplace="Remote", not_accepting=False)
+        base.update(kw)
+        return base
+
+    def test_url_and_keywords(self):
+        u = self.d.build_search_url()
+        for part in ("f_TPR=r86400", "f_WT=2", "sortBy=DD", "geoId=103644278"):
+            self.assertIn(part, u)
+        self.assertIn("start=25", self.d.build_search_url(2))
+        k = self.d.search_keywords()
+        self.assertIn('title:"CAIO"', k)
+        self.assertIn('title:"Artificial Intelligence"', k)
+
+    def test_pipeline(self):
+        never = core_check.judge  # AI-word titles pass unjudged, so no API client is needed
+        self.assertEqual(self.d.decide(self.card, self.detail(), never, [])[0], "queue")
+        self.assertEqual(self.d.decide(self.card, self.detail(workplace="Hybrid"), never, [])[0], "held")
+        self.assertEqual(self.d.decide(self.card, self.detail(not_accepting=True), never, [])[0], "closed")
+        self.assertEqual(self.d.decide(self.card, self.detail(company="Jobgether"), never, [])[0], "error")
+        self.assertEqual(self.d.decide({**self.card, "company": "Jobgether"},
+                                       self.detail(company="Jobgether"), never, [])[0], "skip")
+        self.assertEqual(self.d.decide(self.card, self.detail(loaded=False), never, [])[0], "error")
+        tracker = [{"company": "Acme", "title": "VP of AI", "number": 1}]
+        self.assertEqual(self.d.decide(self.card, self.detail(), never, tracker)[0], "skip")
+
+    def test_judgment_failure_is_error_not_skip(self):
+        def boom(p):
+            raise core_check.CoreCheckError("api down")
+        card = {**self.card, "title": "Chief Technology Officer"}
+        det = self.detail(title="Chief Technology Officer")
+        self.assertEqual(self.d.decide(card, det, boom, [])[0], "error")
+        self.assertEqual(self.d.decide(card, det, lambda p: (False, "tool only"), [])[0], "skip")
+
+
 if __name__ == "__main__":
     unittest.main()
