@@ -13,7 +13,7 @@
 monitors:
 - name: "RemoteUSA"
   url: "https://www.linkedin.com/jobs/search/?currentJobId=4445169743&distance=25&f_E=4%2C5%2C6&f_EA=true&f_TPR=r86400&f_WT=2&geoId=103644278&keywords=(title%3A%22VP%22%20OR%20title%3A%22Vice%20President%22%20OR%20title%3A%22Vice-President%22%20OR%20title%3A%22Head%22%20OR%20title%3A%22Leader%22%20OR%20title%3A%22Fractional%20CTO%22%20OR%20title%3A%22Fractional%20CIO%22%20)%20AND%20(title%3A%22AI%22%20OR%20title%3A%22Artificial%20Intelligence%22)%20AND%20NOT%20(%22Crossover%22%20OR%20%22Get%20IT%22%20OR%20%22Ethos%22%20OR%20%22Talentify%22%20OR%20%22DataAnnotation%22%20OR%20%22Ladders%22%20OR%20%22Toptal%22%20OR%20%22Stealth%20Stanford%20AI%20Startup%22%20OR%20%22Lensa%22%20OR%20%22Tempus%22%20OR%20%22Harnham%22%20OR%20%22hackajob%22%20OR%20%22Swooped%22%20OR%20%22Jobgether%22)&origin=JOB_SEARCH_PAGE_SEARCH_BUTTON&refresh=true&sortBy=R&spellCorrectionEnabled=true"
-  headless: false
+  headless: true
 
   enabled: true
   to_addrs: raja@onlinegbc.com
