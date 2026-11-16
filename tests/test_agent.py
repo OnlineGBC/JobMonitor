@@ -489,11 +489,21 @@ class Scheduler(unittest.TestCase):
         self.assertEqual(sch.tick(sync=True), [])
         self.assertTrue(all(not v["enabled"] for v in self.s.load_state().values()))
 
+    def ghost(self):
+        """A process whose module does not exist, to exercise the 'not built yet' refusal now that every
+        real process is built."""
+        self.s.PROCESSES["ghost"] = {"module": "agent.no_such_module", "wait": (600, 900)}
+        self.addCleanup(self.s.PROCESSES.pop, "ghost", None)
+
     def test_unbuilt_process_cannot_be_enabled(self):
-        with self.assertRaises(ValueError):
-            self.s.set_enabled("acceptance", True)
+        self.ghost()
+        with self.assertRaisesRegex(ValueError, "not built yet"):
+            self.s.set_enabled("ghost", True)
         with self.assertRaises(ValueError):
             self.s.set_enabled("nope", True)
+
+    def test_every_real_process_is_now_built(self):
+        self.assertTrue(all(self.s.built(n) for n in ("discovery", "applier", "sender", "acceptance")))
 
     def test_runs_when_due_then_waits_for_interval(self):
         self.s.set_enabled("discovery", True)
@@ -536,7 +546,8 @@ class Scheduler(unittest.TestCase):
     def test_cli(self):
         self.assertEqual(self.s.main(["enable", "discovery"]), 0)
         self.assertTrue(self.s.load_state()["discovery"]["enabled"])
-        self.assertEqual(self.s.main(["enable", "acceptance"]), 1)
+        self.ghost()
+        self.assertEqual(self.s.main(["enable", "ghost"]), 1)
         self.assertEqual(self.s.main(["status"]), 0)
 
 

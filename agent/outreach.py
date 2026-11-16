@@ -180,6 +180,11 @@ def reject(item_id: str):
     return True, f"Rejected draft {item['id']}. Nothing will be sent."
 
 
+def approved() -> list:
+    """Every approved draft, oldest approval first."""
+    return sorted((i for i in all_items() if i["status"] == "APPROVED"), key=lambda x: x["approved"] or "")
+
+
 def next_approved():
     return next((i for i in sorted(all_items(), key=lambda x: x["approved"] or "") if i["status"] == "APPROVED"), None)
 

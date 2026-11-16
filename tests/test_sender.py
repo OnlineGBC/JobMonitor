@@ -78,7 +78,7 @@ class BeforeTheBrowser(unittest.TestCase):
     def test_nothing_approved_means_nothing_happens(self):
         code, out = self.run_main()
         self.assertEqual(code, 0)
-        self.assertIn("No approved invitation", out)
+        self.assertIn("No approved invitation or message", out)
 
     def test_an_unapproved_draft_is_never_sent(self):
         d = outreach.create("invite", "1", "Cody Rice", URL, "Acme", "VP of AI")
@@ -125,6 +125,56 @@ class ManualDraft(unittest.TestCase):
             outreach.main(["draft", "--url", URL, "--name", "Cody Rice", "--company", "Acme", "--title", "VP",
                            "--text", "Thanks for your time."])
         self.assertEqual(outreach.all_items(), [])
+
+
+class Readiness(unittest.TestCase):
+    """Which approved item goes next, without a browser."""
+
+    def item(self, kind="invite", job="1", requires_applied=True):
+        return {"id": job, "kind": kind, "job_id": job, "title": "VP of AI", "company": "Acme",
+                "requires_applied": requires_applied}
+
+    def test_an_invite_waiting_for_the_application_does_not_block_newer_items(self):
+        waiting, ready = self.item(job="1"), self.item(kind="message", job="2")
+        self.assertEqual(outreach_sender.pick_ready([waiting, ready], lambda j: False)["id"], "2")
+
+    def test_an_invite_is_ready_once_linkedin_shows_applied(self):
+        self.assertEqual(outreach_sender.pick_ready([self.item(job="1")], lambda j: True)["id"], "1")
+
+    def test_oldest_ready_item_wins(self):
+        first, second = self.item(job="1"), self.item(job="2")
+        self.assertEqual(outreach_sender.pick_ready([first, second], lambda j: True)["id"], "1")
+
+    def test_invites_not_tied_to_an_application_and_messages_never_check_applied(self):
+        def boom(job_id):
+            raise AssertionError("LinkedIn should not be asked")
+        self.assertEqual(outreach_sender.pick_ready([self.item(requires_applied=False)], boom)["id"], "1")
+        self.assertEqual(outreach_sender.pick_ready([self.item(kind="message")], boom)["id"], "1")
+
+    def test_nothing_ready_returns_none(self):
+        self.assertIsNone(outreach_sender.pick_ready([self.item(job="1"), self.item(job="2")], lambda j: False))
+        self.assertIsNone(outreach_sender.pick_ready([], lambda j: True))
+
+    def test_approved_lists_oldest_approval_first_and_only_approved(self):
+        reset()
+        a = outreach.create("invite", "1", "Cody Rice", URL, "Acme", "VP of AI")
+        b = outreach.create("invite", "2", "Cody Rice", URL, "Acme", "VP of AI")
+        c = outreach.create("invite", "3", "Cody Rice", URL, "Acme", "VP of AI")
+        outreach.approve(b["id"])
+        outreach.approve(a["id"])
+        self.assertEqual([i["id"] for i in outreach.approved()], [b["id"], a["id"]])
+        self.assertNotIn(c["id"], [i["id"] for i in outreach.approved()])
+
+
+class MessageRecording(unittest.TestCase):
+    def test_a_sent_message_is_recorded_without_joining_the_invite_watch_list(self):
+        reset()
+        d = outreach.create("message", "1", "Cody Rice", URL, "Acme", "VP of AI",
+                            text=outreach.followup_text("Cody Rice", "VP of AI", "Acme"), requires_applied=False)
+        outreach.approve(d["id"])
+        outreach_sender._record(outreach.get(d["id"]), {"result": "sent", "reason": "shown"})
+        self.assertEqual(outreach.get(d["id"])["status"], "SENT")
+        self.assertEqual(outreach.watch_list(), [])
 
 
 class Reopen(unittest.TestCase):
