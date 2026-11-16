@@ -7,7 +7,8 @@ Tapping Apply / Skip teaches nothing. What teaches the agent is what Raja SAYS:
          exclude_title    a phrase in a job title that should never be offered or queued   ("fractional")
          exclude_company  a company that should never be offered or queued
          note             a preference the agent cannot enforce yet (kept, listed, never acted on)
-  3. Each proposed rule is echoed back on WhatsApp with Confirm / Cancel. Nothing takes effect until confirmed.
+  3. What he says IS the confirmation: the rule takes effect at once and is echoed back (his exact words, then
+     what was learned) with an Undo button.
   4. A rule only STOPS roles being offered or queued by the agent's own search. A role Raja chooses with Apply is
      never blocked by a rule.
 
@@ -27,7 +28,7 @@ from .store import locked, read_json, write_json
 LOG = "feedback_log.json"
 RULES = "learned_rules.json"
 TYPES = ("exclude_title", "exclude_company", "note")
-MAX_RULES_PER_COMMENT = 4
+MAX_RULES_PER_COMMENT = 3
 # What marks a message as a standing comment rather than an answer or a command.
 MARKER = re.compile(r"\b(never|don'?t|do not|stop|avoid|only|prefer|rather|instead|too|why|not interested|no more|"
                     r"always|should(n'?t)?|too many|enough|waste|irrelevant|junior|senior|stop sending|keep sending|"
@@ -49,6 +50,7 @@ Allowed rule types:
 Only create exclude_* rules when the comment clearly states a standing preference ("never", "no more", "stop showing",
 "I don't want ..."). A reaction to one role ("too junior") is a note unless he says it applies to all such roles.
 Never exclude a word that is a core part of an executive AI/data/technology search (AI, data, CTO, chief, technology).
+Base every rule ONLY on what the comment literally says; never infer a broader preference than he stated.
 At most {max_rules} rules. If the comment contains no usable preference, return an empty list.
 
 Return ONLY JSON: {{"rules": [{{"type": "...", "value": "...", "reason": "<=15 words"}}]}}"""
@@ -215,7 +217,7 @@ def remove(rid: str) -> str:
 
 def handle(text: str, source: str, client=None) -> bool:
     """One comment: save it, propose rules, ask for confirmation. Always returns True (it was dealt with)."""
-    from . import confirmations, reporter
+    from . import reporter
     email = source == "gmail"
     about = _about()
     record(text, about)
@@ -230,15 +232,18 @@ def handle(text: str, source: str, client=None) -> bool:
     if notes:
         _store(notes, text, "ACTIVE")
     if not actions:
-        msg = ("Noted: " + "; ".join(n["value"] for n in notes) + "\nI cannot enforce that automatically yet, so it is "
-               "only kept on record.") if notes else "Thanks, I saved your comment. It did not read as a standing rule."
+        msg = (f"You said: \"{text.strip()[:300]}\"\n\nNoted: " + "; ".join(n["value"] for n in notes)
+               + "\nI cannot enforce that automatically yet, so it is only kept on record.") if notes else \
+            "Thanks, I saved your comment. It did not read as a standing rule."
         reporter.enqueue("notice", "Comment saved", msg, email=email)
         return True
-    made = _store(actions, text, "PROPOSED")
-    confirmations.propose([f"RULE {m['id']} ADD" for m in made],
-                          "Learn from your comment:\n" + "\n".join(f"- {describe(m)}" for m in made)
-                          + ("\n(Also noted: " + "; ".join(n["value"] for n in notes) + ")" if notes else ""),
-                          source)
+    made = _store(actions, text, "ACTIVE")       # what Raja says is the confirmation: it takes effect now, with an Undo
+    lines = [f"- {describe(m)}" for m in made] + [f"- {describe(n)}" for n in notes]
+    msg = (f"You said: \"{text.strip()[:300]}\"\n\nWhat I learned:\n" + "\n".join(lines)
+           + "\n\nTap Undo to take a rule back, or reply RULES to see them all.")
+    buttons = [(f"RULE {m['id']} REMOVE", f"Undo {i}" if len(made) > 1 else "Undo") for i, m in enumerate(made, 1)]
+    reporter.enqueue("notice", "Learned from your comment", msg, buttons=buttons, wa_text=msg[:1000],
+                     wa_prompt="Undo?", email=email)
     return True
 
 

@@ -12,7 +12,7 @@ import logging
 import re
 from datetime import datetime
 
-from . import config, gmail_client, confirmations, decisions, feedback, interpret, outreach, queue_tool, questions, reporter, tracker
+from . import config, gmail_client, confirmations, decisions, feedback, interpret, outreach, queue_tool, questions, reporter, router, tracker
 from .store import locked, read_json, write_json
 
 SEEN = "approvals_seen.json"
@@ -81,51 +81,65 @@ def apply(cmd: dict) -> str:
     return pending_digest()
 
 
-def _answer(cmd: dict, source: str) -> None:
+def _answer(cmd: dict, source: str, said: str = None) -> None:
     message = apply(cmd)
     logging.info(f"{source}: {cmd['action']} {cmd.get('id') or ''} -> {message.splitlines()[0]}")
+    if said:                                   # a typed reply was interpreted: show Raja exactly what he said and what was done
+        message = f"You said: \"{said.strip()[:200]}\"\n\n{message}"
     # An acknowledgement goes back on the channel the reply came from: a WhatsApp reply gets a WhatsApp
     # acknowledgement only (no duplicate email), an emailed reply gets email and WhatsApp as before.
     reporter.enqueue("notice", f"{cmd['action'].title()}: {cmd.get('id') or 'pending list'}", message,
                      email=(source != "whatsapp"))
 
 
-_PLAIN = {"yes", "no", "y", "n", "skip", "apply"}
-
-
-def needs_confirm(cmd: dict) -> bool:
-    """A TYPED answer carrying free text is confirmed first (it becomes a permanent standing answer). Yes / No /
-    Skip / Apply, and an exact one of a question's choices, are clear enough to act on."""
-    if cmd["action"] != "ANSWER":
-        return False
-    value = (cmd["text"] or "").strip()
-    q = questions.get(cmd["id"])
-    if not value or value.lower() in _PLAIN:
-        return False
-    return not (q and any(o.lower() == value.lower() for o in q.get("options") or []))
+_CASUAL = {"ok", "okay", "thanks", "thank", "you", "great", "cool", "hi", "hello", "hey", "got", "it", "nice", "good",
+           "noted", "again", "please"}
 
 
 def handle_reply(text: str, via: str, source: str) -> bool:
-    """One reply from Raja. A tapped button (via='button') acts at once. A typed command acts at once unless it
-    carries free text. Anything else is interpreted and echoed back for confirmation. True if it was handled."""
+    """One reply from Raja. What he types or taps IS the confirmation: nothing is echoed back for approval first.
+
+    A button or an exact command acts at once. Any other typed text is read by the model (agent.router), checked in
+    code, acted on, and acknowledged with what he said and what was done. If the model cannot be reached the plain
+    rules in agent.interpret are used instead. True if anything was done."""
     cmd = parse(text)
     if cmd:
-        if via != "button" and needs_confirm(cmd):
-            confirmations.propose([f"ANSWER {cmd['id']} {cmd['text']}"], _describe_answer(cmd), source)
-            return True
         _answer(cmd, source)
         return True
+    words = interpret._words(text)
+    if not words or set(words) <= _CASUAL:
+        return False
+    if confirmations.open_ones():              # a confirmation sent before this change: a plain yes / no still settles it
+        old = interpret.interpret(text)
+        if old and old["kind"] == "resolve":
+            _answer({"action": "CONFIRM" if old["accept"] else "CANCEL", "id": old["id"], "text": None}, source)
+            return True
+    try:
+        result = router.route(text)
+    except Exception as e:
+        logging.warning(f"Could not read the reply with the model ({e}); using the plain rules")
+        return _by_rules(text, source)
+    for c in result["commands"]:
+        _answer(parse(c), source, said=text)
+    if result["ask"]:
+        reporter.enqueue("notice", "Which one?", result["ask"], email=(source == "gmail"))
+    if result["comment"]:
+        feedback.handle(text, source)
+    return bool(result["commands"] or result["ask"] or result["comment"])
+
+
+def _by_rules(text: str, source: str) -> bool:
+    """Fallback when the model is unavailable: the keyword rules. Still no extra confirmation step."""
     if feedback.is_comment(text) and not _text_question_open():
         return feedback.handle(text, source)
     result = interpret.interpret(text)
-    if result is None:
+    if result is None or (result["kind"] == "clarify" and feedback.worth_keeping(text)):
         return feedback.handle(text, source) if feedback.worth_keeping(text) else False
-    if result["kind"] == "clarify" and feedback.worth_keeping(text):     # a long sentence is a comment, not a muddled choice
-        return feedback.handle(text, source)
-    if result["kind"] == "resolve":
+    if result["kind"] == "propose":
+        for c in result["commands"]:
+            _answer(parse(c), source, said=text)
+    elif result["kind"] == "resolve":
         _answer({"action": "CONFIRM" if result["accept"] else "CANCEL", "id": result["id"], "text": None}, source)
-    elif result["kind"] == "propose":
-        confirmations.propose(result["commands"], result["description"], source)
     else:
         reporter.enqueue("notice", "Which one?", result["message"], email=(source == "gmail"))
     return True
@@ -134,14 +148,6 @@ def handle_reply(text: str, via: str, source: str) -> bool:
 def _text_question_open() -> bool:
     """A free-text application question is waiting: a typed sentence is probably its answer, not a comment."""
     return any(q.get("type") == "text" for q in questions.open_questions())
-
-
-def _describe_answer(cmd: dict) -> str:
-    q = questions.get(cmd["id"])
-    if q is None:
-        return f"Answer '{cmd['text']}' (question {cmd['id']})"
-    return (f"Answer '{cmd['text']}' to: {q['question']}\n"
-            f"({q['title']} at {q['company']}), then finish the application.")
 
 
 def process_whatsapp() -> int:
