@@ -120,6 +120,20 @@ class Decisions(Base):
         self.say("ok")
         self.assertEqual(len(queue_tool.all_items()), 1)
 
+    def test_a_role_that_is_not_remote_is_never_offered(self):
+        onsite = dict(job("7", "CTO", "Onsite Co"), location="New York, NY")
+        self.assertIsNone(decisions.offer(onsite))
+        self.assertEqual(self.outbox(), [])
+        self.assertIsNotNone(decisions.offer(job("8", "CTO", "Remote Co")))
+
+    def test_which_one_list_shows_remote_and_the_link(self):
+        decisions.offer(job("1", "Director of AI", "Acme"))
+        decisions.offer(job("2", "VP AI", "Beta Corp"))
+        self.say("apply")
+        body = self.outbox()[-1]["body"]
+        self.assertIn("Remote: Texas (Remote)", body)
+        self.assertIn("https://www.linkedin.com/jobs/view/1", body)
+
     def test_chatter_when_nothing_is_waiting_is_ignored(self):
         self.say("hello there")
         self.assertEqual(self.outbox(), [])

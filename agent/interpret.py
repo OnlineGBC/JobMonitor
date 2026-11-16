@@ -41,8 +41,9 @@ def _open_items() -> list:
 
 def _label(kind: str, rec: dict) -> str:
     if kind == "decision":
-        return f"{rec['title']} at {rec['company']} (apply or skip)"
-    return f"{rec['title']} at {rec['company']}: {rec['question'][:80]}"
+        return "\n   ".join([f"{rec['title']} at {rec['company']}", rec.get("location") or "location unknown",
+                             rec.get("link", "")])
+    return "\n   ".join([f"{rec['title']} at {rec['company']}: {rec['question'][:80]}", rec.get("link", "")])
 
 
 def _list(items: list) -> str:

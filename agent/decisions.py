@@ -74,10 +74,17 @@ def already_handled(job: dict) -> bool:
     return any(str(q.get("job_id")) in ids or key(q["company"], q["title"]) == k for q in queue_tool.all_items())
 
 
+def is_remote(job: dict) -> bool:
+    """Remote only: LinkedIn marks it "(Remote)" in the location. Unknown or on-site/hybrid is not remote."""
+    return bool(job.get("remote")) or "remote" in (job.get("location") or "").lower()
+
+
 def offer(job: dict, note: str = "") -> dict:
     """Record one role and send it to WhatsApp with Apply / Skip buttons. Returns the record, or None if the
     role was already offered, queued, started or applied for."""
     if already_handled(job):
+        return None
+    if not is_remote(job):          # nothing that is not Remote is ever sent
         return None
     ids = [str(i) for i in job.get("job_ids") or ([job["job_id"]] if job.get("job_id") else [])]
     if not ids:

@@ -531,6 +531,7 @@ def collapse_jobs(jobs: list) -> list:
             g["places"].append(place)
         g["easy_apply"] = g.get("easy_apply") or job.get("easy_apply", False)
         g["applied"] = g.get("applied") or job.get("applied", False)
+        g["remote"] = g.get("remote") or "remote" in (job.get("location") or "").lower()
     return [groups[k] for k in order]
 
 
