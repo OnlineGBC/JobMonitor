@@ -123,7 +123,7 @@ def route(text: str, client=None) -> dict:
         import anthropic
         client = anthropic.Anthropic()
     resp = client.messages.create(
-        model=config.ROUTER_MODEL, max_tokens=800,
+        model=config.ROUTER_MODEL, max_tokens=4000,
         messages=[{"role": "user", "content": PROMPT.format(decisions=d_text, questions=q_text, message=text, recent=_recent(),
                                                       logs=logtail.excerpts(text))}])
     data = llm.json_object(resp)

@@ -105,6 +105,19 @@ class Replies(Base):
         self.assertIn('"5+"', prompt)
 
 
+class Limits(Base):
+    def test_there_is_room_for_a_long_log_based_answer(self):
+        c = client(actions=[], comment=False, ask=None, reply="x")
+        router.route("check the logs", client=c)
+        self.assertGreaterEqual(c.messages.create.call_args.kwargs["max_tokens"], 3000)
+
+    def test_a_reply_cut_off_by_the_limit_is_reported_as_an_error(self):
+        r = SimpleNamespace(content=[SimpleNamespace(type="text", text='{"reply": "long')], stop_reason="max_tokens")
+        c = SimpleNamespace(messages=SimpleNamespace(create=mock.Mock(return_value=r)))
+        with self.assertRaises(ValueError):
+            router.route("check the logs", client=c)
+
+
 class EndToEnd(Base):
     def say(self, text, c):
         write_json("whatsapp_inbox.json", [{"ts": 1, "text": text, "via": "text", "handled": False}])
