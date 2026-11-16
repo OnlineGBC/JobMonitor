@@ -335,5 +335,61 @@ class Gmail(unittest.TestCase):
         self.assertEqual(gmail_client.get_text("a", service=svc), "line one")
 
 
+class Reporter(unittest.TestCase):
+    def setUp(self):
+        from agent import reporter
+        self.r = reporter
+        write_json("outbox.json", [])
+
+    def test_only_reportable_kinds(self):
+        for bad in ("skipped", "rejection", "match"):
+            with self.assertRaises(ValueError):
+                self.r.enqueue(bad, "x", "y")
+        self.r.enqueue("applied", "Applied: VP AI at Acme", "https://www.linkedin.com/jobs/view/1")
+
+    def test_subject_suffix_and_new_york_time(self):
+        self.r.enqueue("applied", "Applied: VP AI", "body")
+        self.r.enqueue("question", "Need an answer", "body")
+        a, q = read_json("outbox.json", [])
+        self.assertEqual(a["subject"], "Applied: VP AI")
+        self.assertTrue(q["subject"].endswith("— updates needed"))
+        self.assertIn("New York time:", a["body"])
+
+    def test_email_always_whatsapp_when_open(self):
+        self.r.enqueue("applied", "A", "b")
+        mail, wa = [], []
+        st = self.r.process(lambda s, b: mail.append(s), lambda t: wa.append(t) or True)
+        self.assertEqual((len(mail), len(wa), st["whatsapp"]), (1, 1, 1))
+
+    def test_window_closed_still_emails(self):
+        self.r.enqueue("applied", "A", "b")
+        mail = []
+        st = self.r.process(lambda s, b: mail.append(s), lambda t: False)
+        self.assertEqual((len(mail), st["whatsapp_closed"]), (1, 1))
+        self.assertEqual(read_json("outbox.json", [])[0]["whatsapp"], "window_closed")
+
+    def test_email_failure_retries_and_whatsapp_failure_does_not_block(self):
+        self.r.enqueue("applied", "A", "b")
+
+        def boom(s, b): raise RuntimeError("gmail down")
+        def wa_boom(t): raise RuntimeError("meta down")
+        st = self.r.process(boom, lambda t: True)
+        self.assertEqual(st["failed"], 1)
+        item = read_json("outbox.json", [])[0]
+        self.assertFalse(item["email_sent"])
+        mail = []
+        self.r.process(lambda s, b: mail.append(s), wa_boom)  # retry; whatsapp already sent
+        self.assertEqual(len(mail), 1)
+        self.r.enqueue("applied", "B", "b")
+        mail = []
+        st = self.r.process(lambda s, b: mail.append(s), wa_boom)
+        self.assertEqual(len(mail), 1)  # email delivered despite WhatsApp error
+
+    def test_keepalive_never_raises(self):
+        def boom(): raise RuntimeError("template not approved")
+        self.assertFalse(self.r.keepalive(boom))
+        self.assertTrue(self.r.keepalive(lambda: True))
+
+
 if __name__ == "__main__":
     unittest.main()
