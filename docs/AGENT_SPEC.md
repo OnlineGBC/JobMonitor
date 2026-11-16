@@ -25,7 +25,7 @@ Core check: Sonnet. Form answers: Sonnet (Haiku was considered; Sonnet chosen be
 - Load check: the posting's own page must load live with matching title and company. Removed/invalid page or mismatch = extraction error: do not ledger, do not queue. A live page saying it is not accepting applications is skipped for good and ledgered.
 - Ledger every genuinely new processed ID in `seen_jobs.json` at once. A ledgered ID is never reopened or re-judged.
 
-### TEST-ONLY discovery profile (2026-11-16, temporary)
+### TEST-ONLY discovery profile (2026-11-16, temporary). **Ended 2026-11-16: switched back to `spec`** after Easy Apply was proven
 To validate Easy Apply on more postings, Discovery has a second profile, `test`, selected with
 `python -m agent.discovery --set-profile test` (and back with `--set-profile spec`; `spec` is the default). Compared with the spec's search it:
 - adds role words (Architect, Principal, Lead, Manager) and domain words (ML, Machine Learning, GenAI, Generative AI, LLM,
