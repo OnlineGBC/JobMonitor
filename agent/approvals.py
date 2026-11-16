@@ -10,6 +10,7 @@ anyone but Raja's own number or addresses, is ignored.
 """
 import logging
 import re
+from datetime import datetime
 
 from . import config, gmail_client, outreach, queue_tool, reporter, tracker
 from .store import locked, read_json, write_json
@@ -50,7 +51,9 @@ def pending_digest() -> str:
             lines.append(f"Outreach {i['id']} ({i['status']}, {i['kind']} to {i['poster']} at {i['company']}):\n  {i['text']}")
     for r in tracker.rows():
         if r["status"] == "AWAITING RAJA":
-            lines.append(f"Application #{r['number']} awaiting you: {r['title']} at {r['company']}\n  {r['url']}")
+            waiting = int((datetime.now(reporter.NY) - datetime.fromisoformat(r["booked"])).total_seconds() // 60)
+            age = f"{waiting // 60}h {waiting % 60}m" if waiting >= 60 else f"{waiting}m"
+            lines.append(f"Application #{r['number']} awaiting you ({age}): {r['title']} at {r['company']}\n  {r['url']}")
     queued = [q for q in queue_tool.all_items() if q["status"] == "QUEUED"]
     if queued:
         lines.append(f"{len(queued)} posting(s) queued for the applier.")

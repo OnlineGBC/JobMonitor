@@ -11,7 +11,7 @@ Exit codes follow the scheduler's convention: 0 = ok (including 'nothing to do')
 import logging
 import sys
 
-from . import dup_gate, next_number, outreach, queue_tool, reporter, resumes, tracker
+from . import dup_gate, next_number, outreach, queue_tool, reconcile, reporter, resumes, tracker
 
 MAX_ATTEMPTS = 3
 AWAITING, DO_NOT_ATTEMPT = "AWAITING RAJA", "DO NOT ATTEMPT"
@@ -163,6 +163,11 @@ def main() -> int:
     from . import discovery
 
     logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
+    try:
+        if reconcile.run() == 10:        # notice applications that were submitted since the last run
+            return 10
+    except Exception as e:               # reconciling must never stop the applier from working
+        logging.error(f"Reconcile failed: {e}")
     item = queue_tool.claim()
     if item is None:
         print("Nothing queued.")

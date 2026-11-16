@@ -46,5 +46,15 @@ def settle(number: int, status: str, note: str) -> dict:
         return row
 
 
+def mark_reminded(number: int) -> None:
+    """Remember that the one reminder for this row was sent."""
+    with locked("tracker"):
+        rows_ = read_json(FILE, [])
+        for r in rows_:
+            if r["number"] == number:
+                r["reminded"] = datetime.now(NY).isoformat(timespec="seconds")
+        write_json(FILE, rows_)
+
+
 def rows() -> list:
     return read_json(FILE, [])
