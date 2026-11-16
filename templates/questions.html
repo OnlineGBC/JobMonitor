@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+{% block title %}JobMonitor GBC-ai4org - Questions{% endblock %}
+
+{% block content %}
+<h4 class="mb-3"><i class="bi bi-question-circle"></i> Questions waiting for you</h4>
+<p class="text-muted">An application stopped on a question your standing answers do not cover. Your answer is saved as a
+standing answer for exactly that question, and the application is then finished on the next applier run.</p>
+
+{% for q in open_items %}
+<div class="card mb-3">
+    <div class="card-body">
+        <div class="small text-muted">#{{ q.number }} &middot; {{ q.title }} at {{ q.company }} &middot;
+            <a href="{{ q.link }}" target="_blank" rel="noopener">draft on LinkedIn</a></div>
+        <p class="fw-semibold my-2">{{ q.question }}</p>
+        <form method="post" action="{{ url_for('question_answer', qid=q.id) }}" class="d-flex flex-wrap gap-2 align-items-center">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            {% set opts = q.options|map('lower')|list %}
+            {% if 'yes' in opts and 'no' in opts %}
+                <button class="btn btn-success" name="answer" value="Yes">Yes</button>
+                <button class="btn btn-danger" name="answer" value="No">No</button>
+            {% elif q.options %}
+                {% for o in q.options %}<button class="btn btn-primary" name="answer" value="{{ o }}">{{ o }}</button>{% endfor %}
+            {% else %}
+                <input class="form-control" style="max-width: 24rem;" name="answer" maxlength="300" placeholder="Your answer" required>
+                <button class="btn btn-primary">Save answer</button>
+            {% endif %}
+            <button class="btn btn-outline-secondary" name="skip" value="1"
+                    formnovalidate onclick="return confirm('Skip this application? Nothing will be submitted.')">Skip</button>
+        </form>
+    </div>
+</div>
+{% else %}
+<div class="alert alert-secondary">No open questions.</div>
+{% endfor %}
+
+{% if waiting %}
+<h6 class="mt-4">Answered, being finished on the next applier run</h6>
+<ul>{% for q in waiting %}<li>#{{ q.number }} {{ q.company }}: {{ q.answer }}</li>{% endfor %}</ul>
+{% endif %}
+{% endblock %}

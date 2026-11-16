@@ -16,7 +16,7 @@ import argparse
 import logging
 import sys
 
-from . import discovery, reconcile, reporter, tracker
+from . import discovery, questions, reconcile, reporter, tracker
 
 
 def process_row(row: dict, ops, submit: bool) -> str:
@@ -49,9 +49,10 @@ def process_row(row: dict, ops, submit: bool) -> str:
     if status == "ready":
         return f"{who}: dry run reached the review page with every answer filled; draft kept, nothing submitted"
     if status == "paused":
-        reporter.enqueue("question", f"#{row['number']} Still needs your answer: {row['title']} at {row['company']}",
-                         f"Reopening the draft stopped again.\n\nQuestion (word for word):\n  {result.get('question') or '(none)'}"
-                         f"\n\nWhy: {result['reason']}\n{link}")
+        if not (result.get("question") and questions.ask_and_report(row, result, link)):
+            reporter.enqueue("question", f"#{row['number']} Still needs your answer: {row['title']} at {row['company']}",
+                             f"Reopening the draft stopped again.\n\nQuestion (word for word):\n  {result.get('question') or '(none)'}"
+                             f"\n\nWhy: {result['reason']}\n{link}")
         return f"{who}: stopped again, {result['reason']} (question: {result.get('question')}); draft kept"
     return f"{who}: {status}: {result.get('reason')}; draft kept, nothing submitted"
 
@@ -92,6 +93,53 @@ def select_rows(numbers: list) -> tuple:
         else:
             rows.append(r)
     return rows, skipped
+
+
+def finish_answered(submit: bool, ops=None) -> int:
+    """Finish the applications whose question Raja has answered (see agent.questions).
+
+    Each one is reopened from its saved draft and filled from the standing answers (which now hold his answer).
+    With `submit` False it stops at the review page and keeps the draft. A question is marked done once it has
+    been attempted: if the form stops on ANOTHER question, that one is asked about separately. Returns 10 if
+    LinkedIn needs a new sign-in, else 0.
+    """
+    waiting = questions.answered_waiting()
+    rows, _ = select_rows(sorted({q["number"] for q in waiting}))
+    live = {r["number"] for r in rows}
+    for q in waiting:
+        if q["number"] not in live:          # already settled some other way (e.g. submitted by hand)
+            questions.mark_done(q["id"])
+    if not rows:
+        return 0
+    if ops is None:
+        if not discovery.STATE.exists():
+            return 10
+        from playwright.sync_api import sync_playwright
+        with sync_playwright() as p:
+            browser = p.chromium.launch(headless=True)
+            try:
+                ctx = browser.new_context(storage_state=str(discovery.STATE), viewport={"width": 1500, "height": 1000})
+                return _finish_rows(rows, waiting, LinkedInOps(ctx.new_page()), submit)
+            finally:
+                browser.close()
+    return _finish_rows(rows, waiting, ops, submit)
+
+
+def _finish_rows(rows, waiting, ops, submit) -> int:
+    for row in rows:
+        outcome = process_row(row, ops, submit=submit)
+        logging.info(outcome)
+        print(outcome)
+        for q in waiting:
+            if q["number"] == row["number"]:
+                questions.mark_done(q["id"])
+        if "SUBMITTED" in outcome:
+            reporter.enqueue("notice", f"#{row['number']} Submitted after your answer: {row['title']} at {row['company']}",
+                             f"Your answer was used and the application was submitted. The reconcile step will confirm it "
+                             f"on LinkedIn's own records and send the 'applied' report.")
+    if submit:
+        reconcile.run()
+    return 0
 
 
 def main(argv=None) -> int:

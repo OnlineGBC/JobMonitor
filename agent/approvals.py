@@ -12,13 +12,13 @@ import logging
 import re
 from datetime import datetime
 
-from . import config, gmail_client, outreach, queue_tool, reporter, tracker
+from . import config, gmail_client, outreach, queue_tool, questions, reporter, tracker
 from .store import locked, read_json, write_json
 
 SEEN = "approvals_seen.json"
 INBOX = "whatsapp_inbox.json"
 
-_CMD = re.compile(r"^\s*(approve|reject)\s+([0-9a-f]{8})\b[ \t:,.-]*(.*)$", re.I | re.S)
+_CMD = re.compile(r"^\s*(approve|reject|answer)\s+([0-9a-f]{8})\b[ \t:,.-]*(.*)$", re.I | re.S)
 _PENDING = re.compile(r"^\s*pending\s*[.!]?\s*$", re.I)
 _QUOTE_START = re.compile(r"^(>|On .{5,120} wrote:\s*$|-{2,}\s*Original Message|From: .+@|Sent from my\b|--\s*$)", re.I)
 
@@ -65,6 +65,8 @@ def apply(cmd: dict) -> str:
         return outreach.approve(cmd["id"], cmd["text"])[1]
     if cmd["action"] == "REJECT":
         return outreach.reject(cmd["id"])[1]
+    if cmd["action"] == "ANSWER":
+        return questions.answer(cmd["id"], cmd["text"] or "")[1]
     return pending_digest()
 
 

@@ -11,7 +11,7 @@ Exit codes follow the scheduler's convention: 0 = ok (including 'nothing to do')
 import logging
 import sys
 
-from . import dup_gate, next_number, outreach, queue_tool, reconcile, reporter, resumes, tracker
+from . import dup_gate, next_number, outreach, queue_tool, questions, reconcile, reporter, resumes, tracker
 from .store import read_json, write_json
 
 MODE_FILE = "applier_mode.json"
@@ -142,10 +142,18 @@ def process_item(item: dict, ops) -> str:
                 f"{_link(item)}\n\nWhat was filled:\n{steps}{tail}",
                 f"paused: {result['reason']}", resume or "")
             return "paused: submit refused"
+        if result.get("question"):
+            row = tracker.book(number, company, title, jid, AWAITING, url=_link(item), resume=resume or "",
+                               note=f"paused: {result['reason']}")
+            queue_tool.set_status(jid, AWAITING)
+            if not questions.ask_and_report(row, result, _link(item), steps, tail):
+                reporter.enqueue("question", f"#{number} Needs your answer: {title} at {company}",
+                                 f"The application stopped.\n\nWhy: {result['reason']}\n{_link(item)}",
+                                 needs_action=True)
+            return "paused: question"
         _book_and_report(
             item, number, "question", f"#{number} Needs your answer: {title} at {company}",
-            f"The application stopped at a question it must not guess.\n\nQuestion (word for word):\n"
-            f"  {result.get('question') or '(none)'}\n\nWhy it stopped: {result['reason']}\n"
+            f"The application stopped.\n\nWhy it stopped: {result['reason']}\n"
             f"A partial draft is saved on LinkedIn:\n{_link(item)}\n\nWhat was filled so far:\n{steps}{tail}",
             f"paused: {result['reason']}", resume or "")
         return "paused: question"
@@ -211,6 +219,13 @@ def main(argv=None) -> int:
             return 10
     except Exception as e:               # reconciling must never stop the applier from working
         logging.error(f"Reconcile failed: {e}")
+    try:                                 # first finish applications whose question Raja has just answered
+        if questions.answered_waiting():
+            from . import submit_drafts
+            if submit_drafts.finish_answered(submit=submit_mode()) == 10:
+                return 10
+    except Exception as e:
+        logging.error(f"Finishing answered applications failed (the next run will retry): {e}")
     item = queue_tool.claim()
     if item is None:
         print("Nothing queued.")

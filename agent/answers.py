@@ -48,6 +48,11 @@ def learn(label: str, value: str, path: Path = None) -> bool:
     if any(re.sub(r"\W+", " ", line.lower()).strip().startswith(key)
            for line in text.splitlines() if "→" in line):
         return False
+    _append_learned(path, text, label, value)
+    return True
+
+
+def _append_learned(path: Path, text: str, label: str, value: str) -> None:
     nl = "\r\n" if "\r\n" in text else "\n"
     if LEARNED_HEADING not in text:
         text = text.rstrip() + nl + nl + LEARNED_HEADING + nl
@@ -55,7 +60,28 @@ def learn(label: str, value: str, path: Path = None) -> bool:
         text += nl
     with open(path, "w", encoding="utf-8", newline="") as f:
         f.write(text + f"- {label.strip()} → {value.strip()}" + nl)
-    return True
+
+
+def set_answer(label: str, value: str, path: Path = None) -> str:
+    """Save Raja's answer to this EXACT question, replacing an older saved answer for it.
+
+    Returns 'replaced' or 'added'. Unlike learn(), a newer answer wins: the answer he gives now is the one
+    that must be used. Only the whole question text is matched, and the file's line endings are kept.
+    """
+    path = path or ANSWER_BANK
+    key = _q_key(label)
+    with open(path, encoding="utf-8", newline="") as f:
+        text = f.read()
+    lines = text.splitlines(keepends=True)
+    for i, line in enumerate(lines):
+        m = re.match(r"^(\s*-\s*)(.+?)(\s*→\s*)(.+?)(\r?\n?)$", line)
+        if m and _q_key(m.group(2)) == key:
+            lines[i] = f"{m.group(1)}{m.group(2)}{m.group(3)}{value.strip()}{m.group(5)}"
+            with open(path, "w", encoding="utf-8", newline="") as f:
+                f.write("".join(lines))
+            return "replaced"
+    _append_learned(path, text, label, value)
+    return "added"
 
 
 def _q_key(text: str) -> str:

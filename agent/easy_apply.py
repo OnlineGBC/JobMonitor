@@ -164,9 +164,11 @@ def _apply(page, f: dict, value: str) -> None:
         loc.fill(value)
 
 
-def _paused(reason, question=None, steps=None, learned=None):
+def _paused(reason, question=None, steps=None, learned=None, options=None, qtype=None):
+    """A pause. `options`/`qtype` describe the question stopped on, so Raja can be offered the right buttons."""
     return {"status": "paused", "reason": reason, "question": question,
-            "steps": steps or [], "learned": learned or []}
+            "steps": steps or [], "learned": learned or [],
+            "options": list(options or []), "qtype": qtype or ""}
 
 
 def run_form(page, title: str, allow_submit: bool = False, decide=answers.decide_answer, company: str = None) -> dict:
@@ -214,7 +216,7 @@ def run_form(page, title: str, allow_submit: bool = False, decide=answers.decide
                         learned.append((f["label"], cur))
                     notes.append(f"kept your earlier answer '{cur}' for: {f['label']}")
                     continue
-                return _paused(d["reason"], f["label"], steps, learned)
+                return _paused(d["reason"], f["label"], steps, learned, options=q["options"], qtype=q["type"])
             if d["value"].strip().lower() != cur.lower():
                 _apply(page, f, d["value"])
                 notes.append(f"set '{d['value']}' for: {f['label']}")

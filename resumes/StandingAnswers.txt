@@ -36,3 +36,8 @@ Learned from earlier applications (added automatically; edit or delete freely)
 - Have you led an enterprise-wide data and AI strategy for a company with annual revenues exceeding $5bn? → Yes
 - Have you led enterprise healthcare data integration involving HL7, FHIR, EHR, or EMR platforms? → Yes
 - Have you taken a look through our website/profile, and are you particularly interested in joining us to bring our vision to life? → Yes
+- Will you now, or in the future, require sponsorship for employment visa status (e.g. H-1B visa status)? → No
+- We must fill this position urgently. Can you start immediately? → No
+- How many years of experience do you currently have? → 20
+- Have you personally led an AI or automation initiative that delivered realised, measurable annual P&L or EBITDA improvement? → Yes
+- Have you held a senior operational or transformation leadership role within a PE-backed healthcare provider, multi-site services business or RCM organisation? → No

@@ -56,6 +56,11 @@
                         </a>
                     </li>
                     <li class="nav-item">
+                        <a class="nav-link {% if request.endpoint == 'questions_page' %}active{% endif %}" href="{{ url_for('questions_page') }}">
+                            <i class="bi bi-question-circle"></i> Questions
+                        </a>
+                    </li>
+                    <li class="nav-item">
                         <a class="nav-link {% if request.endpoint == 'logs' %}active{% endif %}" href="{{ url_for('logs') }}">
                             <i class="bi bi-file-text"></i> Logs
                         </a>

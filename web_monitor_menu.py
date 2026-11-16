@@ -701,6 +701,24 @@ def settings():
     return render_template("settings.html", groups=_get_settings_groups())
 
 
+@app.route("/questions")
+@admin_required
+def questions_page():
+    from agent import questions
+    return render_template("questions.html", open_items=questions.open_questions(),
+                           waiting=questions.answered_waiting())
+
+
+@app.route("/questions/<qid>/answer", methods=["POST"])
+@admin_required
+def question_answer(qid):
+    from agent import questions
+    value = request.form.get("answer", "")
+    ok, message = questions.skip(qid) if request.form.get("skip") else questions.answer(qid, value)
+    flash(message, "success" if ok else "error")
+    return redirect(url_for("questions_page"))
+
+
 @app.route("/logs")
 @admin_required
 def logs():

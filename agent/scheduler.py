@@ -67,6 +67,15 @@ def _update(name: str, **fields) -> None:
         write_json(CONTROL, st)
 
 
+def run_soon(name: str) -> bool:
+    """Ask the running scheduler to start `name` at its next pass (about 20 seconds) instead of waiting out its
+    random 10-15 minute gap. Does nothing, and returns False, if that process is not enabled."""
+    if name not in PROCESSES or not load_state()[name]["enabled"]:
+        return False
+    _update(name, next_due=0)
+    return True
+
+
 def launch(module: str, cap: int, log_path: Path):
     """Run `python -m module`. Returns (exit_code, timed_out). Kills the whole tree on timeout."""
     log_path.parent.mkdir(parents=True, exist_ok=True)
