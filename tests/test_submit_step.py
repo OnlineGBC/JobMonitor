@@ -201,6 +201,13 @@ class OpenControl(unittest.TestCase):
         self.assertEqual(self.controls('<button onclick="openDlg()">Easy Apply</button>')[0], ["Easy Apply"])
         self.assertEqual(self.controls('<a href="#" onclick="openDlg();return false">Continue</a>')[0], ["Continue"])
 
+    def test_the_real_buttons_longer_accessible_name_still_matches(self):
+        """LinkedIn labels the button aria-label="Easy Apply to this job"; a pattern needing an exact 'Easy Apply'
+        found nothing and the applier failed on every fresh posting (a regression caught live, 2026-11-16)."""
+        real = '<button aria-label="Easy Apply to this job" onclick="openDlg()"><span>Easy Apply</span></button>'
+        self.assertEqual(len(self.controls(real)[0]), 1)
+        self.assertEqual(len(self.controls('<a href="#" aria-label="Continue to this application">Continue</a>')[0]), 1)
+
     def test_a_sidebar_easy_apply_link_is_never_a_candidate(self):
         texts, log = self.controls("")                         # the page has only the sidebar link
         self.assertEqual((texts, log), ([], []))               # not found, and never clicked

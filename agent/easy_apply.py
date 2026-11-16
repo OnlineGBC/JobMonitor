@@ -267,7 +267,8 @@ def close_form(page, save: bool) -> str:
     return "none"
 
 
-_APPLY_CONTROL = re.compile(r"^(Easy Apply|Continue|Einfach bewerben|Fortfahren)$", re.I)
+# The accessible name is longer than the visible text ("Easy Apply to this job"), so match the START of it.
+_APPLY_CONTROL = re.compile(r"^(Easy Apply|Continue|Einfach bewerben|Fortfahren)\b", re.I)
 
 
 def _top_card_apply_controls(page) -> list:
