@@ -464,7 +464,25 @@ class Scheduler(unittest.TestCase):
         def launcher(module, cap, log):
             self.calls.append(module)
             return result
-        return self.s.AgentScheduler(clock=lambda: self.t, launcher=launcher)
+        # deterministic wait (the shortest, 600 s) so timing assertions are exact; see the randomness test
+        return self.s.AgentScheduler(clock=lambda: self.t, launcher=launcher, rng=lambda lo, hi: lo)
+
+    def test_wait_between_runs_is_random_between_10_and_15_minutes(self):
+        import random
+        self.s.set_enabled("discovery", True)
+        sch = self.s.AgentScheduler(clock=lambda: self.t, launcher=lambda m, c, l: (0, False),
+                                    rng=random.Random(7).uniform)
+        gaps = []
+        for _ in range(40):
+            self.assertEqual(sch.tick(sync=True), ["discovery"])
+            due = self.s.load_state()["discovery"]["next_due"]
+            gaps.append(due - self.t)
+            self.t = due - 1
+            self.assertEqual(sch.tick(sync=True), [])  # never early
+            self.t = due
+        self.assertTrue(all(600 <= g <= 900 for g in gaps), gaps)
+        self.assertGreater(max(gaps) - min(gaps), 120)  # it genuinely varies
+        self.assertEqual(len({round(g) for g in gaps}) > 20, True)
 
     def test_everything_paused_by_default(self):
         sch = self.sched()

@@ -4,13 +4,14 @@
     python -m agent.scheduler enable discovery
     python -m agent.scheduler disable discovery
 
-Each enabled process runs as its own subprocess every `interval` seconds with a
-60-minute cap. The loop thread is started by the web UI; this CLI only edits the
+Each enabled process runs as its own subprocess, then waits a RANDOM 10 to 15 minutes before its next
+run (a steady 10-minute beat looks mechanical), with a 60-minute cap per run. The loop thread is started by the web UI; this CLI only edits the
 saved state, which the running loop picks up on its next tick (within ~20 s).
 """
 import importlib.util
 import logging
 import os
+import random
 import subprocess
 import sys
 import threading
@@ -28,10 +29,11 @@ TICK_SECONDS = 20
 EXIT_LOGIN_NEEDED = 10  # same convention as monitor.py
 
 PROCESSES = {
-    "discovery": {"module": "agent.discovery", "interval": 600},
-    "applier": {"module": "agent.applier", "interval": 600},
-    "sender": {"module": "agent.outreach_sender", "interval": 600},
-    "acceptance": {"module": "agent.acceptance_check", "interval": 86400},
+    # "wait": (min, max) seconds between the START of one run and the next, drawn at random each time
+    "discovery": {"module": "agent.discovery", "wait": (600, 900)},
+    "applier": {"module": "agent.applier", "wait": (600, 900)},
+    "sender": {"module": "agent.outreach_sender", "wait": (600, 900)},
+    "acceptance": {"module": "agent.acceptance_check", "wait": (84600, 88200)},  # about once a day
 }
 
 
@@ -90,8 +92,8 @@ def _tail(path: Path, lines: int = 12) -> str:
 
 
 class AgentScheduler:
-    def __init__(self, clock=time.time, launcher=launch, cap=CAP_SECONDS):
-        self.clock, self.launcher, self.cap = clock, launcher, cap
+    def __init__(self, clock=time.time, launcher=launch, cap=CAP_SECONDS, rng=random.uniform):
+        self.clock, self.launcher, self.cap, self.rng = clock, launcher, cap, rng
         self._running = set()
         self._stop = threading.Event()
         self._thread = None
@@ -127,10 +129,10 @@ class AgentScheduler:
             s = state[name]
             if not s["enabled"] or name in self._running or not built(name):
                 continue
-            last = s.get("last_start")
-            if last is not None and now - last < cfg["interval"]:
+            due = s.get("next_due")
+            if due is not None and now < due:
                 continue
-            _update(name, last_start=now, last_status="running")
+            _update(name, last_start=now, last_status="running", next_due=now + self.rng(*cfg["wait"]))
             self._running.add(name)
             started.append(name)
             if sync:
