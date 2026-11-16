@@ -33,7 +33,7 @@ def translate(strings, client=None, model: str = None) -> dict:
                 import anthropic
                 client = anthropic.Anthropic()
             resp = client.messages.create(
-                model=model or config.TRANSLATE_MODEL, max_tokens=1500,
+                model=model or config.TRANSLATE_MODEL, max_tokens=3000,
                 messages=[{"role": "user", "content": PROMPT.format(strings=json.dumps(missing, ensure_ascii=False))}])
             data = llm.json_object(resp)
             fresh = {s: str(data[s]).strip() for s in missing if isinstance(data.get(s), str) and data[s].strip()}

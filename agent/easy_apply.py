@@ -21,6 +21,15 @@ READ_JS = r"""(d) => {
   const t = e => (e ? (e.innerText || e.textContent || '').trim().replace(/\s+/g, ' ') : '');
   const flat = t(d);
   const starred = q => !!q && flat.includes(q + '*');
+  // Visible text of a radio/checkbox option: the nearest enclosing block that holds only this input.
+  const optText = el => {
+    for (let n = el.parentElement, k = 0; n && k < 5; n = n.parentElement, k++) {
+      if (n.querySelectorAll('input').length !== 1) break;
+      const x = t(n);
+      if (x) return x;
+    }
+    return '';
+  };
   const fields = [], groups = {};
   for (const el of d.querySelectorAll('input,select,textarea')) {
     if (el.type === 'hidden' || el.type === 'file') continue;
@@ -33,7 +42,7 @@ READ_JS = r"""(d) => {
         groups[key] = {kind: el.type, prev: fs && fs.previousElementSibling ? t(fs.previousElementSibling) : '', options: []};
         fields.push(groups[key]);
       }
-      groups[key].options.push({id: el.id, text: lab || t(el.parentElement), aria, checked: el.checked});
+      groups[key].options.push({id: el.id, text: lab || optText(el), aria, checked: el.checked});
     } else {
       const label = (lab || aria).replace(/\*$/, '').trim();
       fields.push({kind: el.tagName === 'SELECT' ? 'select' : (el.tagName === 'TEXTAREA' ? 'textarea' : 'text'),

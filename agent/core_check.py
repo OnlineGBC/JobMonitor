@@ -49,7 +49,7 @@ def judge(posting: dict, client=None, model: str = None):
             client = anthropic.Anthropic()
         resp = client.messages.create(
             model=model or config.CORE_CHECK_MODEL,
-            max_tokens=200,
+            max_tokens=2000,
             messages=[{"role": "user", "content": PROMPT.format(
                 title=posting.get("title", ""), company=posting.get("company", ""),
                 description=desc[:12000])}],

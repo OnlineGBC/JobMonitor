@@ -12,5 +12,11 @@ def text_of(response) -> str:
 
 
 def json_object(response) -> dict:
-    """The first JSON object in the response's text."""
-    return json.loads(re.search(r"\{.*\}", text_of(response), re.S).group(0))
+    """The first JSON object in the response's text. Raises ValueError with the real reason on failure."""
+    if getattr(response, "stop_reason", None) == "max_tokens":
+        raise ValueError("the reply was cut off (max_tokens reached); raise the limit")
+    text = text_of(response)
+    m = re.search(r"\{.*\}", text, re.S)
+    if not m:
+        raise ValueError(f"the reply contained no JSON object: {text[:120]!r}")
+    return json.loads(m.group(0))

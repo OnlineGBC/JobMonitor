@@ -159,7 +159,7 @@ def decide_answer(question: dict, bank: str = None, client=None, model: str = No
             import anthropic
             client = anthropic.Anthropic()
         resp = client.messages.create(
-            model=model or config.FORM_ANSWER_MODEL, max_tokens=300,
+            model=model or config.FORM_ANSWER_MODEL, max_tokens=2000,
             messages=[{"role": "user", "content": PROMPT.format(
                 bank=bank if bank is not None else load_bank(), label=label, qtype=qtype,
                 options=options or "(free entry)")}])

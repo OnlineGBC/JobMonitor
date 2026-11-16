@@ -106,6 +106,13 @@ class ThinkingBlocks(unittest.TestCase):
         self.assertEqual(llm.json_object(r), {"a": 1})
         with self.assertRaises(ValueError):
             llm.text_of(SimpleNamespace(content=[SimpleNamespace(type="thinking")]))
+        # a reply cut off by the token limit, or with no JSON, says so plainly
+        cut = SimpleNamespace(stop_reason="max_tokens", content=[SimpleNamespace(type="text", text='{"a": ')])
+        with self.assertRaisesRegex(ValueError, "cut off"):
+            llm.json_object(cut)
+        plain = SimpleNamespace(stop_reason="end_turn", content=[SimpleNamespace(type="text", text="Yes.")])
+        with self.assertRaisesRegex(ValueError, "no JSON"):
+            llm.json_object(plain)
 
     def test_all_three_callers(self):
         from agent import core_check
@@ -119,6 +126,40 @@ class ThinkingBlocks(unittest.TestCase):
         ok, why = core_check.judge({"title": "Chief Technology Officer", "company": "X", "description": "Lead ML platform"},
                                    client=self.reply('{"core": true, "reason": "ml"}'))
         self.assertTrue(ok)
+
+
+class ReadFormMarkup(unittest.TestCase):
+    """Run the form reader against the exact markup seen on LinkedIn, in a local page (no network)."""
+    LINKEDIN_RADIOS = (
+        '<dialog open><h2>Apply to X</h2>1/5 pages'
+        '<div>Have you completed the following level of education: Bachelor Degree?*</div>'
+        '<fieldset role="radiogroup"><div><div><div><input id="r1" aria-label="Have you completed the following '
+        'level of education: Bachelor Degree?" type="radio" checked name="g"><label for="r1"></label></div>'
+        '<div><p>Ja</p></div></div></div><div><div><div><input id="r2" aria-label="Have you completed the '
+        'following level of education: Bachelor Degree?" type="radio" name="g"><label for="r2"></label></div>'
+        '<div><p>Nein</p></div></div></div></fieldset>'
+        '<input id="t1" type="text" aria-label="How many years of Management experience do you currently have?" '
+        'value="15"><button>Back</button><button>Review</button></dialog>')
+
+    def test_reads_option_text_questions_and_required(self):
+        try:
+            from playwright.sync_api import sync_playwright
+        except ImportError:
+            self.skipTest("playwright not installed")
+        with sync_playwright() as p:
+            b = p.chromium.launch(headless=True)
+            page = b.new_page()
+            page.set_content(self.LINKEDIN_RADIOS)
+            raw = page.locator("dialog[open]").first.evaluate(easy_apply.READ_JS)
+            b.close()
+        group = next(f for f in raw["fields"] if f["kind"] == "radio")
+        self.assertEqual([o["text"] for o in group["options"]], ["Ja", "Nein"])
+        self.assertEqual([o["checked"] for o in group["options"]], [True, False])
+        self.assertTrue(group["prev"].endswith("*"))
+        text = next(f for f in raw["fields"] if f["kind"] == "text")
+        self.assertEqual((text["label"], text["value"]), ("How many years of Management experience do you currently have?", "15"))
+        self.assertEqual(raw["page"], [1, 5])
+        self.assertEqual(raw["buttons"], ["Back", "Review"])
 
 
 if __name__ == "__main__":
