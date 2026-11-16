@@ -314,6 +314,26 @@ class WhatsApp(unittest.TestCase):
         self.assertTrue(self.w.send_keepalive(self.session, now=5000 + 12 * 3600))
         self.assertEqual(self.sent[0][2]["type"], "template")
 
+    def test_a_failed_keepalive_waits_six_hours_before_trying_again(self):
+        class Failing:
+            calls = 0
+
+            def post(self, url, headers=None, json=None, timeout=None):
+                Failing.calls += 1
+                return SimpleNamespace(status_code=404, json=lambda: {}, text="template does not exist")
+        for t in (10_000, 10_020, 10_040, 10_000 + 5 * 3600):     # many scheduler passes, all within 6 hours
+            try:
+                self.w.send_keepalive(Failing(), now=t)
+            except Exception:
+                pass
+        self.assertEqual(Failing.calls, 1)
+        try:
+            self.w.send_keepalive(Failing(), now=10_000 + 6 * 3600 + 1)
+        except Exception:
+            pass
+        self.assertEqual(Failing.calls, 2)                          # after 6 hours it tries once more
+        self.assertTrue(self.w.send_keepalive(self.session, now=10_000 + 13 * 3600))   # and recovers once approved
+
     def test_signature_and_sender_filter(self):
         import hashlib, hmac
         body = b'{"x":1}'
@@ -512,6 +532,17 @@ class Scheduler(unittest.TestCase):
             return result
         # deterministic wait (the shortest, 600 s) so timing assertions are exact; see the randomness test
         return self.s.AgentScheduler(clock=lambda: self.t, launcher=launcher, rng=lambda lo, hi: lo)
+
+    def test_every_pass_handles_whatsapp_replies_without_waiting_for_the_sender(self):
+        from agent import approvals
+        handled = []
+        original = approvals.process_whatsapp
+        approvals.process_whatsapp = lambda: handled.append(1) or 0
+        try:
+            self.sched().tick(sync=True)          # nothing enabled: a tap must still be handled
+        finally:
+            approvals.process_whatsapp = original
+        self.assertEqual(handled, [1])
 
     def test_wait_between_runs_is_random_between_10_and_15_minutes(self):
         import random

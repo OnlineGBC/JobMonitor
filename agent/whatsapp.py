@@ -85,16 +85,26 @@ def send_buttons(body: str, buttons: list, session=requests, now: float = None) 
     return True
 
 
+KEEPALIVE_RETRY_SECONDS = 6 * 3600   # wait this long after a FAILED keepalive (e.g. template still in review)
+
+
 def send_keepalive(session=requests, now: float = None) -> bool:
     """Send the approved check-in template, at most once per 12 hours."""
     with locked("whatsapp_state"):
         s = read_json(STATE, {})
+        t = now or time.time()
         last = s.get("last_keepalive")
-        if last is not None and (now or time.time()) - last < 12 * 3600:
+        if last is not None and t - last < 12 * 3600:
             return False
+        tried = s.get("last_keepalive_attempt")
+        if tried is not None and t - tried < KEEPALIVE_RETRY_SECONDS:
+            return False                     # a failed try waits 6 hours, not one 20-second scheduler pass
+        s["last_keepalive_attempt"] = t
+        write_json(STATE, s)                 # recorded BEFORE sending, so a failure is also remembered
         _post({"type": "template", "template": {
             "name": KEEPALIVE_TEMPLATE, "language": {"code": "en_US"}}}, session)
-        s["last_keepalive"] = now or time.time()
+        s = read_json(STATE, {})
+        s["last_keepalive"] = t
         write_json(STATE, s)
     return True
 

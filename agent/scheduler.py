@@ -185,6 +185,11 @@ class AgentScheduler:
                 reporter.keepalive()
         except Exception as e:
             logging.error(f"Reporter pass failed: {e}")
+        try:                                   # taps and replies are handled within one pass, not at the next sender run
+            from . import approvals
+            approvals.process_whatsapp()
+        except Exception as e:
+            logging.error(f"WhatsApp reply pass failed: {e}")
 
 
 def _fmt_time(t):
