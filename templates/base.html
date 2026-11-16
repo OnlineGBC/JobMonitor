@@ -79,6 +79,13 @@
                     <ul class="dropdown-menu dropdown-menu-end">
                         <li><span class="dropdown-item-text small text-muted">{{ current_user.email }}</span></li>
                         <li><hr class="dropdown-divider"></li>
+                        {% if is_admin %}
+                        <li>
+                            <button class="dropdown-item" type="button" onclick="restartWebUI()">
+                                <i class="bi bi-arrow-repeat"></i> Restart web UI
+                            </button>
+                        </li>
+                        {% endif %}
                         <li>
                             <a class="dropdown-item" href="{{ url_for('logout') }}">
                                 <i class="bi bi-box-arrow-right"></i> Sign out
@@ -193,6 +200,29 @@
                 return nativeFetch(resource, options);
             };
         })();
+
+        // ── Restart web UI ──
+        async function restartWebUI(force) {
+            try {
+                var r = await fetch('/api/restart', {method: 'POST', headers: {'Content-Type': 'application/json'},
+                                                     body: JSON.stringify({force: !!force})});
+                var d = await r.json();
+                if (d.status === 'busy') {
+                    if (confirm(d.message + '\n\nRestart anyway?')) { return restartWebUI(true); }
+                    return;
+                }
+                if (d.status !== 'ok') { alert(d.message); return; }
+                document.body.insertAdjacentHTML('beforeend',
+                    '<div style="position:fixed;top:70px;right:16px;z-index:2000" class="alert alert-info shadow">' + d.message + '</div>');
+                var tries = 0;
+                var timer = setInterval(async function() {
+                    tries++;
+                    try { var p = await fetch('/api/scheduler/status'); if (p.ok && tries > 2) { clearInterval(timer); location.reload(); } }
+                    catch (e) { /* still down */ }
+                    if (tries > 60) { clearInterval(timer); }
+                }, 2000);
+            } catch (e) { alert('Restart request failed: ' + e); }
+        }
 
         // ── Theme Switcher Logic ──
         function setTheme(theme) {

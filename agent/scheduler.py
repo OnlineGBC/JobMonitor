@@ -108,6 +108,11 @@ class AgentScheduler:
         self._thread = None
 
     # -- loop ---------------------------------------------------------------
+    @property
+    def busy(self) -> bool:
+        """True while an agent process (discovery, applier, ...) is running."""
+        return bool(self._running)
+
     def start(self) -> bool:
         if self._thread and self._thread.is_alive():
             return False

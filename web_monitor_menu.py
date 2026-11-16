@@ -21,6 +21,7 @@ import logging
 import os
 import secrets
 import shutil
+import sys
 import time
 from datetime import datetime
 from functools import wraps
@@ -41,6 +42,7 @@ from flask import (
 )
 
 import auth
+import autorestart
 from agent import webhook as agent_webhook
 from agent.scheduler import AgentScheduler
 
@@ -99,6 +101,14 @@ if PUBLIC_URL:
 
 # Single scheduler instance shared across requests
 scheduler = MonitorScheduler()
+agent_scheduler = AgentScheduler()
+
+
+def _anything_running() -> bool:
+    return bool(scheduler.get_status()["run_in_progress"]) or agent_scheduler.busy
+
+
+restarter = autorestart.Restarter(_anything_running)
 
 # ruamel.yaml instance for reading/writing monitors.yaml with comments
 ryaml = YAML()
@@ -1029,6 +1039,17 @@ def api_scheduler_stop():
     return jsonify({"status": "warning", "message": "Scheduler is not running."})
 
 
+@app.route("/api/restart", methods=["POST"])
+@admin_required
+def api_restart():
+    if not autorestart.enabled() or os.environ.get(autorestart.CHILD_ENV) != "1":
+        return jsonify({"status": "error", "message": "Restart is not available here (AUTO_RESTART is off, or the "
+                                                      "web UI was not started with python web_monitor_menu.py)."})
+    force = bool((request.get_json(silent=True) or {}).get("force"))
+    status, message = restarter.request(force=force)
+    return jsonify({"status": status, "message": message})
+
+
 @app.route("/api/scheduler/status")
 def api_scheduler_status():
     # Polled continuously by the dashboard - same scoping as the page itself
@@ -1125,6 +1146,9 @@ def api_screenshot(name, filename):
 # ---------------------------------------------------------------------------
 
 def main():
+    # Run as a watched child so the web UI can restart itself (see autorestart.py). Same command as before.
+    if autorestart.enabled() and not os.getenv("K_SERVICE") and os.environ.get(autorestart.CHILD_ENV) != "1":
+        sys.exit(autorestart.supervise())
     parser = argparse.ArgumentParser(description="JobMonitor Web UI")
     parser.add_argument("--port", type=int, default=5000, help="Port to listen on (default: 5000)")
     args = parser.parse_args()
@@ -1158,7 +1182,7 @@ def main():
     # The agent's own scheduler. Every process starts paused; nothing runs until it is
     # enabled with `python -m agent.scheduler enable <name>`. Set AGENT_SCHEDULER=0 to skip it.
     if os.getenv("AGENT_SCHEDULER", "1").strip() not in ("0", "false", "False", ""):
-        AgentScheduler().start()
+        agent_scheduler.start()
 
     if PUBLIC_URL:
         logging.info(f"Public mode: behind a proxy at {PUBLIC_URL} - cookies marked Secure")
@@ -1167,6 +1191,10 @@ def main():
 
     # Ensure data directory exists
     Path("data").mkdir(exist_ok=True)
+
+    if os.environ.get(autorestart.CHILD_ENV) == "1":
+        restarter.start()
+        logging.info("Auto-restart is on: the web UI restarts itself when its code changes (and when idle)")
 
     app.run(host=host, port=args.port, debug=False)
 
