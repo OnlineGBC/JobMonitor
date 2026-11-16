@@ -41,7 +41,7 @@ class FakeOps:
 
 class ApplierTests(unittest.TestCase):
     def setUp(self):
-        for f in ("pending_survivors.json", "tracker.json", "outbox.json"):
+        for f in ("pending_survivors.json", "tracker.json", "outbox.json", "pending_questions.json"):
             write_json(f, [])
         next_number.set_next(1)
         queue_tool.add({"job_id": "42", "title": "VP of AI", "company": "Acme", "workplace": "Remote"})
@@ -164,7 +164,7 @@ class AutoSubmit(unittest.TestCase):
     """The applier's automatic-submission mode. The default (nothing saved) is the cautious draft-and-stop."""
 
     def setUp(self):
-        for f in ("pending_survivors.json", "tracker.json", "outbox.json", "outreach.json"):
+        for f in ("pending_survivors.json", "tracker.json", "outbox.json", "outreach.json", "pending_questions.json"):
             write_json(f, [])
         write_json("applier_mode.json", {})
         next_number.set_next(1)

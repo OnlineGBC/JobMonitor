@@ -14,9 +14,14 @@ import re
 
 from . import confirmations, decisions, questions
 
-YES = {"yes", "y", "yep", "yeah", "sure", "apply", "go", "submit", "ok", "okay", "confirm", "confirmed", "proceed"}
-NO = {"no", "n", "nope", "nah", "skip", "pass", "ignore", "cancel", "stop", "dont", "don't"}
+YES = {"yes", "y", "yep", "yeah", "apply", "submit"}                 # an answer about a role or a question
+NO = {"no", "n", "nope", "nah", "skip", "pass", "ignore"}
+CONFIRM_YES = YES | {"ok", "okay", "sure", "go", "confirm", "confirmed", "proceed"}   # an answer to "Confirm?"
+CONFIRM_NO = NO | {"cancel", "stop", "dont", "don't"}
 FILLER = {"it", "that", "please", "ahead", "do", "the", "this", "one", "to", "for", "role", "job", "and", "thanks", "thank", "you"}
+# Chit-chat is never turned into an answer: "ok", "thanks", "hello" while something is open are ignored.
+CHATTER = {"ok", "okay", "thanks", "thank", "you", "great", "cool", "hi", "hello", "hey", "got", "it", "nice", "good",
+           "noted", "again", "yes", "no", "sure", "fine", "alright", "right", "please"}
 GENERIC = {"chief", "officer", "director", "senior", "head", "vice", "president", "manager", "of", "the", "and", "for"}
 
 
@@ -63,14 +68,17 @@ def interpret(text: str):
 
     # 1. An answer to a pending confirmation ("yes" / "no")
     pending = confirmations.open_ones()
-    if pending and meaningful and all(w in YES | NO for w in meaningful) and not (set(meaningful) & YES and set(meaningful) & NO):
-        accept = bool(set(meaningful) & YES)
+    both = set(meaningful) & CONFIRM_YES and set(meaningful) & CONFIRM_NO
+    if pending and meaningful and all(w in CONFIRM_YES | CONFIRM_NO for w in meaningful) and not both:
+        accept = bool(set(meaningful) & CONFIRM_YES)
         if len(pending) == 1:
             return {"kind": "resolve", "id": pending[0]["id"], "accept": accept}
         return {"kind": "clarify", "message": "More than one confirmation is waiting. Tap Confirm or Cancel on the one you mean."}
 
     items = _open_items()
     if not items:
+        return None
+    if set(words) <= CHATTER and not (set(words) & {"yes", "no"}):    # "ok", "thanks", "hello": not an answer
         return None
     yes, no = bool(wset & YES), bool(wset & NO)
 

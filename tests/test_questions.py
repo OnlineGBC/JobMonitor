@@ -20,6 +20,7 @@ class BankCase(unittest.TestCase):
         self.bank.write_text("Standing answers\r\nLearned\r\n- How many years? → 15\r\n", encoding="utf-8", newline="")
         write_json(questions.FILE, [])
         write_json(tracker.FILE, [])
+        self.addCleanup(lambda: [write_json(f, []) for f in (questions.FILE, tracker.FILE, "outbox.json")])
         self.patch = mock.patch.object(answers, "ANSWER_BANK", self.bank)
         self.patch.start()
         self.addCleanup(self.patch.stop)

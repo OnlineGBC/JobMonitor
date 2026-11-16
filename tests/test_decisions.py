@@ -18,6 +18,8 @@ class Base(unittest.TestCase):
         for f, empty in ((decisions.FILE, []), (reporter.OUTBOX, []), (queue_tool.FILE, []),
                          (tracker.FILE, []), (ledger.FILE, {})):
             write_json(f, empty)
+        self.addCleanup(lambda: [write_json(f, e) for f, e in ((decisions.FILE, []), (reporter.OUTBOX, []),
+                                 (queue_tool.FILE, []), (tracker.FILE, []), (ledger.FILE, {}))])
         sched = mock.patch("agent.scheduler.run_soon", return_value=True)
         self.run_soon = sched.start()
         self.addCleanup(sched.stop)

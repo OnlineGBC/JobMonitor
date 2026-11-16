@@ -21,11 +21,19 @@ class Base(unittest.TestCase):
         for f, empty in ((decisions.FILE, []), (questions.FILE, []), (confirmations.FILE, []), (reporter.OUTBOX, []),
                          (queue_tool.FILE, []), (tracker.FILE, []), (ledger.FILE, {}), ("whatsapp_inbox.json", [])):
             write_json(f, empty)
+        self.addCleanup(self.wipe)
         bank = Path(tempfile.mkdtemp()) / "bank.txt"
         bank.write_text("Standing answers\n", encoding="utf-8")
         for p in (mock.patch.object(answers, "ANSWER_BANK", bank), mock.patch("agent.scheduler.run_soon", return_value=True)):
             p.start()
             self.addCleanup(p.stop)
+
+    @staticmethod
+    def wipe():
+        """Leave nothing open for other test modules (they share one data directory)."""
+        for f, empty in ((decisions.FILE, []), (questions.FILE, []), (confirmations.FILE, []), (reporter.OUTBOX, []),
+                         (queue_tool.FILE, []), (tracker.FILE, []), (ledger.FILE, {}), ("whatsapp_inbox.json", [])):
+            write_json(f, empty)
 
     def say(self, text, via="text"):
         """Raja sends one WhatsApp message (typed, or a tapped button when via='button')."""
@@ -97,6 +105,20 @@ class Decisions(Base):
         self.assertEqual(ledger.seen_outcomes(), {})
         self.say("confirm")
         self.assertEqual(set(ledger.seen_outcomes()), {"1", "2"})
+
+    def test_ok_and_thanks_are_never_turned_into_an_answer(self):
+        decisions.offer(job("1", "Director of AI", "Acme"))
+        for word in ("ok", "OK", "thanks", "thank you", "hello", "Ok again"):
+            self.say(word)
+        self.assertEqual(confirmations.open_ones(), [])
+        self.assertEqual(queue_tool.all_items(), [])
+        self.assertEqual(len(self.outbox()), 1)               # only the original offer
+
+    def test_ok_does_confirm_when_a_confirmation_is_waiting(self):
+        decisions.offer(job("1", "Director of AI", "Acme"))
+        self.say("apply")
+        self.say("ok")
+        self.assertEqual(len(queue_tool.all_items()), 1)
 
     def test_chatter_when_nothing_is_waiting_is_ignored(self):
         self.say("hello there")
