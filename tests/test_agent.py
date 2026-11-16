@@ -227,14 +227,21 @@ class Discovery(unittest.TestCase):
         for title in ("VP of AI", "Chief AI Officer", "CTO"):
             self.assertTrue(m(title, "spec") and m(title, "test"), title)   # the test profile only adds
 
-    def test_the_test_profile_adds_easy_apply_to_the_search_and_the_spec_profile_does_not(self):
-        self.assertNotIn("f_AL", self.d.build_search_url(1, "spec"))
-        self.assertIn("f_AL=true", self.d.build_search_url(1, "test"))
-        self.assertIn("Machine%20Learning", self.d.build_search_url(1, "test"))
-        self.assertNotIn("Machine%20Learning", self.d.build_search_url(1, "spec"))
-        for profile in ("spec", "test"):                      # everything else about the search is shared
-            u = self.d.build_search_url(1, profile)
-            for part in ("/jobs/search-results/", "f_TPR=r86400", "f_EA=true", "geoId=103644278"):
+    def test_the_test_profile_widens_the_pool_and_the_spec_profile_is_unchanged(self):
+        spec, test = self.d.build_search_url(1, "spec"), self.d.build_search_url(1, "test")
+        for part in ("f_TPR=r86400", "f_EA=true"):               # spec: past 24 hours, under 10 applicants
+            self.assertIn(part, spec)
+        self.assertNotIn("f_AL", spec)
+        self.assertIn("f_TPR=r604800", test)                      # test: past week
+        self.assertIn("f_AL=true", test)                          # test: Easy Apply
+        self.assertNotIn("f_EA", test)                            # test: no applicant limit
+        self.assertNotIn("f_TPR=r86400", test)
+        self.assertEqual(self.d.EXPECTED_FILTERS["spec"], {"past_24h": True, "under_10_applicants": True})
+        self.assertEqual(self.d.EXPECTED_FILTERS["test"], {"past_week": True, "under_10_applicants": False, "easy_apply": True})
+        self.assertIn("Machine%20Learning", test)
+        self.assertNotIn("Machine%20Learning", spec)
+        for u in (spec, test):                                # everything else about the search is shared
+            for part in ("/jobs/search-results/", "geoId=103644278"):
                 self.assertIn(part, u)
 
     def test_profile_is_saved_between_runs_and_rejects_nonsense(self):

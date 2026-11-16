@@ -223,11 +223,12 @@ class FilterPanel(unittest.TestCase):
     """discovery.FILTER_STATE_JS against a local copy of LinkedIn's 'Jobs filters' panel (right-hand side)."""
     PANEL = (
         '<div style="position:absolute;left:1100px;top:50px">'
-        '<label><input type="radio" name="d" checked>Past 24 hours</label>'
+        '<label><input type="radio" name="d" __DAY__>Past 24 hours</label>'
+        '<label><input type="radio" name="d" __WEEK__>Past week</label>'
         '<div><span>Easy Apply</span><input type="checkbox" role="switch" __EASY__></div>'
-        '<div><span>Under 10 applicants</span><input type="checkbox" role="switch" checked></div></div>')
+        '<div><span>Under 10 applicants</span><input type="checkbox" role="switch" __UNDER__></div></div>')
 
-    def read(self, easy):
+    def read(self, easy=True, week=False, under=True):
         try:
             from playwright.sync_api import sync_playwright
         except ImportError:
@@ -236,14 +237,31 @@ class FilterPanel(unittest.TestCase):
         with sync_playwright() as p:
             b = p.chromium.launch(headless=True)
             page = b.new_page(viewport={"width": 1500, "height": 800})
-            page.set_content(self.PANEL.replace("__EASY__", "checked" if easy else ""))
+            page.set_content(self.PANEL.replace("__EASY__", "checked" if easy else "")
+                             .replace("__WEEK__", "checked" if week else "").replace("__DAY__", "" if week else "checked")
+                             .replace("__UNDER__", "checked" if under else ""))
             state = page.evaluate(discovery.FILTER_STATE_JS)
             b.close()
         return state
 
-    def test_reads_the_three_controls(self):
-        self.assertEqual(self.read(True), {"past_24h": True, "under_10_applicants": True, "easy_apply": True})
-        self.assertEqual(self.read(False)["easy_apply"], False)
+    def test_reads_the_controls(self):
+        self.assertEqual(self.read(), {"past_24h": True, "past_week": False, "under_10_applicants": True, "easy_apply": True})
+        self.assertEqual(self.read(easy=False)["easy_apply"], False)
+        self.assertEqual(self.read(week=True, under=False),
+                         {"past_24h": False, "past_week": True, "under_10_applicants": False, "easy_apply": True})
+
+    def test_each_profile_accepts_only_its_own_panel(self):
+        """verify_filters turns the panel state into {control: matches the profile's expectation}."""
+        from agent import discovery
+
+        def verdict(profile, **panel):
+            state = self.read(**panel)
+            return {n: bool(state.get(n)) == want for n, want in discovery.EXPECTED_FILTERS[profile].items()}
+        self.assertTrue(all(verdict("spec").values()))                                          # 24h + under 10
+        self.assertTrue(all(verdict("test", week=True, under=False).values()))                 # week, no limit, easy apply
+        self.assertFalse(all(verdict("test", week=True, under=True).values()))                 # an applicant limit is left on
+        self.assertFalse(all(verdict("test", week=False, under=False).values()))               # still on 24 hours
+        self.assertFalse(all(verdict("test", week=True, under=False, easy=False).values()))    # Easy Apply is off
 
 
 class CloseForm(unittest.TestCase):

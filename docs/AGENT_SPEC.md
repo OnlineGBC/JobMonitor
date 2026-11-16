@@ -27,10 +27,14 @@ Core check: Sonnet. Form answers: Sonnet (Haiku was considered; Sonnet chosen be
 
 ### TEST-ONLY discovery profile (2026-11-16, temporary)
 To validate Easy Apply on more postings, Discovery has a second profile, `test`, selected with
-`python -m agent.discovery --set-profile test` (and back with `--set-profile spec`; `spec` is the default). It adds
-role words (Architect, Principal, Lead, Manager) and domain words (ML, Machine Learning, GenAI, Generative AI, LLM,
-Data Science, Data Scientist, Agentic) to the title rule, and restricts the search to Easy Apply. Everything else, including
-the gates, is unchanged. It is not the spec's search. Switch back to `spec` when testing is done.
+`python -m agent.discovery --set-profile test` (and back with `--set-profile spec`; `spec` is the default). Compared with the spec's search it:
+- adds role words (Architect, Principal, Lead, Manager) and domain words (ML, Machine Learning, GenAI, Generative AI, LLM,
+  Data Science, Data Scientist, Agentic) to the title rule;
+- restricts the search to **Easy Apply**;
+- widens the window from the past 24 hours to the **past week**, and **drops the "under 10 applicants" limit**;
+- reads up to 4 result pages per run instead of 2.
+Everything else, including the gates and "Remote only", is unchanged. The run stops without reading anything if LinkedIn's
+filter panel does not show exactly these settings. It is not the spec's search. Switch back to `spec` when testing is done.
 
 ## Step 2: Gate 1 (`criteria_gate.py`)
 Skip if: excluded company (exact name): Jobgether, Archer, Hackajob, Axial Search, Crossover, Get IT, Ethos, Talentify, DataAnnotation, Toptal, Stealth Stanford AI Startup, Lensa, Tempus, Harnham, Swooped (Ladders is eligible; RemoteJobsOne is a standing ban); title contains "partnerships" or "business development"; marketing/revenue/GTM title with no AI-type word; title contains "process intelligence" or "process mining"; equity-only terms; PhD/doctorate required (including "PhD or equivalent"; "preferred" does not block).

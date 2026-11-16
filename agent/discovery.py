@@ -33,6 +33,13 @@ TEST_LEADERSHIP = ['Architect', 'Principal', 'Lead', 'Manager']
 TEST_AI_WORDS = ['ML', 'Machine Learning', 'GenAI', 'Generative AI', 'LLM', 'Data Science', 'Data Scientist', 'Agentic']
 PROFILE_FILE = "discovery_profile.json"
 PROFILES = ("spec", "test")
+# What LinkedIn's filter panel must show for each profile (control -> should it be ON). The test profile wants
+# NO applicant limit and a week's window; if the panel disagrees, the run stops and reads nothing.
+EXPECTED_FILTERS = {
+    "spec": {"past_24h": True, "under_10_applicants": True},
+    "test": {"past_week": True, "under_10_applicants": False, "easy_apply": True},
+}
+TEST_MAX_PAGES = 4   # the wider pool is read deeper than the spec's 2 pages
 
 
 def current_profile() -> str:
@@ -62,17 +69,15 @@ def search_keywords(profile: str = None) -> str:
 def build_search_url(page: int = 1, profile: str = None) -> str:
     """Direct search-results URL in LinkedIn's current layout.
 
-    Only f_TPR (past 24 hours) and f_EA (under 10 applicants) survive in the URL, plus f_AL (Easy Apply) for the
-    test profile. Going straight to /jobs/search-results/ avoids the hidden salary filter (f_SAL) that the old
-    /jobs/search/ path redirects into. Remote and the title rule are enforced from each card, and the sort
-    option no longer exists in this layout.
+    Spec profile: f_TPR=r86400 (past 24 hours) and f_EA=true (under 10 applicants). Test profile: a wider pool,
+    f_TPR=r604800 (past week), NO applicant filter, and f_AL=true (Easy Apply). Going straight to
+    /jobs/search-results/ avoids the hidden salary filter (f_SAL) that the old /jobs/search/ path redirects into.
+    Remote and the title rule are enforced from each card, and the sort option no longer exists in this layout.
     """
     profile = profile or current_profile()
     url = ("https://www.linkedin.com/jobs/search-results/?"
-           f"keywords={quote(search_keywords(profile))}&geoId={US_GEO_ID}"
-           "&f_TPR=r86400&f_EA=true")
-    if profile == "test":
-        url += "&f_AL=true"
+           f"keywords={quote(search_keywords(profile))}&geoId={US_GEO_ID}")
+    url += "&f_TPR=r604800&f_AL=true" if profile == "test" else "&f_TPR=r86400&f_EA=true"
     return url + (f"&start={25 * (page - 1)}" if page > 1 else "")
 
 
@@ -217,7 +222,8 @@ FILTER_STATE_JS = r"""() => {
     }
     return null;
   };
-  return {past_24h: read('Past 24 hours'), under_10_applicants: read('Under 10 applicants'), easy_apply: read('Easy Apply')};
+  return {past_24h: read('Past 24 hours'), past_week: read('Past week'),
+          under_10_applicants: read('Under 10 applicants'), easy_apply: read('Easy Apply')};
 }"""
 
 POSTING_JS = r"""() => {
@@ -244,16 +250,14 @@ POSTING_JS = r"""() => {
 
 
 def verify_filters(page, profile: str = None) -> dict:
-    """Open 'All filters' and read the real controls. Remote is enforced per card (see run).
-    Easy Apply must be on only for the test profile; it is not part of the spec's search."""
+    """Open 'All filters' and read the real controls. Returns {control: matches what the profile expects}.
+    Remote is enforced per card (see run)."""
     page.get_by_text("All filters", exact=True).first.click()
     page.wait_for_timeout(2000)
     state = page.evaluate(FILTER_STATE_JS)
     page.keyboard.press("Escape")
     page.wait_for_timeout(500)
-    if (profile or current_profile()) != "test":
-        state.pop("easy_apply", None)
-    return {k: bool(v) for k, v in state.items()}
+    return {name: bool(state.get(name)) == want for name, want in EXPECTED_FILTERS[profile or current_profile()].items()}
 
 
 def read_detail(page, url: str) -> dict:
@@ -263,14 +267,16 @@ def read_detail(page, url: str) -> dict:
     return parse_posting(raw["tab"], raw["lines"], raw["desc"], raw.get("hiring"))
 
 
-def run(dry_run: bool = True, headed: bool = False, max_pages: int = 2, profile: str = None) -> list:
+def run(dry_run: bool = True, headed: bool = False, max_pages: int = None, profile: str = None) -> list:
     from playwright.sync_api import sync_playwright
 
     if not STATE.exists():
         sys.exit("No agent session. Run:  python manual_login.py agent")
     profile = profile or current_profile()
+    max_pages = max_pages or (TEST_MAX_PAGES if profile == "test" else 2)
     if profile == "test":
-        logging.warning("TEST PROFILE ACTIVE: wider title rule and Easy Apply only (not the spec's search)")
+        logging.warning("TEST PROFILE ACTIVE: wider title rule, Easy Apply only, past week, no applicant limit "
+                        "(not the spec's search)")
     results = []
 
     def record(card, action, why, detail=None):
