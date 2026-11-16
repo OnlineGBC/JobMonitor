@@ -33,3 +33,6 @@ AI safety written answer (standing template): "Keeping advanced AI systems under
 
 Learned from earlier applications (added automatically; edit or delete freely)
 - What is your level of proficiency in Chinese? → None
+- Have you led an enterprise-wide data and AI strategy for a company with annual revenues exceeding $5bn? → Yes
+- Have you led enterprise healthcare data integration involving HL7, FHIR, EHR, or EMR platforms? → Yes
+- Have you taken a look through our website/profile, and are you particularly interested in joining us to bring our vision to life? → Yes
