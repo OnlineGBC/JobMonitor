@@ -29,14 +29,47 @@ SOFTENERS = re.compile(
     re.I)
 
 
-def _phd_required(description: str) -> bool:
-    """True if a line mentions a PhD without softening it to preferred/optional.
+SOFT_HEADING = re.compile(
+    r"^(preferred|nice[- ]to[- ]have|bonus|desired|ideal|plus)\b|"
+    r"\b(preferred|desired|nice[- ]to[- ]have)\s+(qualifications|skills|experience|requirements)\b|"
+    r"^what (will )?(sets?|set) you apart|^additional (qualifications|skills)", re.I)
+HARD_HEADING = re.compile(
+    r"^((basic|minimum|required|key|core)\s+)?(qualifications|requirements)\b|"
+    r"^what you.?ll (need|bring)|^responsibilities|^about\b|^the role\b|^who you are", re.I)
+OR_LINE = re.compile(r"^[-*•\s]*or\b[:\s]*$|^[-*•\s]*or\s", re.I)
 
-    'PhD or equivalent' blocks. 'Master's or PhD' and 'PhD preferred' do not.
+
+def _is_heading(line: str, pattern) -> bool:
+    return len(line) < 80 and bool(pattern.search(line.strip(" :")))
+
+
+def _in_or_ladder(lines: list, i: int) -> bool:
+    """A doctorate listed as one tier of 'Doctorate OR Master's OR Bachelor's' is not required."""
+    near = [lines[k] for k in (i - 1, i + 1) if 0 <= k < len(lines)]
+    return any(OR_LINE.search(l) for l in near) or bool(re.search(r"[,;]\s*or\s*$", lines[i], re.I))
+
+
+def _phd_required(description: str) -> bool:
+    """True if a PhD/doctorate is a requirement.
+
+    Blocks: 'PhD required', 'PhD or equivalent', a PhD listed under qualifications.
+    Does not block: 'PhD preferred', a PhD under a Preferred/Nice-to-have heading, 'Master's or
+    PhD', or a doctorate that is one tier of an OR ladder with lower degrees.
     """
-    for line in re.split(r"[\n\r]+|(?<=[.;])\s", description):
-        if PHD.search(line) and not SOFTENERS.search(line):
-            return True
+    lines = [l.strip() for l in re.split(r"[\n\r]+", description) if l.strip()]
+    soft = False
+    for i, line in enumerate(lines):
+        if _is_heading(line, SOFT_HEADING):
+            soft = True
+            continue
+        if _is_heading(line, HARD_HEADING):
+            soft = False
+            continue
+        if soft or _in_or_ladder(lines, i):
+            continue
+        for sentence in re.split(r"(?<=[.;])\s", line):
+            if PHD.search(sentence) and not SOFTENERS.search(sentence):
+                return True
     return False
 
 

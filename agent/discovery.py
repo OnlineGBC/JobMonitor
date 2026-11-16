@@ -10,6 +10,7 @@ import argparse
 import logging
 import re
 import sys
+from collections import Counter
 from pathlib import Path
 from urllib.parse import quote
 
@@ -32,15 +33,73 @@ def search_keywords() -> str:
 
 
 def build_search_url(page: int = 1) -> str:
-    """US, Past 24 hours, Remote, Most recent. (Under-10-applicants is applied on screen.)"""
-    url = ("https://www.linkedin.com/jobs/search/?"
+    """Direct search-results URL in LinkedIn's current layout.
+
+    Only f_TPR (past 24 hours) and f_EA (under 10 applicants) survive in the URL. Going
+    straight to /jobs/search-results/ avoids the hidden salary filter (f_SAL) that the old
+    /jobs/search/ path redirects into. Remote and the title rule are enforced from each
+    card, and the sort option no longer exists in this layout.
+    """
+    url = ("https://www.linkedin.com/jobs/search-results/?"
            f"keywords={quote(search_keywords())}&geoId={US_GEO_ID}"
-           "&f_TPR=r86400&f_WT=2&sortBy=DD")
+           "&f_TPR=r86400&f_EA=true")
     return url + (f"&start={25 * (page - 1)}" if page > 1 else "")
 
 
 def _norm(s: str) -> str:
     return dup_gate.norm(s)
+
+
+def _word_re(words):
+    alt = "|".join(re.escape(w) for w in words)
+    return re.compile(rf"(?<![\w-])({alt})(?![\w-])", re.I)
+
+
+_LEAD, _AI, _TOP = _word_re(LEADERSHIP), _word_re(AI_WORDS), _word_re(TOP_OFFICER)
+
+
+def title_matches_search(title: str) -> bool:
+    """The spec's deterministic title rule. LinkedIn's search is now semantic, so enforce it here:
+    (leadership word AND AI word) OR a top-officer title on its own."""
+    return bool((_LEAD.search(title) and _AI.search(title)) or _TOP.search(title))
+
+
+_CARD_SUFFIX = re.compile(r"\s*\((Verified job|Promoted)\)$", re.I)
+
+
+def parse_card(job_id: str, lines: list) -> dict:
+    """Parse a result card's text lines: title (maybe repeated), company, 'Place (Workplace)'."""
+    lines = [l.strip() for l in lines if l.strip() and l.strip() != "�"]
+    title = _CARD_SUFFIX.sub("", lines[0]) if lines else ""
+    rest = [l for l in lines[1:] if _norm(_CARD_SUFFIX.sub("", l)) != _norm(title)]
+    location = rest[1] if len(rest) > 1 else ""
+    m = re.search(r"\((Remote|Hybrid|On-site)\)", location, re.I)
+    return {"job_id": str(job_id), "title": title, "company": rest[0] if rest else "",
+            "location": location, "workplace": m.group(1).title() if m else "",
+            "url": f"https://www.linkedin.com/jobs/view/{job_id}/"}
+
+
+def parse_posting(tab_title: str, lines: list, description: str) -> dict:
+    """Parse an opened posting page. tab_title is 'Title | Company | LinkedIn'."""
+    parts = [p.strip() for p in tab_title.split(" | ")]
+    ok = len(parts) >= 3 and parts[-1].lower() == "linkedin"
+    title, company = (" | ".join(parts[:-2]), parts[-2]) if ok else ("", "")
+    lines = [l.strip() for l in lines if l.strip()]
+    i = next((k for k, l in enumerate(lines) if l == title), 0)
+    j = next((k for k, l in enumerate(lines) if k > i and l.lower() == "about the job"),
+             min(len(lines), i + 12))
+    header = lines[i:j]
+    workplace = next((l for l in header if l in ("Remote", "Hybrid", "On-site")), "")
+    m = re.search(r"(over\s+[\d,]+|[\d,]+)\s+(applicants|people clicked apply)", " ".join(header), re.I)
+    full = " ".join(lines).lower()
+    poster = next((lines[k + 1] for k, l in enumerate(lines[:-1]) if l.lower() == "meet the hiring team"), None)
+    return {
+        "loaded": bool(ok and title and company), "title": title, "company": company,
+        "description": description,
+        "not_accepting": "no longer accepting applications" in full or "not currently accepting" in full,
+        "workplace": workplace, "applicants": m.group(0) if m else None,
+        "apply_type": "Easy Apply" if "Easy Apply" in header else "Apply", "poster": poster,
+    }
 
 
 def same_posting(card: dict, detail: dict) -> bool:
@@ -83,120 +142,126 @@ def decide(card: dict, detail: dict, judge=core_check.judge, tracker=None):
 
 
 # ---------------------------------------------------------------------------
-# Browser side. LinkedIn's markup changes often; selectors are best-effort and
-# anything that cannot be verified makes the run stop rather than guess.
+# Browser side. LinkedIn's markup changes often; anything that cannot be verified
+# makes the run stop rather than guess.
 # ---------------------------------------------------------------------------
 
-def job_id_from_url(url: str):
-    m = re.search(r"/jobs/view/(\d+)", url or "")
-    return m.group(1) if m else None
+CARDS_JS = r"""() => {
+  const seen = new Set(), out = [];
+  for (const c of document.querySelectorAll('[componentkey^="job-card-component-ref-"]')) {
+    const id = c.getAttribute('componentkey').split('-').pop();
+    if (seen.has(id)) continue;
+    seen.add(id);
+    out.push({id, lines: c.innerText.split('\n')});
+  }
+  return out;
+}"""
+
+FILTER_STATE_JS = r"""() => {
+  const read = name => {
+    for (const l of document.querySelectorAll('label,div,span,p')) {
+      if (!l.offsetParent || l.getBoundingClientRect().left < 1000 || (l.innerText || '').trim() !== name) continue;
+      let n = l;
+      for (let k = 0; k < 4 && n; k++, n = n.parentElement) {
+        const i = n.querySelector('input');
+        if (i) return i.checked;
+      }
+    }
+    return null;
+  };
+  return {past_24h: read('Past 24 hours'), under_10_applicants: read('Under 10 applicants')};
+}"""
+
+POSTING_JS = r"""() => {
+  const about = [...document.querySelectorAll('*')].find(
+      e => e.children.length === 0 && /^About the job$/i.test((e.innerText || '').trim()));
+  let desc = '';
+  if (about && about.parentElement && about.parentElement.parentElement) {
+    desc = about.parentElement.parentElement.innerText;
+    const cut = desc.search(/\n(About the company|Set alert for similar jobs|More jobs)\b/);
+    if (cut > 0) desc = desc.slice(0, cut);
+  }
+  return {tab: document.title, lines: document.body.innerText.split('\n'), desc};
+}"""
 
 
 def verify_filters(page) -> dict:
-    """The URL carries Past 24h / Remote / sort; the applicants filter must show as active."""
-    url = page.url
-    badges = {
-        "past_24h": "f_TPR=r86400" in url,
-        "remote": "f_WT=2" in url,
-        "sort_recent": "sortBy=DD" in url,
-        "under_10_applicants": False,
-    }
-    try:
-        badges["under_10_applicants"] = page.locator(
-            "button[aria-pressed='true'], button[aria-checked='true'], .artdeco-pill--selected"
-        ).filter(has_text=re.compile(r"under 10 applicants", re.I)).count() > 0
-    except Exception:
-        pass
-    return badges
-
-
-def apply_applicant_filter(page) -> None:
-    try:
-        btn = page.get_by_role("button", name=re.compile(r"under 10 applicants", re.I)).first
-        if btn.count():
-            btn.click()
-            page.wait_for_timeout(2500)
-    except Exception as e:
-        logging.warning(f"Could not click the applicants filter: {e}")
+    """Open 'All filters' and read the real controls. Remote is enforced per card (see run)."""
+    page.get_by_text("All filters", exact=True).first.click()
+    page.wait_for_timeout(2000)
+    state = page.evaluate(FILTER_STATE_JS)
+    page.keyboard.press("Escape")
+    page.wait_for_timeout(500)
+    return {k: bool(v) for k, v in state.items()}
 
 
 def read_detail(page, url: str) -> dict:
     page.goto(url, wait_until="domcontentloaded", timeout=45000)
-    page.wait_for_timeout(2500)
-    d = page.evaluate("""() => {
-        const t = s => { const e = document.querySelector(s); return e ? e.innerText.trim() : ''; };
-        const body = document.body.innerText;
-        return {
-          title: t('h1') || t('.job-details-jobs-unified-top-card__job-title'),
-          company: t('.job-details-jobs-unified-top-card__company-name') || t('.topcard__org-name-link'),
-          description: t('#job-details') || t('.jobs-description__content') || t('.description__text'),
-          body: body.slice(0, 6000),
-        };
-    }""")
-    body = d.pop("body", "")
-    low = body.lower()
-    d["loaded"] = bool(d["title"] and d["company"])
-    d["not_accepting"] = "no longer accepting applications" in low or "not currently accepting" in low
-    d["workplace"] = next((w for w in ("Remote", "Hybrid", "On-site") if re.search(rf"\b{w}\b", body)), "")
-    m = re.search(r"(over\s+\d+|\d+)\s+(applicants|people clicked apply)", body, re.I)
-    d["applicants"] = m.group(0) if m else None
-    d["apply_type"] = "Easy Apply" if "easy apply" in low else "Apply"
-    m = re.search(r"meet the hiring team\s*\n+\s*([^\n]+)", body, re.I)
-    d["poster"] = m.group(1).strip() if m else None
-    return d
+    page.wait_for_timeout(3000)
+    raw = page.evaluate(POSTING_JS)
+    return parse_posting(raw["tab"], raw["lines"], raw["desc"])
 
 
 def run(dry_run: bool = True, headed: bool = False, max_pages: int = 2) -> list:
     from playwright.sync_api import sync_playwright
-    from monitor import extract_job_listings
 
     if not STATE.exists():
         sys.exit("No agent session. Run:  python manual_login.py agent")
     results = []
+
+    def record(card, action, why, detail=None):
+        merged = {**card, **(detail or {})}
+        results.append((merged, action, why))
+        logging.info(f"[{card['job_id']}] {card['company']} | {card['title']} -> {action}: {why}")
+        if dry_run or action == "error":
+            return
+        if action == "queue":
+            ok, qwhy = queue_tool.add(merged)
+            ledger.add(card["job_id"], "queued" if ok else f"skipped: {qwhy}")
+        else:
+            ledger.add(card["job_id"], f"{action}: {why}")
+
     with sync_playwright() as p:
         browser = p.chromium.launch(headless=not headed)
         try:
             ctx = browser.new_context(storage_state=str(STATE), viewport={"width": 1920, "height": 1080})
             page = ctx.new_page()
-            cards, page_no = [], 1
-            while page_no <= max_pages:
+            cards = []
+            for page_no in range(1, max_pages + 1):
                 page.goto(build_search_url(page_no), wait_until="domcontentloaded", timeout=45000)
-                page.wait_for_timeout(3000)
+                page.wait_for_timeout(4000)
                 if "/login" in page.url or "authwall" in page.url:
                     sys.exit("LinkedIn session expired. Run:  python manual_login.py agent")
                 if page_no == 1:
-                    apply_applicant_filter(page)
-                badges = verify_filters(page)
-                if not all(badges.values()):
-                    logging.warning(f"Filter badges not all active: {badges}")
-                    if not badges["sort_recent"]:
-                        logging.warning("Sort will not hold; continuing with page 1 only")
-                    missing = [k for k, v in badges.items() if not v and k != "sort_recent"]
-                    if missing:
-                        sys.exit(f"Aborting: cannot verify filters {missing}. Nothing was read.")
-                page_cards = [{**c, "job_id": job_id_from_url(c["url"])} for c in extract_job_listings(page)]
-                fresh = ledger.new_ids(c["job_id"] for c in page_cards if c["job_id"])
-                cards += [c for c in page_cards if c["job_id"] in fresh]
-                if fresh or not badges["sort_recent"]:
+                    badges = verify_filters(page)
+                    logging.info(f"Filters: {badges}. Remote is enforced per card. Sort is not "
+                                 "available in LinkedIn's current layout; reading in its default order.")
+                    if not all(badges.values()):
+                        sys.exit(f"Aborting: filters not active {badges}. Nothing was read.")
+                raw = page.evaluate(CARDS_JS)
+                if not raw:
+                    sys.exit("Aborting: no job cards could be read from the results page.")
+                page_cards = [parse_card(c["id"], c["lines"]) for c in raw]
+                new = set(ledger.new_ids(c["job_id"] for c in page_cards))
+                cards += [c for c in page_cards if c["job_id"] in new]
+                if new:
                     break  # page 2 only when page 1 had nothing new
-                page_no += 1
 
             for card in cards:
+                if not title_matches_search(card["title"]):
+                    record(card, "skip", "title does not match the search rule")
+                    continue
+                if card["workplace"].lower() in ("hybrid", "on-site"):
+                    record(card, "held", f"workplace is {card['workplace']}")
+                    continue
+                # Remote, or the card is silent: open the posting. decide() makes the final call.
                 try:
                     detail = read_detail(page, card["url"])
                 except Exception as e:
                     results.append((card, "error", f"could not open: {e}"))
                     continue
                 action, why = decide(card, detail)
-                results.append(({**card, **detail}, action, why))
-                logging.info(f"[{card['job_id']}] {card['company']} | {card['title']} -> {action}: {why}")
-                if dry_run or action == "error":
-                    continue
-                if action == "queue":
-                    ok, qwhy = queue_tool.add({**card, **detail})
-                    ledger.add(card["job_id"], "queued" if ok else f"skipped: {qwhy}")
-                else:
-                    ledger.add(card["job_id"], f"{action}: {why}")
+                record(card, action, why, detail)
         finally:
             browser.close()
     return results
@@ -209,4 +274,5 @@ if __name__ == "__main__":
     a = ap.parse_args()
     logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
     out = run(dry_run=a.dry_run, headed=a.headed)
-    print(f"\n{len(out)} posting(s) processed" + (" (dry run, nothing written)" if a.dry_run else ""))
+    print(f"\n{len(out)} posting(s) processed" + (" (dry run, nothing written)" if a.dry_run else ""),
+          dict(Counter(a for _, a, _ in out)))

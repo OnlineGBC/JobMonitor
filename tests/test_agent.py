@@ -53,6 +53,18 @@ class Gate1(unittest.TestCase):
         self.assertTrue(self.ok(description="A doctorate is a plus."))
         self.assertTrue(self.ok(description="Master's or PhD in a related field."))
 
+    def test_phd_context(self):
+        amgen = ("Basic Qualifications:\nDoctorate degree and 4 years of relevant experience\nOr\n"
+                 "Master's degree and 6 years of relevant experience\nOr\nBachelor's degree and 8 years\n"
+                 "Preferred Qualifications:\nPhD in a relevant computational discipline.\n")
+        self.assertTrue(self.ok(description=amgen))
+        self.assertFalse(self.ok(description="Qualifications:\n- PhD in Computer Science"))
+        self.assertFalse(self.ok(description="Basic Qualifications:\nPhD in a quantitative field\n"
+                                             "Preferred Qualifications:\nCloud experience"))
+        self.assertTrue(self.ok(description="Nice to Have\nPhD in machine learning"))
+        # a hard heading after a soft one switches back to required
+        self.assertFalse(self.ok(description="Preferred Qualifications:\nMBA\nRequirements:\nPhD in AI"))
+
     def test_no_location_or_leadership_check(self):
         self.assertTrue(self.ok(title="Senior AI Engineer", workplace="On-site"))
 
@@ -148,12 +160,53 @@ class Discovery(unittest.TestCase):
 
     def test_url_and_keywords(self):
         u = self.d.build_search_url()
-        for part in ("f_TPR=r86400", "f_WT=2", "sortBy=DD", "geoId=103644278"):
+        for part in ("/jobs/search-results/", "f_TPR=r86400", "f_EA=true", "geoId=103644278"):
             self.assertIn(part, u)
+        # the old path redirects into a hidden salary filter; f_WT/sortBy are dropped by LinkedIn
+        for part in ("/jobs/search/?", "f_SAL", "f_WT", "sortBy"):
+            self.assertNotIn(part, u)
         self.assertIn("start=25", self.d.build_search_url(2))
         k = self.d.search_keywords()
         self.assertIn('title:"CAIO"', k)
         self.assertIn('title:"Artificial Intelligence"', k)
+
+    def test_title_rule(self):
+        m = self.d.title_matches_search
+        for t in ("VP of AI", "Director, Artificial Intelligence", "Head of AI & Data", "Chief AI Officer",
+                  "CTO", "Fractional CIO", "Chief Technology Officer", "SVP, Enterprise AI Platform"):
+            self.assertTrue(m(t), t)
+        for t in ("Director, Core Infrastructure Engineering", "Chief Data Strategy Officer",
+                  "Senior AI Engineer", "VP, Technology and Strategy",
+                  "Sr Dir Product - AI & Data Management"):
+            self.assertFalse(m(t), t)
+
+    def test_parse_card(self):
+        c = self.d.parse_card("4490254044", [
+            "Sr Dir Product - AI & Data Management (Verified job)", "Sr Dir Product - AI & Data Management",
+            "ACI Worldwide", "United States (Remote)", "3 school alumni work here", "Viewed", "\\ufffd",
+            "Be an early applicant"])
+        self.assertEqual((c["title"], c["company"], c["workplace"]),
+                         ("Sr Dir Product - AI & Data Management", "ACI Worldwide", "Remote"))
+        self.assertEqual(c["url"], "https://www.linkedin.com/jobs/view/4490254044/")
+        h = self.d.parse_card("1", ["Director, AI", "Director, AI", "Deloitte", "Greater Cleveland (Hybrid)"])
+        self.assertEqual((h["company"], h["workplace"]), ("Deloitte", "Hybrid"))
+
+    def test_parse_posting_from_real_page_layout(self):
+        lines = ["Skip to search", "OctaPulse-shi", "Chief Data Strategy Officer",
+                 "United States \\u00b7 54 minutes ago \\u00b7 4 applicants", "No response insights available yet",
+                 "Remote", "Full-time", "Easy Apply", "Save", "About the job", "Role Description ..."]
+        d = self.d.parse_posting("Chief Data Strategy Officer | OctaPulse-shi | LinkedIn", lines, "Role Description ...")
+        self.assertTrue(d["loaded"])
+        self.assertEqual((d["title"], d["company"], d["workplace"], d["apply_type"]),
+                         ("Chief Data Strategy Officer", "OctaPulse-shi", "Remote", "Easy Apply"))
+        self.assertIn("4 applicants", d["applicants"])
+        self.assertFalse(d["not_accepting"])
+        # a title containing ' | ' stays intact; a page that is not a posting is not 'loaded'
+        d2 = self.d.parse_posting("VP | AI | Acme | LinkedIn", ["VP | AI"], "")
+        self.assertEqual((d2["title"], d2["company"]), ("VP | AI", "Acme"))
+        self.assertFalse(self.d.parse_posting("LinkedIn Login", [], "")["loaded"])
+        closed = self.d.parse_posting("X | Y | LinkedIn", ["Y", "X", "No longer accepting applications"], "")
+        self.assertTrue(closed["not_accepting"])
 
     def test_pipeline(self):
         never = core_check.judge  # AI-word titles pass unjudged, so no API client is needed
