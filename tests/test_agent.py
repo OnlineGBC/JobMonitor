@@ -279,5 +279,61 @@ class Webhook(unittest.TestCase):
         self.assertEqual(read_json("whatsapp_inbox.json", []), [])
 
 
+class Gmail(unittest.TestCase):
+    def fake_service(self, sent):
+        import base64
+        outer = self
+
+        class Exec:
+            def __init__(self, v): self.v = v
+            def execute(self): return self.v
+
+        class Messages:
+            def send(self, userId, body):
+                sent.append(body)
+                return Exec({"id": "m1"})
+
+            def list(self, userId, q, maxResults):
+                outer.q = q
+                return Exec({"messages": [{"id": "a"}]})
+
+            def get(self, userId, id, format, metadataHeaders=None):
+                if format == "metadata":
+                    return Exec({"threadId": "t", "snippet": "hi", "payload": {"headers": [
+                        {"name": "Subject", "value": "APPROVE 7"}, {"name": "From", "value": "r@x.com"},
+                        {"name": "Date", "value": "today"}]}})
+                enc = base64.urlsafe_b64encode(b"line one").decode()
+                return Exec({"payload": {"mimeType": "multipart/alternative", "parts": [
+                    {"mimeType": "text/html", "body": {"data": base64.urlsafe_b64encode(b"<p>x</p>").decode()}},
+                    {"mimeType": "text/plain", "body": {"data": enc}}]}})
+
+        class Users:
+            def messages(self): return Messages()
+
+        class Svc:
+            def users(self): return Users()
+        return Svc()
+
+    def test_send_builds_message(self):
+        import base64
+        from email import message_from_bytes
+        from agent import gmail_client
+        sent = []
+        mid = gmail_client.send("Applied: VP AI", "Body text", to="raja@onlinegbc.com",
+                                service=self.fake_service(sent))
+        self.assertEqual(mid, "m1")
+        m = message_from_bytes(base64.urlsafe_b64decode(sent[0]["raw"]))
+        self.assertEqual((m["To"], m["Subject"]), ("raja@onlinegbc.com", "Applied: VP AI"))
+        self.assertIn("Body text", m.get_payload())
+
+    def test_search_and_text(self):
+        from agent import gmail_client
+        svc = self.fake_service([])
+        r = gmail_client.search("subject:APPROVE", service=svc)
+        self.assertEqual(self.q, "subject:APPROVE")
+        self.assertEqual((r[0]["subject"], r[0]["from"], r[0]["thread_id"]), ("APPROVE 7", "r@x.com", "t"))
+        self.assertEqual(gmail_client.get_text("a", service=svc), "line one")
+
+
 if __name__ == "__main__":
     unittest.main()
