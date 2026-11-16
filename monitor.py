@@ -383,11 +383,45 @@ def extract_job_listings(page) -> list:
             }
             return jobs;
         }""")
+        if not jobs:
+            jobs = extract_job_listings_new_layout(page)
         logging.info(f"Extracted {len(jobs)} job listings from page")
         return jobs
     except Exception as e:
         logging.warning(f"Could not extract job listings: {e}")
         return []
+
+
+_NEW_LAYOUT_CARDS_JS = """() => {
+    const seen = new Set(), out = [];
+    for (const c of document.querySelectorAll('[componentkey^="job-card-component-ref-"]')) {
+        const id = c.getAttribute('componentkey').split('-').pop();
+        if (seen.has(id)) continue;
+        seen.add(id);
+        out.push({id, lines: c.innerText.split('\\n'), text: c.innerText});
+    }
+    return out;
+}"""
+
+
+def extract_job_listings_new_layout(page) -> list:
+    """Read result cards in LinkedIn's newer /jobs/search-results/ layout (the old selectors find nothing there).
+
+    A card's text is: title (sometimes repeated), company, 'Place (Remote|Hybrid|On-site)', then extras.
+    """
+    suffix = re.compile(r"\s*\((Verified job|Promoted)\)$", re.I)
+    jobs = []
+    for card in page.evaluate(_NEW_LAYOUT_CARDS_JS):
+        lines = [l.strip() for l in card["lines"] if l.strip() and l.strip() != "�"]
+        if not lines:
+            continue
+        title = suffix.sub("", lines[0])
+        rest = [l for l in lines[1:] if suffix.sub("", l).strip().lower() != title.strip().lower()]
+        jobs.append({"title": title, "company": rest[0] if rest else "",
+                     "location": rest[1] if len(rest) > 1 else "",
+                     "url": f"https://www.linkedin.com/jobs/view/{card['id']}",
+                     "easy_apply": "easy apply" in card["text"].lower()})
+    return jobs
 
 
 def get_new_jobs(old_jobs: list, new_jobs: list) -> list:
