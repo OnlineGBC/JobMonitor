@@ -6,11 +6,10 @@ decide_answer() returns {"action", "value", "reason"} where action is one of:
   pause             - stop this application, mark AWAITING RAJA, report the question word for word
   skip_application  - a hard blocker: abandon the application entirely
 """
-import json
 import re
 from pathlib import Path
 
-from . import config
+from . import config, llm
 
 ANSWER_BANK = Path(__file__).resolve().parent.parent / "resumes" / "StandingAnswers.txt"
 SALARY_TARGET = 206000
@@ -164,7 +163,7 @@ def decide_answer(question: dict, bank: str = None, client=None, model: str = No
             messages=[{"role": "user", "content": PROMPT.format(
                 bank=bank if bank is not None else load_bank(), label=label, qtype=qtype,
                 options=options or "(free entry)")}])
-        data = json.loads(re.search(r"\{.*\}", resp.content[0].text, re.S).group(0))
+        data = llm.json_object(resp)
         action, value = data.get("action"), data.get("value")
         reason = str(data.get("reason", ""))
     except Exception as e:

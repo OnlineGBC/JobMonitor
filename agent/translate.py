@@ -5,9 +5,8 @@ string is seen, Haiku translates it; the answer is saved in data/agent/translati
 forever, so each string costs one API call at most.
 """
 import json
-import re
 
-from . import config
+from . import config, llm
 from .store import locked, read_json, write_json
 
 FILE = "translations.json"
@@ -36,7 +35,7 @@ def translate(strings, client=None, model: str = None) -> dict:
             resp = client.messages.create(
                 model=model or config.TRANSLATE_MODEL, max_tokens=1500,
                 messages=[{"role": "user", "content": PROMPT.format(strings=json.dumps(missing, ensure_ascii=False))}])
-            data = json.loads(re.search(r"\{.*\}", resp.content[0].text, re.S).group(0))
+            data = llm.json_object(resp)
             fresh = {s: str(data[s]).strip() for s in missing if isinstance(data.get(s), str) and data[s].strip()}
             if fresh:
                 with locked("translations"):

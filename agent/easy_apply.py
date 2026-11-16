@@ -252,6 +252,8 @@ def main():
             page = ctx.new_page()
             detail = discovery.read_detail(page, url)
             print("Posting:", detail["company"], "|", detail["title"])
+            if detail["not_accepting"]:
+                sys.exit("This posting is no longer accepting applications. Nothing was opened.")
             open_easy_apply(page, url)
             try:
                 result = run_form(page, detail["title"])

@@ -2,10 +2,9 @@
 
 Runs only when the title carries none of the core words; such a title passes unjudged.
 """
-import json
 import re
 
-from . import config
+from . import config, llm
 
 CORE_TITLE = re.compile(
     r"\b(ai|artificial intelligence|genai|generative ai|machine learning|ml|llm|"
@@ -55,8 +54,7 @@ def judge(posting: dict, client=None, model: str = None):
                 title=posting.get("title", ""), company=posting.get("company", ""),
                 description=desc[:12000])}],
         )
-        text = resp.content[0].text
-        data = json.loads(re.search(r"\{.*\}", text, re.S).group(0))
+        data = llm.json_object(resp)
         return bool(data["core"]), str(data.get("reason", ""))
     except Exception as e:
         raise CoreCheckError(str(e)) from e

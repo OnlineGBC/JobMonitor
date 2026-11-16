@@ -91,5 +91,35 @@ class Learning(unittest.TestCase):
         self.assertFalse(ok("Anything", ""))
 
 
+class ThinkingBlocks(unittest.TestCase):
+    """The model may return a thinking block before its text; every caller must cope."""
+
+    def reply(self, text):
+        think = SimpleNamespace(type="thinking", thinking="hmm")  # no .text attribute at all
+        out = SimpleNamespace(type="text", text=text)
+        create = lambda **kw: SimpleNamespace(content=[think, out])
+        return SimpleNamespace(messages=SimpleNamespace(create=create))
+
+    def test_llm_helper(self):
+        from agent import llm
+        r = SimpleNamespace(content=[SimpleNamespace(type="thinking"), SimpleNamespace(type="text", text='x {"a": 1} y')])
+        self.assertEqual(llm.json_object(r), {"a": 1})
+        with self.assertRaises(ValueError):
+            llm.text_of(SimpleNamespace(content=[SimpleNamespace(type="thinking")]))
+
+    def test_all_three_callers(self):
+        from agent import core_check
+        write_json("translations.json", {})
+        c = self.reply('{"Ja": "Yes"}')
+        self.assertEqual(translate.translate(["Ja"], client=c), {"Ja": "Yes"})
+        r = answers.decide_answer({"label": "Authorized to work?", "type": "text", "required": True,
+                                   "options": ["Yes", "No"]}, bank="Always Yes",
+                                  client=self.reply('{"action": "answer", "value": "Yes", "reason": "bank"}'))
+        self.assertEqual((r["action"], r["value"]), ("answer", "Yes"))
+        ok, why = core_check.judge({"title": "Chief Technology Officer", "company": "X", "description": "Lead ML platform"},
+                                   client=self.reply('{"core": true, "reason": "ml"}'))
+        self.assertTrue(ok)
+
+
 if __name__ == "__main__":
     unittest.main()
