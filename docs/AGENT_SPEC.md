@@ -1,6 +1,6 @@
 # Job Agent Spec
 
-Branch: `main-agent`. Reporting and approvals go to **both chat and Gmail**. The Reporter has two channels: email (Gmail API, built first) and chat via **WhatsApp (Meta WhatsApp Cloud API; no Twilio)**. Sender is Meta's test number; Raja's number is the verified recipient. Inbound replies arrive at a webhook route in the Flask app (`jobmonitor.onlinegbc.com`).
+Branch: `main-agenticAI`. Reporting and approvals go to **both chat and Gmail**. The Reporter has two channels: email (Gmail API, built first) and chat via **WhatsApp (Meta WhatsApp Cloud API; no Twilio)**. Sender is Meta's test number; Raja's number is the verified recipient. Inbound replies arrive at a webhook route in the Flask app (`jobmonitor.onlinegbc.com`).
 
 ## Mission
 Find and apply to AI leadership roles for Raja Gopalan (VP / Director / Chief level) on LinkedIn and employer sites, fully autonomously under the rules below. Execute orders as given; where no order covers a choice, ask and wait.
