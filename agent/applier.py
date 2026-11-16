@@ -39,14 +39,7 @@ def _offer_outreach(item: dict, detail: dict) -> None:
     if not (poster and url) or outreach.find("invite", url, item["job_id"]):
         return
     d = outreach.create("invite", item["job_id"], poster, url, item["company"], item["title"])
-    reporter.enqueue(
-        "draft", f"Outreach draft {d['id']}: invite to {poster} at {item['company']}",
-        f"The job poster for {item['title']} at {item['company']} is {poster}:\n{url}\n\n"
-        f"Invite note ({len(d['text'])} characters), exactly as it would be sent:\n\n{d['text']}\n\n"
-        f"Reply APPROVE {d['id']} to send it as shown, APPROVE {d['id']} followed by your own text to send "
-        f"that instead, or REJECT {d['id']}.\n"
-        f"Approve only after you have submitted the application: the sender checks that LinkedIn shows "
-        f"you applied and waits if it does not.")
+    outreach.announce(d)
 
 
 def _link(item) -> str:

@@ -56,6 +56,14 @@ def button_role(english_text: str) -> str:
     t = english_text.strip().lower()
     if "submit" in t:
         return "submit"
+    if "without" in t and "send" in t:
+        return "send_without_note"  # never clicked: an invite always carries Raja's approved note
+    if t in ("send", "send invitation", "send now", "send invite"):
+        return "send"
+    if t.startswith("add a note"):
+        return "add_note"
+    if t in ("close", "dismiss", "cancel", "x"):
+        return "close"
     if t.startswith("review"):
         return "review"
     if t in ("next", "continue", "next step", "continue to next step"):

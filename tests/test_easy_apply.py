@@ -51,7 +51,8 @@ class Translation(unittest.TestCase):
         self.assertEqual(role("Upload resume"), "upload")
         self.assertEqual(role("Discard"), "discard")
         self.assertEqual(role("Save"), "save")
-        self.assertEqual(role("Dismiss"), "other")  # unknown buttons are never clicked
+        self.assertEqual(role("Dismiss"), "close")
+        self.assertEqual(role("Archive"), "other")  # unknown buttons are never clicked
         self.assertEqual(role("Weiter"), "other")   # untranslated text is never mistaken for Next
 
 

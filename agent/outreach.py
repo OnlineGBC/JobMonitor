@@ -19,7 +19,7 @@ MEETING_LINE = "I would love to discuss next steps."
 SIGNOFF = "Thank you, Raja"
 INVITE_LIMIT = 300
 MESSAGE_LIMIT = 1500
-STATUSES = {"DRAFT", "APPROVED", "SENT", "REJECTED", "FAILED"}
+STATUSES = {"DRAFT", "APPROVED", "SENT", "REJECTED", "FAILED", "UNSETTLED"}  # UNSETTLED: maybe sent, never retried
 
 _DASHES = re.compile(r"[—–]")
 _THANKS = re.compile(r"\bthanks\b", re.I)  # not 'thank': "thank you" is required
@@ -91,7 +91,8 @@ def _now():
     return datetime.now(timezone.utc).isoformat(timespec="microseconds")  # fine enough to order same-second approvals
 
 
-def create(kind: str, job_id: str, poster: str, poster_url: str, company: str, title: str, text: str = None) -> dict:
+def create(kind: str, job_id: str, poster: str, poster_url: str, company: str, title: str, text: str = None,
+           requires_applied: bool = True) -> dict:
     """Create a DRAFT (kind 'invite' or 'message'). One draft per (kind, poster, job): a repeat returns the old one."""
     if kind not in ("invite", "message"):
         raise ValueError("kind must be 'invite' or 'message'")
@@ -107,10 +108,26 @@ def create(kind: str, job_id: str, poster: str, poster_url: str, company: str, t
             return same
         item = {"id": uuid.uuid4().hex[:8], "kind": kind, "job_id": str(job_id), "poster": poster,
                 "poster_url": poster_url, "company": company, "title": title, "text": text,
-                "status": "DRAFT", "created": _now(), "approved": None, "sent": None, "attempts": 0, "error": None}
+                "status": "DRAFT", "created": _now(), "approved": None, "sent": None, "attempts": 0, "error": None,
+                # True: the sender sends only once LinkedIn shows the job as Applied (the note says "I applied")
+                "requires_applied": requires_applied}
         items.append(item)
         write_json(FILE, items)
         return item
+
+
+def announce(d: dict) -> None:
+    """Show Raja a draft word for word and tell him how to answer. Nothing is sent by this."""
+    from . import reporter
+    gate = ("Approve only after you have submitted the application: the sender checks that LinkedIn shows "
+            "you applied and waits if it does not." if d.get("requires_applied", True) else
+            "This draft is not tied to an application, so it will be sent as soon as you approve it.")
+    reporter.enqueue(
+        "draft", f"Outreach draft {d['id']}: {d['kind']} to {d['poster']} at {d['company']}",
+        f"{d['poster']} ({d['title']} at {d['company']}):\n{d['poster_url']}\n\n"
+        f"{d['kind'].title()} ({len(d['text'])} characters), exactly as it would be sent:\n\n{d['text']}\n\n"
+        f"Reply APPROVE {d['id']} to send it as shown, APPROVE {d['id']} followed by your own text to send "
+        f"that instead, or REJECT {d['id']}.\n{gate}")
 
 
 def find(kind: str, poster_url: str, job_id: str):
@@ -207,3 +224,38 @@ def mark_accepted(poster_url: str, job_id: str) -> None:
             if x["poster_url"] == poster_url and x["job_id"] == str(job_id):
                 x["accepted"] = True
         write_json(WATCH, w)
+
+
+def main(argv=None) -> int:
+    """Create a draft by hand, e.g. for a first test. Nothing is sent; Raja approves it like any other.
+
+        python -m agent.outreach draft --url URL --name "Full Name" --company Acme --title "VP of AI"
+               [--text "exact note"] [--no-applied-check]
+    """
+    import argparse
+    ap = argparse.ArgumentParser()
+    sub = ap.add_subparsers(dest="cmd", required=True)
+    d = sub.add_parser("draft")
+    d.add_argument("--url", required=True)
+    d.add_argument("--name", required=True)
+    d.add_argument("--company", required=True)
+    d.add_argument("--title", required=True)
+    d.add_argument("--text")
+    d.add_argument("--no-applied-check", action="store_true", help="send once approved, without waiting for 'Applied'")
+    sub.add_parser("list")
+    a = ap.parse_args(argv)
+    if a.cmd == "list":
+        for i in all_items():
+            print(f"{i['id']}  {i['status']:<9} {i['kind']:<7} {i['poster']} ({i['company']})")
+        return 0
+    item = create("invite", "manual-" + uuid.uuid4().hex[:6], a.name, a.url, a.company, a.title, a.text,
+                  requires_applied=not a.no_applied_check)
+    announce(item)
+    print(f"Draft {item['id']} created and queued for your approval. Nothing is sent until you approve it.")
+    print("Text:\n" + item["text"])
+    return 0
+
+
+if __name__ == "__main__":
+    import sys
+    sys.exit(main())
