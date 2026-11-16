@@ -119,6 +119,12 @@ def valid_signature(body: bytes, header: str) -> bool:
 
 def parse_inbound(payload: dict) -> list:
     """Return [(sender_number, text)] from a webhook payload; only Raja's number is accepted."""
+    return [(sender, text) for sender, text, _via in parse_inbound_events(payload)]
+
+
+def parse_inbound_events(payload: dict) -> list:
+    """Like parse_inbound, but [(sender_number, text, via)] where via is 'button' for a tapped button or list
+    row and 'text' for a typed message."""
     mine = (vault.get("wa_recipient") or "").lstrip("+")
     out = []
     for entry in payload.get("entry", []):
@@ -129,7 +135,7 @@ def parse_inbound(payload: dict) -> list:
                 if m.get("type") == "interactive":   # a tapped button: its id IS the command we attached to it
                     tap = (m.get("interactive") or {})
                     reply = tap.get("button_reply") or tap.get("list_reply") or {}
-                    out.append((m["from"], str(reply.get("id", "")).strip()))
+                    out.append((m["from"], str(reply.get("id", "")).strip(), "button"))
                 else:
-                    out.append((m["from"], (m.get("text", {}) or {}).get("body", "").strip()))
+                    out.append((m["from"], (m.get("text", {}) or {}).get("body", "").strip(), "text"))
     return out

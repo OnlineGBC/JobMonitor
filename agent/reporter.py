@@ -36,7 +36,7 @@ def ny_now() -> str:
 
 
 def enqueue(kind: str, subject: str, body: str, needs_action: bool = False, buttons: list = None,
-            wa_text: str = None, wa_prompt: str = None) -> str:
+            wa_text: str = None, wa_prompt: str = None, email: bool = True) -> str:
     """Queue a report. `buttons` [(id, title)] make the WhatsApp copy tappable; the email is unchanged.
     `wa_text` replaces the WhatsApp text (it must carry everything Raja is asked to approve, word for word);
     `wa_prompt` is the short line shown with the buttons if that text is too long for one message."""
@@ -46,7 +46,7 @@ def enqueue(kind: str, subject: str, body: str, needs_action: bool = False, butt
         subject = f"{subject} — updates needed"
     event = {"id": uuid.uuid4().hex[:8], "kind": kind, "subject": subject,
              "body": f"{body}\n\nNew York time: {ny_now()}",
-             "email_sent": False, "whatsapp": "pending", "attempts": 0}
+             "email_sent": not email, "whatsapp": "pending", "attempts": 0}   # email=False: WhatsApp only
     if buttons:
         whatsapp.check_buttons(wa_prompt or "x", [tuple(b) for b in buttons])   # refuse impossible buttons now
         event.update(buttons=[list(b) for b in buttons], wa_text=wa_text, wa_prompt=wa_prompt)
@@ -84,8 +84,8 @@ def process(send_email=gmail_client.send, send_whatsapp=whatsapp.send_text, send
                     e["whatsapp"] = "failed"
                     logging.error(f"WhatsApp for event {e['id']} failed: {ex}")
         # keep recent history, drop what is fully delivered and old
-        write_json(OUTBOX, [e for e in items if not e["email_sent"]] +
-                   [e for e in items if e["email_sent"]][-100:])
+        write_json(OUTBOX, [e for e in items if not e["email_sent"] or e["whatsapp"] == "pending"] +
+                   [e for e in items if e["email_sent"] and e["whatsapp"] != "pending"][-100:])
     return stats
 
 

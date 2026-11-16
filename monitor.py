@@ -557,8 +557,9 @@ def agent_status(job: dict) -> tuple:
         for jid in job.get("job_ids") or []:
             outcome = seen.get(jid, {}).get("outcome")
             if outcome and not outcome.startswith("queued"):
-                return False, f"the agent will not apply: {outcome.split(': ', 1)[-1]}"
-        return False, "passed to the agent; it will be checked on its next discovery run"
+                return False, (f"the agent's own rules would skip it ({outcome.split(': ', 1)[-1]}); "
+                               "you can still choose Apply on WhatsApp")
+        return False, "sent to your WhatsApp: tap Apply or Skip"
     except Exception as e:
         if job.get("applied"):
             return True, "LinkedIn shows you have already applied"
@@ -613,6 +614,34 @@ def format_jobs_for_email(new_jobs: list) -> str:
         for i, job in enumerate(other, 1):
             out += _job_lines(i, job)
     return "\n".join(out)
+
+
+def offer_easy_apply_decisions(new_jobs: list) -> int:
+    """Send each Easy Apply role you have not applied for to WhatsApp with tappable Apply / Skip buttons.
+
+    WhatsApp only (this email already lists them). Roles the agent has dropped for good (Hybrid / On-site, an
+    excluded company) are not offered; roles its title or criteria rules would skip ARE offered, marked as such,
+    because the choice is yours. At most 8 per email; the rest stay in the email.
+    """
+    try:
+        from agent import decisions, ledger
+        seen = ledger.seen_outcomes()
+        sent = 0
+        for job in collapse_jobs(new_jobs):
+            if not job.get("easy_apply") or job.get("applied"):
+                continue
+            outcome = next((seen[i]["outcome"] for i in job["job_ids"] if i in seen), "") or ""
+            if outcome.startswith("dropped") or "excluded company" in outcome:
+                continue
+            note = f"(The agent's own rules would skip this: {outcome.split(': ', 1)[-1]})" if outcome.startswith("skip") else ""
+            if sent >= decisions.MAX_OFFERS_PER_EMAIL:
+                break
+            if decisions.offer(job, note):
+                sent += 1
+        return sent
+    except Exception as e:
+        logging.warning(f"Could not send Easy Apply roles to WhatsApp: {e}")
+        return 0
 
 
 def hand_easy_apply_jobs_to_agent(new_jobs: list) -> int:
@@ -1633,13 +1662,15 @@ def process_monitor(
 
                 job_digest = ""
                 if new_jobs:
-                    if not dry_run:
-                        hand_easy_apply_jobs_to_agent(new_jobs)
                     try:
                         new_jobs = summarize_jobs_with_ai(new_jobs)
                         job_digest = format_jobs_for_email(new_jobs) + "\n"
                     except Exception as e:
                         logging.warning(f"[{name}] AI summarization failed: {e}")
+                    if not dry_run:
+                        offered = offer_easy_apply_decisions(new_jobs)
+                        if offered:
+                            logging.info(f"[{name}] Sent {offered} Easy Apply role(s) to WhatsApp for a decision")
 
                 body = (
                     f"{job_digest}"

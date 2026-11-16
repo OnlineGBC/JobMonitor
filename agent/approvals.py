@@ -12,13 +12,13 @@ import logging
 import re
 from datetime import datetime
 
-from . import config, gmail_client, outreach, queue_tool, questions, reporter, tracker
+from . import config, gmail_client, confirmations, decisions, interpret, outreach, queue_tool, questions, reporter, tracker
 from .store import locked, read_json, write_json
 
 SEEN = "approvals_seen.json"
 INBOX = "whatsapp_inbox.json"
 
-_CMD = re.compile(r"^\s*(approve|reject|answer)\s+([0-9a-f]{8})\b[ \t:,.-]*(.*)$", re.I | re.S)
+_CMD = re.compile(r"^\s*(approve|reject|answer|decide|confirm|cancel)\s+([0-9a-f]{8})\b[ \t:,.-]*(.*)$", re.I | re.S)
 _PENDING = re.compile(r"^\s*pending\s*[.!]?\s*$", re.I)
 _QUOTE_START = re.compile(r"^(>|On .{5,120} wrote:\s*$|-{2,}\s*Original Message|From: .+@|Sent from my\b|--\s*$)", re.I)
 
@@ -65,6 +65,10 @@ def apply(cmd: dict) -> str:
         return outreach.approve(cmd["id"], cmd["text"])[1]
     if cmd["action"] == "REJECT":
         return outreach.reject(cmd["id"])[1]
+    if cmd["action"] in ("CONFIRM", "CANCEL"):
+        return confirmations.resolve(cmd["id"], cmd["action"] == "CONFIRM", lambda c: apply(parse(c)))
+    if cmd["action"] == "DECIDE":
+        return decisions.decide(cmd["id"], cmd["text"] or "")[1]
     if cmd["action"] == "ANSWER":
         return questions.answer(cmd["id"], cmd["text"] or "")[1]
     return pending_digest()
@@ -74,6 +78,51 @@ def _answer(cmd: dict, source: str) -> None:
     message = apply(cmd)
     logging.info(f"{source}: {cmd['action']} {cmd.get('id') or ''} -> {message.splitlines()[0]}")
     reporter.enqueue("notice", f"{cmd['action'].title()}: {cmd.get('id') or 'pending list'}", message)
+
+
+_PLAIN = {"yes", "no", "y", "n", "skip", "apply"}
+
+
+def needs_confirm(cmd: dict) -> bool:
+    """A TYPED answer carrying free text is confirmed first (it becomes a permanent standing answer). Yes / No /
+    Skip / Apply, and an exact one of a question's choices, are clear enough to act on."""
+    if cmd["action"] != "ANSWER":
+        return False
+    value = (cmd["text"] or "").strip()
+    q = questions.get(cmd["id"])
+    if not value or value.lower() in _PLAIN:
+        return False
+    return not (q and any(o.lower() == value.lower() for o in q.get("options") or []))
+
+
+def handle_reply(text: str, via: str, source: str) -> bool:
+    """One reply from Raja. A tapped button (via='button') acts at once. A typed command acts at once unless it
+    carries free text. Anything else is interpreted and echoed back for confirmation. True if it was handled."""
+    cmd = parse(text)
+    if cmd:
+        if via != "button" and needs_confirm(cmd):
+            confirmations.propose([f"ANSWER {cmd['id']} {cmd['text']}"], _describe_answer(cmd), source)
+            return True
+        _answer(cmd, source)
+        return True
+    result = interpret.interpret(text)
+    if result is None:
+        return False
+    if result["kind"] == "resolve":
+        _answer({"action": "CONFIRM" if result["accept"] else "CANCEL", "id": result["id"], "text": None}, source)
+    elif result["kind"] == "propose":
+        confirmations.propose(result["commands"], result["description"], source)
+    else:
+        reporter.enqueue("notice", "Which one?", result["message"], email=(source == "gmail"))
+    return True
+
+
+def _describe_answer(cmd: dict) -> str:
+    q = questions.get(cmd["id"])
+    if q is None:
+        return f"Answer '{cmd['text']}' (question {cmd['id']})"
+    return (f"Answer '{cmd['text']}' to: {q['question']}\n"
+            f"({q['title']} at {q['company']}), then finish the application.")
 
 
 def process_whatsapp() -> int:
@@ -86,9 +135,7 @@ def process_whatsapp() -> int:
         write_json(INBOX, inbox)
     n = 0
     for m in todo:
-        cmd = parse(m["text"])
-        if cmd:
-            _answer(cmd, "whatsapp")
+        if m["text"] and handle_reply(m["text"], m.get("via", "text"), "whatsapp"):
             n += 1
     return n
 
@@ -109,9 +156,7 @@ def process_gmail(search=gmail_client.search, get_text=gmail_client.get_text, li
         seen.add(msg["id"])
         if not _sender_ok(msg.get("from", "")):
             continue
-        cmd = parse(get_text(msg["id"]))
-        if cmd:
-            _answer(cmd, "gmail")
+        if handle_reply(get_text(msg["id"]), "text", "gmail"):
             n += 1
     with locked("approvals_seen"):
         write_json(SEEN, sorted(seen)[-500:])

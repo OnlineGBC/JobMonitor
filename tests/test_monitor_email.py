@@ -87,7 +87,7 @@ class Sections(unittest.TestCase):
         self.assertIn("Queued Role", pending)
         self.assertIn("queued", pending)
         self.assertIn("Rejected Role", pending)
-        self.assertIn("will not apply: title does not match", pending)
+        self.assertIn("rules would skip it (title does not match", pending)
         self.assertIn("Site Role", other)
         self.assertNotIn("Site Role", applied + pending)
 

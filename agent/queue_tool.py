@@ -30,14 +30,15 @@ def _live_claim(item) -> bool:
     return age < timedelta(minutes=config.CLAIM_STALE_MINUTES)
 
 
-def add(posting: dict):
+def add(posting: dict, forced: bool = False):
     """Queue a passing posting. Returns (queued, reason).
 
     Only Remote postings are queued. Hybrid, On-site and unknown workplaces are dropped.
     A queue twin (same company + title) is dropped at once.
+    `forced` is for a role Raja himself chose to apply for: it skips only the Remote rule.
     """
     workplace = (posting.get("workplace") or "").strip().lower()
-    if workplace != "remote":
+    if workplace != "remote" and not forced:
         return False, f"dropped: workplace is {posting.get('workplace') or 'unknown'}"
     with locked("queue"):
         items = read_json(FILE, [])
