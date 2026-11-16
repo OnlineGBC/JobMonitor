@@ -11,7 +11,7 @@ Exit codes follow the scheduler's convention: 0 = ok (including 'nothing to do')
 import logging
 import sys
 
-from . import dup_gate, next_number, queue_tool, reporter, resumes, tracker
+from . import dup_gate, next_number, outreach, queue_tool, reporter, resumes, tracker
 
 MAX_ATTEMPTS = 3
 AWAITING, DO_NOT_ATTEMPT = "AWAITING RAJA", "DO NOT ATTEMPT"
@@ -28,6 +28,25 @@ def _book_and_report(item, number, kind, subject, body, note, resume):
                  resume=resume, note=note)
     queue_tool.set_status(item["job_id"], AWAITING)
     reporter.enqueue(kind, subject, body, needs_action=True)
+
+
+def _offer_outreach(item: dict, detail: dict) -> None:
+    """If the posting names a job poster, draft an invite and ask Raja to approve the exact text.
+
+    Nothing is sent here. Only the person tagged 'Job poster' gets a draft, never other team members.
+    """
+    poster, url = detail.get("poster"), detail.get("poster_url")
+    if not (poster and url) or outreach.find("invite", url, item["job_id"]):
+        return
+    d = outreach.create("invite", item["job_id"], poster, url, item["company"], item["title"])
+    reporter.enqueue(
+        "draft", f"Outreach draft {d['id']}: invite to {poster} at {item['company']}",
+        f"The job poster for {item['title']} at {item['company']} is {poster}:\n{url}\n\n"
+        f"Invite note ({len(d['text'])} characters), exactly as it would be sent:\n\n{d['text']}\n\n"
+        f"Reply APPROVE {d['id']} to send it as shown, APPROVE {d['id']} followed by your own text to send "
+        f"that instead, or REJECT {d['id']}.\n"
+        f"Approve only after you have submitted the application: the sender checks that LinkedIn shows "
+        f"you applied and waits if it does not.")
 
 
 def _link(item) -> str:
@@ -95,6 +114,7 @@ def process_item(item: dict, ops) -> str:
                 f"The form is filled to the review page and saved as a draft on LinkedIn.\n"
                 f"Open it, check it, and click Submit yourself:\n{_link(item)}\n\nWhat was filled:\n{steps}{tail}",
                 "filled to the review page; draft saved on LinkedIn", resume or "")
+            _offer_outreach(item, detail)
             return "ready: draft saved"
         _book_and_report(
             item, number, "question", f"#{number} Needs your answer: {title} at {company}",

@@ -50,7 +50,7 @@ def add(posting: dict, force: bool = False):
             "workplace": posting.get("workplace", ""),
             "applicants": posting.get("applicants"),
             "apply_type": posting.get("apply_type", ""),
-            "poster": posting.get("poster"),
+            "poster": posting.get("poster"), "poster_url": posting.get("poster_url"),
             "note": NOTE, "status": QUEUED,
             "queued_at": _now().isoformat(), "claimed_at": None, "claim_id": None,
         })

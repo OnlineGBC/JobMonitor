@@ -79,7 +79,24 @@ def parse_card(job_id: str, lines: list) -> dict:
             "url": f"https://www.linkedin.com/jobs/view/{job_id}/"}
 
 
-def parse_posting(tab_title: str, lines: list, description: str) -> dict:
+_PERSON = re.compile(r"^(.*?)\s*[·•�]\s*(1st|2nd|3rd\+?)\b", re.I)
+
+
+def parse_person(text: str, href: str) -> dict:
+    """One person from 'Meet the hiring team': 'Name · 3rd Headline Job poster'."""
+    m = _PERSON.match(text)
+    name = (m.group(1) if m else re.split(r"\s+[·•�]\s+", text)[0]).strip()
+    return {"name": name, "url": href, "degree": m.group(2).lower() if m else "",
+            "job_poster": "job poster" in text.lower()}
+
+
+def job_poster(hiring) -> dict:
+    """The person tagged 'Job poster' (other team members are ignored), or None."""
+    people = [parse_person(h["text"], h["href"]) for h in hiring or [] if h.get("href")]
+    return next((p for p in people if p["job_poster"] and p["name"]), None)
+
+
+def parse_posting(tab_title: str, lines: list, description: str, hiring: list = None) -> dict:
     """Parse an opened posting page. tab_title is 'Title | Company | LinkedIn'."""
     parts = [p.strip() for p in tab_title.split(" | ")]
     ok = len(parts) >= 3 and parts[-1].lower() == "linkedin"
@@ -92,14 +109,16 @@ def parse_posting(tab_title: str, lines: list, description: str) -> dict:
     workplace = next((l for l in header if l in ("Remote", "Hybrid", "On-site")), "")
     m = re.search(r"(over\s+[\d,]+|[\d,]+)\s+(applicants|people clicked apply)", " ".join(header), re.I)
     full = " ".join(lines).lower()
-    poster = next((lines[k + 1] for k, l in enumerate(lines[:-1]) if l.lower() == "meet the hiring team"), None)
+    jp = job_poster(hiring)
     return {
         "loaded": bool(ok and title and company), "title": title, "company": company,
         "description": description,
         "not_accepting": "no longer accepting applications" in full or "not currently accepting" in full,
         "already_applied": any(re.match(r"applied\b", l, re.I) or "application submitted" in l.lower() for l in header),
         "workplace": workplace, "applicants": m.group(0) if m else None,
-        "apply_type": "Easy Apply" if "Easy Apply" in header else "Apply", "poster": poster,
+        "apply_type": "Easy Apply" if "Easy Apply" in header else "Apply",
+        "poster": jp["name"] if jp else None, "poster_url": jp["url"] if jp else None,
+        "poster_degree": jp["degree"] if jp else "",
     }
 
 
@@ -182,7 +201,17 @@ POSTING_JS = r"""() => {
     const cut = desc.search(/\n(About the company|Set alert for similar jobs|More jobs)\b/);
     if (cut > 0) desc = desc.slice(0, cut);
   }
-  return {tab: document.title, lines: document.body.innerText.split('\n'), desc};
+  // "Meet the hiring team": the people listed there, each a link to a /in/ profile
+  const hh = [...document.querySelectorAll('h1,h2,h3,h4,p,span,div')].find(
+      e => e.children.length === 0 && /^meet the hiring team$/i.test((e.innerText || '').trim()));
+  let hiring = [];
+  if (hh) {
+    let box = hh;
+    for (let k = 0; k < 6 && box.parentElement && !box.querySelector('a[href*="/in/"]'); k++) box = box.parentElement;
+    hiring = [...box.querySelectorAll('a[href*="/in/"]')].map(a => ({
+      href: a.href.split('?')[0], text: (a.innerText || '').trim().replace(/\s+/g, ' ')}));
+  }
+  return {tab: document.title, lines: document.body.innerText.split('\n'), desc, hiring};
 }"""
 
 
@@ -200,7 +229,7 @@ def read_detail(page, url: str) -> dict:
     page.goto(url, wait_until="domcontentloaded", timeout=45000)
     page.wait_for_timeout(3000)
     raw = page.evaluate(POSTING_JS)
-    return parse_posting(raw["tab"], raw["lines"], raw["desc"])
+    return parse_posting(raw["tab"], raw["lines"], raw["desc"], raw.get("hiring"))
 
 
 def run(dry_run: bool = True, headed: bool = False, max_pages: int = 2) -> list:

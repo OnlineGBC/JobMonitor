@@ -26,6 +26,7 @@ REPORTABLE = {
     "needs_you",  # sign-in, code, approval: he must step in
     "cap",        # a run hit the 60-minute cap
     "digest",     # pending list
+    "notice",     # acknowledgement of a command Raja sent (approved, rejected, not valid, pending list)
 }
 MAX_ATTEMPTS = 10
 

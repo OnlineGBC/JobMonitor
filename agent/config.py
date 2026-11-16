@@ -16,3 +16,6 @@ TRANSLATE_MODEL = os.environ.get("AGENT_TRANSLATE_MODEL", "claude-haiku-5-5")
 
 # A claimed posting is treated as abandoned after this long.
 CLAIM_STALE_MINUTES = 70
+
+# Replies from these addresses may approve outreach. Anything else is ignored.
+APPROVER_EMAILS = {"raja@onlinegbc.com", "rgopalan@onlinegbc.com"}
