@@ -33,6 +33,41 @@ def load_bank() -> str:
     return ANSWER_BANK.read_text(encoding="utf-8")
 
 
+LEARNED_HEADING = "Learned from earlier applications (added automatically; edit or delete freely)"
+
+
+def learn(label: str, value: str, path: Path = None) -> bool:
+    """Record an answer you gave in an earlier application as a standing answer.
+
+    Appended under a marked section of StandingAnswers.txt. Returns False if the question is already
+    recorded there. The explicit rules and the answers above that section always take priority.
+    """
+    path = path or ANSWER_BANK
+    key = re.sub(r"\W+", " ", label.lower()).strip()
+    with open(path, encoding="utf-8", newline="") as f:  # newline="": keep the file's own line endings
+        text = f.read()
+    if any(re.sub(r"\W+", " ", line.lower()).strip().startswith(key)
+           for line in text.splitlines() if "→" in line):
+        return False
+    nl = "\r\n" if "\r\n" in text else "\n"
+    if LEARNED_HEADING not in text:
+        text = text.rstrip() + nl + nl + LEARNED_HEADING + nl
+    elif not text.endswith(nl):
+        text += nl
+    with open(path, "w", encoding="utf-8", newline="") as f:
+        f.write(text + f"- {label.strip()} → {value.strip()}" + nl)
+    return True
+
+
+def acceptable_earlier_answer(label: str, value: str) -> bool:
+    """An earlier answer may fill a gap only if it passes the same safety rules as a model answer."""
+    if not value or BANNED_SCHOOLS.search(value):
+        return False
+    if YEARS_Q.search(label) and re.fullmatch(r"0+(\.0+)?(\s*years?)?", value.strip().lower()):
+        return False
+    return not (RISK_OR_FINANCIAL.search(label) or SALARY_Q.search(label))
+
+
 def _pause(reason: str) -> dict:
     return {"action": "pause", "value": None, "reason": reason}
 
