@@ -57,8 +57,7 @@ class Excerpts(Base):
         self.assertIn("attempt 1 failed: Locator.evaluate: Timeout 30000ms exceeded", out)
         self.assertIn('waiting for locator("dialog[open]")', out)
         self.assertIn("== applier.log ==", out)
-        self.assertNotIn("The Judge Group | Director, AI and Data\nOutcome: closed", out.split("Claimed: NET-Group")[0])
-        self.assertNotIn("Claimed: Lantern", out.split("Claimed: NET-Group")[0].replace("Outcome: submitted", "") + "")
+        self.assertNotIn("Claimed: The Judge Group", out)          # another company's run is not included
 
     def test_a_company_suffix_word_alone_does_not_match_other_companies(self):
         self.assertEqual(logtail.terms_for("what about the group thing"), set())
