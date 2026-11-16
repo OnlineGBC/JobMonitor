@@ -42,6 +42,7 @@ from flask import (
 
 import auth
 from agent import webhook as agent_webhook
+from agent.scheduler import AgentScheduler
 
 # ruamel.yaml preserves comments when editing monitors.yaml
 from ruamel.yaml import YAML
@@ -1135,6 +1136,11 @@ def main():
             logging.info("Scheduler started automatically with the web UI")
     else:
         logging.info("SCHEDULER_AUTOSTART is off - the scheduler must be started manually")
+
+    # The agent's own scheduler. Every process starts paused; nothing runs until it is
+    # enabled with `python -m agent.scheduler enable <name>`. Set AGENT_SCHEDULER=0 to skip it.
+    if os.getenv("AGENT_SCHEDULER", "1").strip() not in ("0", "false", "False", ""):
+        AgentScheduler().start()
 
     if PUBLIC_URL:
         logging.info(f"Public mode: behind a proxy at {PUBLIC_URL} - cookies marked Secure")

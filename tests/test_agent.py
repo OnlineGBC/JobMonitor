@@ -391,5 +391,83 @@ class Reporter(unittest.TestCase):
         self.assertTrue(self.r.keepalive(lambda: True))
 
 
+class Scheduler(unittest.TestCase):
+    def setUp(self):
+        from agent import scheduler, reporter
+        self.s, self.rep = scheduler, reporter
+        write_json("control.json", {})
+        write_json("outbox.json", [])
+        self.calls = []
+        self.t = 1_000_000.0
+        # no real sends in tests
+        self._p, self._k = reporter.process, reporter.keepalive
+        reporter.process = lambda *a, **k: {}
+        reporter.keepalive = lambda *a, **k: False
+
+    def tearDown(self):
+        self.rep.process, self.rep.keepalive = self._p, self._k
+
+    def sched(self, result=(0, False)):
+        def launcher(module, cap, log):
+            self.calls.append(module)
+            return result
+        return self.s.AgentScheduler(clock=lambda: self.t, launcher=launcher)
+
+    def test_everything_paused_by_default(self):
+        sch = self.sched()
+        self.assertEqual(sch.tick(sync=True), [])
+        self.assertTrue(all(not v["enabled"] for v in self.s.load_state().values()))
+
+    def test_unbuilt_process_cannot_be_enabled(self):
+        with self.assertRaises(ValueError):
+            self.s.set_enabled("applier", True)
+        with self.assertRaises(ValueError):
+            self.s.set_enabled("nope", True)
+
+    def test_runs_when_due_then_waits_for_interval(self):
+        self.s.set_enabled("discovery", True)
+        sch = self.sched()
+        self.assertEqual(sch.tick(sync=True), ["discovery"])
+        self.t += 300
+        self.assertEqual(sch.tick(sync=True), [])
+        self.t += 301
+        self.assertEqual(sch.tick(sync=True), ["discovery"])
+        self.assertEqual(self.calls, ["agent.discovery"] * 2)
+
+    def test_disable_stops_runs(self):
+        self.s.set_enabled("discovery", True)
+        self.s.set_enabled("discovery", False)
+        self.assertEqual(self.sched().tick(sync=True), [])
+
+    def test_cap_is_reported(self):
+        self.s.set_enabled("discovery", True)
+        self.sched(result=(None, True)).tick(sync=True)
+        ev = read_json("outbox.json", [])
+        self.assertEqual(ev[0]["kind"], "cap")
+        self.assertIn("60-minute cap", ev[0]["subject"])
+        self.assertIn("Started:", ev[0]["body"])
+
+    def test_login_alert_once_until_success(self):
+        self.s.set_enabled("discovery", True)
+        sch = self.sched(result=(10, False))
+        sch.tick(sync=True)
+        self.t += 601
+        sch.tick(sync=True)
+        self.assertEqual(len(read_json("outbox.json", [])), 1)
+        sch.launcher = lambda m, c, l: (0, False)
+        self.t += 601
+        sch.tick(sync=True)
+        sch.launcher = lambda m, c, l: (10, False)
+        self.t += 601
+        sch.tick(sync=True)
+        self.assertEqual(len(read_json("outbox.json", [])), 2)
+
+    def test_cli(self):
+        self.assertEqual(self.s.main(["enable", "discovery"]), 0)
+        self.assertTrue(self.s.load_state()["discovery"]["enabled"])
+        self.assertEqual(self.s.main(["enable", "applier"]), 1)
+        self.assertEqual(self.s.main(["status"]), 0)
+
+
 if __name__ == "__main__":
     unittest.main()
