@@ -93,6 +93,18 @@ def set_status(job_id: str, status: str) -> bool:
     return False
 
 
+def bump_attempts(job_id: str) -> int:
+    """Count a failed attempt on a posting and return the new total."""
+    with locked("queue"):
+        items = read_json(FILE, [])
+        for i in items:
+            if i["job_id"] == str(job_id):
+                i["attempts"] = i.get("attempts", 0) + 1
+                write_json(FILE, items)
+                return i["attempts"]
+    return 0
+
+
 def remove(job_id: str) -> None:
     with locked("queue"):
         write_json(FILE, [i for i in read_json(FILE, []) if i["job_id"] != str(job_id)])

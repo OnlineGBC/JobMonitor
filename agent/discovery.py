@@ -97,6 +97,7 @@ def parse_posting(tab_title: str, lines: list, description: str) -> dict:
         "loaded": bool(ok and title and company), "title": title, "company": company,
         "description": description,
         "not_accepting": "no longer accepting applications" in full or "not currently accepting" in full,
+        "already_applied": any(re.match(r"applied\b", l, re.I) or "application submitted" in l.lower() for l in header),
         "workplace": workplace, "applicants": m.group(0) if m else None,
         "apply_type": "Easy Apply" if "Easy Apply" in header else "Apply", "poster": poster,
     }

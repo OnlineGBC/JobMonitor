@@ -473,7 +473,7 @@ class Scheduler(unittest.TestCase):
 
     def test_unbuilt_process_cannot_be_enabled(self):
         with self.assertRaises(ValueError):
-            self.s.set_enabled("applier", True)
+            self.s.set_enabled("sender", True)
         with self.assertRaises(ValueError):
             self.s.set_enabled("nope", True)
 
@@ -518,7 +518,7 @@ class Scheduler(unittest.TestCase):
     def test_cli(self):
         self.assertEqual(self.s.main(["enable", "discovery"]), 0)
         self.assertTrue(self.s.load_state()["discovery"]["enabled"])
-        self.assertEqual(self.s.main(["enable", "applier"]), 1)
+        self.assertEqual(self.s.main(["enable", "sender"]), 1)
         self.assertEqual(self.s.main(["status"]), 0)
 
 
