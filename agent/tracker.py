@@ -13,12 +13,12 @@ STATUSES = {"SUBMITTED", "AWAITING RAJA", "DO NOT ATTEMPT"}
 
 
 def book(number: int, company: str, title: str, job_id: str, status: str, url: str = "",
-         resume: str = "", note: str = "") -> dict:
+         resume: str = "", note: str = "", extra: dict = None) -> dict:
     if status not in STATUSES:
         raise ValueError(f"unknown status '{status}'")
     row = {"number": number, "company": company, "title": title, "job_id": str(job_id),
            "status": status, "url": url, "resume": resume, "note": note,
-           "booked": datetime.now(NY).isoformat(timespec="seconds")}
+           "booked": datetime.now(NY).isoformat(timespec="seconds"), **(extra or {})}
     with locked("tracker"):
         rows = read_json(FILE, [])
         if any(r["number"] == number for r in rows):

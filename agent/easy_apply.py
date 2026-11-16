@@ -329,7 +329,11 @@ def submit_application(page, company: str, submit_label: str) -> dict:
     for _ in range(48):                                   # up to 12 s
         page.wait_for_timeout(250)
         evidence = _dlg(page).inner_text() if page.locator("dialog[open]").count() else ""
-        if SUCCESS.search(evidence) or not evidence:
+        if not evidence:                                   # the dialog closed: the confirmation may be a page toast
+            toast = SUCCESS.search(page.inner_text("body"))
+            evidence = toast.group(0) if toast else ""
+            break
+        if SUCCESS.search(evidence):
             break
     confirmed = bool(SUCCESS.search(evidence))
     for _ in range(3):                                    # dismiss the success dialog if there is one

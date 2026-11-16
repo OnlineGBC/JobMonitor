@@ -109,6 +109,12 @@ class SubmitStep(unittest.TestCase):
                 easy_apply.submit_application(page, company, "Submit application")
         page.close()
 
+    def test_a_confirmation_toast_on_the_page_counts_when_the_dialog_just_closes(self):
+        outcome, error, log, _ = self.run_case(
+            after="closeDlg(); document.body.insertAdjacentHTML('beforeend', '<div>Application sent</div>');")
+        self.assertEqual((outcome["clicked"], outcome["confirmed"]), (True, True))
+        self.assertEqual(log, ["SUBMITTED"])
+
     def test_a_click_with_no_confirmation_text_is_reported_unconfirmed_not_confirmed(self):
         outcome, error, log, _ = self.run_case(after="closeDlg();")      # dialog simply vanishes, no 'sent' text
         self.assertEqual((outcome["clicked"], outcome["confirmed"]), (True, False))

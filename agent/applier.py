@@ -12,6 +12,19 @@ import logging
 import sys
 
 from . import dup_gate, next_number, outreach, queue_tool, reconcile, reporter, resumes, tracker
+from .store import read_json, write_json
+
+MODE_FILE = "applier_mode.json"
+
+
+def submit_mode() -> bool:
+    """True when the applier submits applications itself (set by Raja on 2026-11-16). The default, with no
+    setting saved, is the cautious one: fill the form, save a draft, and stop for him."""
+    return bool(read_json(MODE_FILE, {}).get("submit", False))
+
+
+def set_submit_mode(on: bool) -> None:
+    write_json(MODE_FILE, {"submit": bool(on)})
 
 MAX_ATTEMPTS = 3
 AWAITING, DO_NOT_ATTEMPT = "AWAITING RAJA", "DO NOT ATTEMPT"
@@ -81,8 +94,9 @@ def process_item(item: dict, ops) -> str:
             return "paused: company site"
 
         ops.open_form(_link(item))
+        auto = submit_mode()
         try:
-            result = ops.fill(title)
+            result = ops.fill(title, company=company, submit=auto)
         except Exception:
             ops.close(save=False)
             raise
@@ -91,6 +105,17 @@ def process_item(item: dict, ops) -> str:
             ops.close(save=False)
             queue_tool.set_status(jid, DO_NOT_ATTEMPT)
             return f"skipped: {result['reason']}"  # skips are never reported
+
+        if result["status"] == "submitted":
+            # Submit was clicked. It is NOT reported as applied yet: only LinkedIn's own records (the Applied tab
+            # AND the posting page) settle it, which agent.reconcile does and then sends the report.
+            number = next_number.reserve()
+            tracker.book(number, company, title, jid, AWAITING, url=_link(item), resume=resume or "",
+                         note="submitted by the agent; waiting for LinkedIn's confirmation (the reconcile step settles it)",
+                         extra={"agent_submitted": True})
+            queue_tool.set_status(jid, AWAITING)
+            _offer_outreach(item, detail)
+            return "submitted: waiting for LinkedIn's confirmation"
 
         saved = ops.close(save=True)
         if saved != "save":
@@ -109,6 +134,14 @@ def process_item(item: dict, ops) -> str:
                 "filled to the review page; draft saved on LinkedIn", resume or "")
             _offer_outreach(item, detail)
             return "ready: draft saved"
+        if not result.get("question") and "refused to submit" in result["reason"]:
+            _book_and_report(
+                item, number, "needs_you", f"#{number} Could not submit: {title} at {company}",
+                f"The form was filled, but a safety check stopped the agent from clicking Submit, so nothing was "
+                f"sent.\n\nWhy: {result['reason']}\nThe draft is saved on LinkedIn; you can submit it yourself:\n"
+                f"{_link(item)}\n\nWhat was filled:\n{steps}{tail}",
+                f"paused: {result['reason']}", resume or "")
+            return "paused: submit refused"
         _book_and_report(
             item, number, "question", f"#{number} Needs your answer: {title} at {company}",
             f"The application stopped at a question it must not guess.\n\nQuestion (word for word):\n"
@@ -149,19 +182,29 @@ class LinkedInOps:
         from . import easy_apply
         easy_apply.open_easy_apply(self.page, url)
 
-    def fill(self, title):
+    def fill(self, title, company=None, submit=False):
         from . import easy_apply
-        return easy_apply.run_form(self.page, title)
+        return easy_apply.run_form(self.page, title, allow_submit=submit, company=company)
 
     def close(self, save):
         from . import easy_apply
         return easy_apply.close_form(self.page, save=save)
 
 
-def main() -> int:
+def main(argv=None) -> int:
+    import argparse
+    import time
     from playwright.sync_api import sync_playwright
     from . import discovery
 
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--set-submit", choices=("on", "off"),
+                    help="on: the applier submits applications itself. off: it saves a draft and stops for Raja.")
+    a = ap.parse_args(argv)
+    if a.set_submit:
+        set_submit_mode(a.set_submit == "on")
+        print(f"Automatic submission is now {a.set_submit.upper()}.")
+        return 0
     logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
     try:
         if reconcile.run() == 10:        # notice applications that were submitted since the last run
@@ -188,6 +231,13 @@ def main() -> int:
         finally:
             browser.close()
     print("Outcome:", outcome)
+    if outcome.startswith("submitted"):
+        time.sleep(10)                    # give LinkedIn a moment, then confirm on its own records right away
+        try:
+            if reconcile.run() == 10:
+                return 10
+        except Exception as e:
+            logging.error(f"Reconcile after submit failed (the next run will retry): {e}")
     return 0
 
 

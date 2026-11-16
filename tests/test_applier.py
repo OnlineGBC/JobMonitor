@@ -29,8 +29,9 @@ class FakeOps:
         if self.open_error:
             raise self.open_error
 
-    def fill(self, title):
+    def fill(self, title, company=None, submit=False):
         self.calls.append("fill")
+        self.fill_args = {"company": company, "submit": submit}
         return self._fill
 
     def close(self, save):
@@ -137,7 +138,7 @@ class ApplierTests(unittest.TestCase):
 
     def test_a_crash_while_filling_discards_the_open_form(self):
         class Crashing(FakeOps):
-            def fill(self, title):
+            def fill(self, title, company=None, submit=False):
                 self.calls.append("fill")
                 raise RuntimeError("selector vanished")
         ops = Crashing()
@@ -157,6 +158,108 @@ class ApplierTests(unittest.TestCase):
         with self.assertRaises(applier.LoginNeeded):
             applier.process_item(self.item, Expired())
         self.assertEqual(self.status(), "QUEUED")
+
+
+class AutoSubmit(unittest.TestCase):
+    """The applier's automatic-submission mode. The default (nothing saved) is the cautious draft-and-stop."""
+
+    def setUp(self):
+        for f in ("pending_survivors.json", "tracker.json", "outbox.json", "outreach.json"):
+            write_json(f, [])
+        write_json("applier_mode.json", {})
+        next_number.set_next(1)
+        queue_tool.add({"job_id": "42", "title": "VP of AI", "company": "Acme", "workplace": "Remote"})
+        self.item = queue_tool.claim()
+        self.addCleanup(lambda: write_json("applier_mode.json", {}))
+
+    def outbox(self):
+        return read_json("outbox.json", [])
+
+    def test_the_default_is_draft_and_stop_and_the_mode_is_saved_between_runs(self):
+        self.assertFalse(applier.submit_mode())
+        applier.set_submit_mode(True)
+        self.assertTrue(applier.submit_mode())
+        applier.set_submit_mode(False)
+        self.assertFalse(applier.submit_mode())
+        self.assertEqual(applier.main(["--set-submit", "on"]), 0)
+        self.assertTrue(applier.submit_mode())
+        applier.main(["--set-submit", "off"])
+        self.assertFalse(applier.submit_mode())
+
+    def test_with_the_mode_off_the_form_is_filled_with_submit_disabled(self):
+        ops = FakeOps()
+        applier.process_item(self.item, ops)
+        self.assertEqual(ops.fill_args, {"company": "Acme", "submit": False})
+        self.assertEqual(self.outbox()[0]["kind"], "paused")               # the old 'Ready to submit' report
+
+    def test_with_the_mode_on_a_submitted_application_waits_for_linkedin_to_settle_it(self):
+        applier.set_submit_mode(True)
+        ops = FakeOps(fill={"status": "submitted", "reason": "sent", "confirmed": False, "steps": [], "learned": []},
+                      detail={"poster": "Cody Rice", "poster_url": "https://www.linkedin.com/in/codyarice/"})
+        out = applier.process_item(self.item, ops)
+        self.assertEqual(ops.fill_args, {"company": "Acme", "submit": True})
+        self.assertEqual(out, "submitted: waiting for LinkedIn's confirmation")
+        row = tracker.rows()[0]
+        self.assertEqual((row["status"], row["agent_submitted"]), ("AWAITING RAJA", True))   # not SUBMITTED until LinkedIn says so
+        self.assertIn("waiting for LinkedIn", row["note"])
+        self.assertNotIn("close(save=True)", ops.calls)                    # the dialog is already closed; nothing to save
+        self.assertNotIn("close(save=False)", ops.calls)
+        self.assertEqual([e["kind"] for e in self.outbox()], ["draft"])    # no 'applied' report from the applier itself;
+        self.assertEqual(outreach_item_kinds(), ["invite"])                # only the outreach draft for the job poster
+
+    def test_a_refused_submit_is_reported_as_could_not_submit_and_the_draft_is_kept(self):
+        applier.set_submit_mode(True)
+        ops = FakeOps(fill={"status": "paused", "reason": "refused to submit: the dialog does not name Acme",
+                            "question": None, "steps": ["page 1/2: nothing to fill"], "learned": []})
+        self.assertEqual(applier.process_item(self.item, ops), "paused: submit refused")
+        (ev,) = self.outbox()
+        self.assertEqual(ev["kind"], "needs_you")
+        self.assertIn("Could not submit", ev["subject"])
+        self.assertIn("nothing was sent", ev["body"])
+        self.assertIn("close(save=True)", ops.calls)                       # the draft is kept
+        self.assertEqual(tracker.rows()[0]["status"], "AWAITING RAJA")
+
+    def test_questions_and_hard_blockers_still_stop_it_in_auto_mode(self):
+        applier.set_submit_mode(True)
+        ops = FakeOps(fill={"status": "paused", "reason": "no basis", "question": "Do you hold a CISSP?", "steps": [], "learned": []})
+        self.assertEqual(applier.process_item(self.item, ops), "paused: question")
+        self.assertEqual(self.outbox()[0]["kind"], "question")
+        write_json("pending_survivors.json", [])
+        queue_tool.add({"job_id": "43", "title": "VP of AI", "company": "Beta", "workplace": "Remote"})
+        item2 = queue_tool.claim()
+        ops2 = FakeOps(fill={"status": "skipped", "reason": "risk appetite", "question": "q", "steps": [], "learned": []})
+        self.assertTrue(applier.process_item(item2, ops2).startswith("skipped"))
+        self.assertEqual(len(tracker.rows()), 1)                           # a skip books nothing
+
+
+def outreach_item_kinds():
+    from agent import outreach
+    return [i["kind"] for i in outreach.all_items()]
+
+
+class AgentSubmittedReminder(unittest.TestCase):
+    def setUp(self):
+        write_json("tracker.json", [])
+        write_json("outbox.json", [])
+
+    def test_an_unconfirmed_agent_submission_gets_its_own_one_time_message(self):
+        from datetime import datetime, timedelta
+        from agent import reconcile, reporter
+        tracker.book(1, "Acme", "VP of AI", "9", "AWAITING RAJA", url="u", extra={"agent_submitted": True})
+        later = datetime.now(reporter.NY) + timedelta(minutes=61)
+        reconcile.process(set(), lambda j: True, now=later)
+        reconcile.process(set(), lambda j: True, now=later + timedelta(hours=2))
+        (ev,) = read_json("outbox.json", [])
+        self.assertIn("could not be confirmed on LinkedIn", ev["subject"])
+        self.assertIn("may not have gone through", ev["body"])
+        self.assertNotIn("prepared", ev["body"])                           # not the 'waiting for you' wording
+
+    def test_a_confirmed_agent_submission_is_settled_with_the_applied_report(self):
+        from agent import reconcile
+        tracker.book(1, "Acme", "VP of AI", "9", "AWAITING RAJA", url="u", extra={"agent_submitted": True})
+        out = reconcile.process({"9"}, lambda j: True)
+        self.assertEqual(out[0][1], "SUBMITTED")
+        self.assertEqual([e["kind"] for e in read_json("outbox.json", [])], ["applied"])
 
 
 class TrackerSettle(unittest.TestCase):

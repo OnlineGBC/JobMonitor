@@ -58,6 +58,14 @@ Passers are queued in `pending_survivors.json` through `queue_tool.py` only, wit
 - Hard blockers: required education attendance dates, or risk-appetite / financial-capacity questions: skip. Applications carry Columbia, Harvard, and Manhattanville only. References required: "Will be provided once interview is confirmed"; may-contact-references No. Salary: Open/blank; forced range uses the one containing 206000; forced numeric field pauses.
 - Settle only on LinkedIn's or the employer's own record, reserve the number from `next_number.py`, then book the tracker row. A paused application is marked AWAITING RAJA.
 
+**Submission (decision 2026-11-16).** Raja turned on automatic submission after the Easy Apply drafts proved reliable. The applier now
+clicks Submit itself when the form reached the final review page with every required question answered. It still stops, and does not
+submit, for an unanswered question, a hard blocker, a company-site application, or any failed safety check (the dialog must name the
+right company and be the final page). A submission is recorded as awaiting LinkedIn's confirmation; only `agent.reconcile`
+(Applied tab AND posting page agree) marks it SUBMITTED and sends the "applied" report. If LinkedIn does not confirm within 60 minutes
+Raja is told once. The mode is a saved setting: `python -m agent.applier --set-submit on|off` (off = fill, save a draft, stop; this is
+also the default if nothing is saved). `python -m agent.submit_drafts <numbers>` submits specific saved drafts on demand.
+
 ## Step 7: Outreach
 For every application with a named job poster, draft the invite note and email Raja the exact text. Nothing is sent without his approval of the exact text. Voice: short plain sentences, no em dashes, never "thanks" (always "thank you"), sign-off "Thank you, Raja,", invite notes within 300 characters, meeting line exactly "I would love to discuss next steps." Approved sends go through the outreach queue; the sender sends the exact text and settles on LinkedIn's confirmation. Sent invites join the acceptance watch list. On acceptance, draft the follow-up for approval.
 
