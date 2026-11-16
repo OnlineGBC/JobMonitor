@@ -61,7 +61,7 @@ For every application with a named job poster, draft the invite note and email R
 
 ## WhatsApp rules
 - Free-form messages are only deliverable within 24 hours of Raja's last message to the sender number. Outside that window only approved templates can be sent.
-- Keepalive: every 12 hours the Reporter sends an approved template ("Job agent check-in. Reply OK to keep updates flowing."). Raja's reply, or any message from him, reopens the 24-hour window. A message from the agent does not extend it.
+- Keepalive: every 12 hours the Reporter sends an approved template (template `job_agent_checkin`, Utility: "Account update: your job agent notifications are active. Reply OK to confirm you are receiving them."). Raja's reply, or any message from him, reopens the 24-hour window. A message from the agent does not extend it.
 - If WhatsApp cannot deliver (window closed), the same item goes by email only, and is marked so in the outbox. Nothing is lost.
 - Reply commands (`APPROVE <id>`, `PENDING`, `OK`) are accepted only from Raja's verified number.
 
