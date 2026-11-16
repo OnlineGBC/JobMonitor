@@ -221,16 +221,21 @@ def run_form(page, title: str, allow_submit: bool = False, decide=answers.decide
 
 def close_form(page, save: bool) -> str:
     """Close the dialog, choosing Save or Discard on LinkedIn's confirmation. Returns what was done."""
-    page.keyboard.press("Escape")
-    page.wait_for_timeout(1500)
-    names = [b.strip() for b in page.locator("dialog[open] button").all_inner_texts() if b.strip()]
-    tr = translate.translate(names)
     want = "save" if save else "discard"
-    for n in names:
-        if translate.button_role(tr.get(n, n)) == want:
-            page.get_by_role("button", name=n).first.click()
+    for _ in range(3):
+        names = [b.strip() for b in page.locator("dialog[open] button").all_inner_texts() if b.strip()]
+        tr = translate.translate(names)
+        choice = next((n for n in names if translate.button_role(tr.get(n, n)) == want), None)
+        if choice:  # the Save/Discard confirmation is showing
+            page.get_by_role("button", name=choice).first.click()
             page.wait_for_timeout(1500)
-            return want
+            if not page.locator("dialog[open]").count():
+                return want
+        else:
+            page.keyboard.press("Escape")  # ask LinkedIn to close the form; it shows the confirmation
+            page.wait_for_timeout(1500)
+        if not page.locator("dialog[open]").count():
+            return "closed"
     return "none"
 
 

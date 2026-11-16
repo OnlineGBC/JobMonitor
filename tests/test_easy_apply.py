@@ -162,5 +162,41 @@ class ReadFormMarkup(unittest.TestCase):
         self.assertEqual(raw["buttons"], ["Back", "Review"])
 
 
+class CloseForm(unittest.TestCase):
+    """close_form() against a local page that behaves like LinkedIn's Save/Discard confirmation."""
+    PAGE = (
+        "<body><dialog open id=form><button>Back</button><button>Next</button></dialog>"
+        "<script>window.choice = null;"
+        "function show(){ if(!document.getElementById('c')){ const d=document.createElement('dialog'); d.id='c'; d.open=true;"
+        " d.innerHTML='<button onclick=\"pick(this)\">Discard</button><button onclick=\"pick(this)\">Save</button>';"
+        " document.body.appendChild(d);} else { document.getElementById('c').remove(); } }"
+        "function pick(b){ window.choice=b.innerText; document.querySelectorAll('dialog').forEach(x=>x.remove()); }"
+        "document.addEventListener('keydown', e => { if(e.key==='Escape') show(); });</script></body>")
+
+    def run_close(self, save, confirmation_already_open=False):
+        try:
+            from playwright.sync_api import sync_playwright
+        except ImportError:
+            self.skipTest("playwright not installed")
+        write_json("translations.json", {"Discard": "Discard", "Save": "Save", "Back": "Back", "Next": "Next"})
+        with sync_playwright() as p:
+            b = p.chromium.launch(headless=True)
+            page = b.new_page()
+            page.set_content(self.PAGE)
+            if confirmation_already_open:
+                page.keyboard.press("Escape")
+            done = easy_apply.close_form(page, save=save)
+            out = (done, page.evaluate("window.choice"), page.locator("dialog[open]").count())
+            b.close()
+        return out
+
+    def test_discard_and_save(self):
+        self.assertEqual(self.run_close(save=False), ("discard", "Discard", 0))
+        self.assertEqual(self.run_close(save=True), ("save", "Save", 0))
+
+    def test_copes_when_the_confirmation_is_already_showing(self):
+        self.assertEqual(self.run_close(save=False, confirmation_already_open=True), ("discard", "Discard", 0))
+
+
 if __name__ == "__main__":
     unittest.main()
