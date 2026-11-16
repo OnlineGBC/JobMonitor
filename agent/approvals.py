@@ -77,7 +77,10 @@ def apply(cmd: dict) -> str:
 def _answer(cmd: dict, source: str) -> None:
     message = apply(cmd)
     logging.info(f"{source}: {cmd['action']} {cmd.get('id') or ''} -> {message.splitlines()[0]}")
-    reporter.enqueue("notice", f"{cmd['action'].title()}: {cmd.get('id') or 'pending list'}", message)
+    # An acknowledgement goes back on the channel the reply came from: a WhatsApp reply gets a WhatsApp
+    # acknowledgement only (no duplicate email), an emailed reply gets email and WhatsApp as before.
+    reporter.enqueue("notice", f"{cmd['action'].title()}: {cmd.get('id') or 'pending list'}", message,
+                     email=(source != "whatsapp"))
 
 
 _PLAIN = {"yes", "no", "y", "n", "skip", "apply"}

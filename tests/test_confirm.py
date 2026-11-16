@@ -183,6 +183,21 @@ class Expiry(Base):
 
 
 class Channels(Base):
+    def test_acknowledging_a_whatsapp_reply_sends_no_email(self):
+        rec = decisions.offer(job("1", "Director of AI", "Acme"))
+        before = len(self.outbox())
+        self.say(f"DECIDE {rec['id']} SKIP", via="button")
+        acks = self.outbox()[before:]
+        self.assertEqual(len(acks), 1)
+        self.assertTrue(acks[0]["email_sent"], "already marked sent, so the mailer never sends it")
+        self.assertEqual(acks[0]["whatsapp"], "pending")
+
+    def test_an_emailed_reply_is_still_acknowledged_by_email(self):
+        rec = decisions.offer(job("2", "VP AI", "Beta"))
+        before = len(self.outbox())
+        approvals._answer(approvals.parse(f"DECIDE {rec['id']} SKIP"), "gmail")
+        self.assertFalse(self.outbox()[before]["email_sent"])
+
     def test_a_whatsapp_confirmation_sends_no_email_but_an_email_reply_does(self):
         decisions.offer(job("1", "Director of AI", "Acme"))
         self.say("apply")
