@@ -522,5 +522,80 @@ class Scheduler(unittest.TestCase):
         self.assertEqual(self.s.main(["status"]), 0)
 
 
+class Applier(unittest.TestCase):
+    def fake(self, reply):
+        create = lambda **kw: SimpleNamespace(content=[SimpleNamespace(text=reply)])
+        return SimpleNamespace(messages=SimpleNamespace(create=create))
+
+    def ans(self, label, reply='{"action": "answer", "value": "Yes", "reason": "bank"}', **kw):
+        from agent import answers
+        q = {"label": label, "type": "text", "required": True, **kw}
+        return answers.decide_answer(q, bank="Always Yes", client=self.fake(reply))
+
+    def test_resume_mapping(self):
+        from agent import resumes
+        n = resumes.resume_name
+        self.assertEqual(n("VP of AI"), resumes.VP)
+        self.assertEqual(n("Associate Vice President, AI"), resumes.VP)
+        self.assertEqual(n("Head of AI"), resumes.VP)
+        self.assertEqual(n("Director, Machine Learning"), resumes.DIRECTOR)
+        self.assertEqual(n("Chief AI Officer"), resumes.CHIEF)
+        self.assertEqual(n("Fractional CTO"), resumes.CHIEF)
+        self.assertEqual(n("CEO"), resumes.CHIEF)
+        self.assertEqual(n("VP / Director of AI"), resumes.VP)
+        self.assertIsNone(n("Senior AI Engineer"))
+        for name in (resumes.VP, resumes.DIRECTOR, resumes.CHIEF):  # files really exist
+            self.assertTrue((resumes.RESUME_DIR / name).exists(), name)
+
+    def test_hard_blockers(self):
+        self.assertEqual(self.ans("What is your risk appetite?", required=False)["action"], "skip_application")
+        self.assertEqual(self.ans("Describe your financial capacity")["action"], "skip_application")
+        self.assertEqual(self.ans("School attendance dates")["action"], "skip_application")
+        self.assertEqual(self.ans("School attendance dates", required=False)["action"], "blank")
+
+    def test_optional_stays_blank_without_calling_the_model(self):
+        from agent import answers
+        boom = SimpleNamespace(messages=SimpleNamespace(create=lambda **k: 1 / 0))
+        r = answers.decide_answer({"label": "Pronouns", "type": "text", "required": False}, bank="x", client=boom)
+        self.assertEqual(r["action"], "blank")
+
+    def test_salary_rules(self):
+        a = self.ans("Desired salary", options=["$150,000 - $199,999", "$200,000 - $250,000", "$250,000+"])
+        self.assertEqual(a["value"], "$200,000 - $250,000")
+        self.assertEqual(self.ans("Salary expectation", options=["$100k-$150k"])["action"], "pause")
+        self.assertEqual(self.ans("Desired salary", type="number")["action"], "pause")
+        self.assertEqual(self.ans("Expected compensation", options=["Under $100k", "$200k+"])["value"], "$200k+")
+
+    def test_references(self):
+        self.assertEqual(self.ans("Please provide references")["value"], "Will be provided once interview is confirmed")
+        self.assertEqual(self.ans("May we contact your references?", options=["Yes", "No"])["value"], "No")
+
+    def test_model_answers_are_validated(self):
+        self.assertEqual(self.ans("Authorized to work?", options=["Yes", "No"])["value"], "Yes")
+        # not one of the options -> pause, never guess
+        r = self.ans("Authorized?", '{"action": "answer", "value": "Maybe", "reason": "x"}', options=["Yes", "No"])
+        self.assertEqual(r["action"], "pause")
+        # never 0 years
+        r = self.ans("Years of experience with Kubernetes?", '{"action": "answer", "value": "0", "reason": "x"}')
+        self.assertEqual(r["action"], "pause")
+        self.assertEqual(self.ans("Years of Python experience?", '{"action": "answer", "value": "5", "reason": "x"}')["value"], "5")
+        # banned school never typed
+        r = self.ans("Where did you study?", "{\"action\": \"answer\", \"value\": \"St. Stephen's College\", \"reason\": \"x\"}")
+        self.assertEqual(r["action"], "pause")
+        # model says no basis / garbage / error -> pause
+        self.assertEqual(self.ans("Odd question", '{"action": "pause", "value": null, "reason": "no basis"}')["action"], "pause")
+        self.assertEqual(self.ans("Odd question", "not json")["action"], "pause")
+
+    def test_tracker_numbers(self):
+        from agent import tracker
+        write_json("tracker.json", [])
+        tracker.book(1, "Acme", "VP AI", "9", "SUBMITTED")
+        with self.assertRaises(ValueError):
+            tracker.book(1, "Other", "VP AI", "10", "SUBMITTED")
+        with self.assertRaises(ValueError):
+            tracker.book(2, "Other", "VP AI", "10", "MAYBE")
+        self.assertTrue(dup_gate.is_duplicate("acme", "VP AI")[0])
+
+
 if __name__ == "__main__":
     unittest.main()
