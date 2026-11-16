@@ -1,6 +1,7 @@
 import os
 import tempfile
 import unittest
+from unittest import mock
 
 os.environ.setdefault("AGENT_DATA_DIR", tempfile.mkdtemp())
 
@@ -133,6 +134,10 @@ class Commands(unittest.TestCase):
 class Inbound(unittest.TestCase):
     def setUp(self):
         reset()
+        # No real model calls in tests: with the model unavailable, the plain keyword rules read replies.
+        p = mock.patch("agent.router.route", side_effect=RuntimeError("model unavailable"))
+        p.start()
+        self.addCleanup(p.stop)
         self.d = outreach.create("invite", "1", "Cody Rice", URL, "Acme", "VP of AI")
 
     def test_whatsapp_commands_are_applied_and_marked_handled(self):

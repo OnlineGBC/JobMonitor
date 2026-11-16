@@ -126,6 +126,21 @@ class EndToEnd(Base):
         self.say("you will take my messages right?", c)
         self.assertIn("Yes, I act on what you type.", read_json(reporter.OUTBOX, [])[-1]["body"])
 
+    def test_recent_messages_reach_the_model_so_an_error_can_be_explained(self):
+        write_json(reporter.OUTBOX, [{"subject": "Applier could not process: CTO at NET-Group", "whatsapp": "sent",
+                                      "body": "Three attempts failed. Last error: Timeout waiting for dialog[open]"}])
+        c = client(actions=[], comment=False, ask=None, reply="The Easy Apply window never opened.")
+        router.route("share more details on the error", client=c)
+        prompt = c.messages.create.call_args.kwargs["messages"][0]["content"]
+        self.assertIn("Timeout waiting for dialog[open]", prompt)
+
+    def test_a_real_message_that_matches_nothing_gets_an_answer_not_silence(self):
+        c = client(actions=[], comment=False, ask=None, reply=None)
+        self.say("share more details on the error", c)
+        last = read_json(reporter.OUTBOX, [])[-1]
+        self.assertEqual(last["subject"], "Not understood")
+        self.assertIn('You said: "share more details on the error"', last["body"])
+
     def test_nothing_is_acted_on_when_the_model_returns_nonsense(self):
         r = SimpleNamespace(content=[SimpleNamespace(type="text", text="I think he wants to apply")], stop_reason="end_turn")
         c = SimpleNamespace(messages=SimpleNamespace(create=mock.Mock(return_value=r)))

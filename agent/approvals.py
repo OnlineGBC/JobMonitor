@@ -127,7 +127,13 @@ def handle_reply(text: str, via: str, source: str) -> bool:
         reporter.enqueue("notice", "Reply", result["reply"], email=(source == "gmail"))
     if result["comment"]:
         feedback.handle(text, source)
-    return bool(result["commands"] or result["ask"] or result["comment"] or result.get("reply"))
+    if not (result["commands"] or result["ask"] or result["comment"] or result.get("reply")):
+        # He wrote something real and nothing matched: say so rather than stay silent.
+        reporter.enqueue("notice", "Not understood", f"You said: \"{text.strip()[:200]}\"\n\nI could not tell what to do "
+                         "with that, so I did nothing. Reply with a company name and apply or skip, answer an open "
+                         "question, state a preference (for example \"no part-time roles\"), or send RULES or PENDING.",
+                         email=(source == "gmail"))
+    return True
 
 
 def _by_rules(text: str, source: str) -> bool:
