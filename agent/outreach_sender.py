@@ -28,11 +28,13 @@ def _record(item: dict, result: dict) -> str:
     who = f"{item['poster']} at {item['company']}"
     if r == "sent":
         outreach.mark(item["id"], "SENT")
-        outreach.watch(item["poster_url"], item["poster"], item["job_id"], item["company"], item["title"])
+        outreach.watch(item["poster_url"], item["poster"], item["job_id"], item["company"], item["title"],
+                        applied=item.get("requires_applied", True))
         return f"sent to {who}"
     if r == "already_pending":
         outreach.mark(item["id"], "SENT", error="an invitation was already pending")
-        outreach.watch(item["poster_url"], item["poster"], item["job_id"], item["company"], item["title"])
+        outreach.watch(item["poster_url"], item["poster"], item["job_id"], item["company"], item["title"],
+                        applied=item.get("requires_applied", True))
         return f"already pending for {who}"
     if r == "already_connected":
         outreach.mark(item["id"], "FAILED", error="already connected; no invitation needed")

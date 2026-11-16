@@ -78,11 +78,13 @@ def invite_text(poster: str, title: str, company: str) -> str:
     ], title, company, INVITE_LIMIT)
 
 
-def followup_text(poster: str, title: str, company: str) -> str:
+def followup_text(poster: str, title: str, company: str, applied: bool = True) -> str:
+    """Message sent once an invitation is accepted. It says 'I applied' only if an application exists."""
     first, title, company = first_name(poster), _plain(title), _plain(company)
     hello = f"Hello {first}, " if first else "Hello, "
-    return _fit([hello + "thank you for connecting. I applied for the {title} role at {company}. "
-                 + MEETING_LINE + " " + SIGNOFF], title, company, MESSAGE_LIMIT)
+    context = "I applied for the {title} role at {company}. " if applied else "I came across the {title} role at {company}. "
+    return _fit([hello + "thank you for connecting. " + context + MEETING_LINE + " " + SIGNOFF],
+                title, company, MESSAGE_LIMIT)
 
 
 # ---- the approval queue ---------------------------------------------------
@@ -219,12 +221,14 @@ def bump_attempts(item_id: str) -> int:
 
 # ---- accepted-invite watch list ------------------------------------------
 
-def watch(poster_url: str, poster: str, job_id: str, company: str, title: str) -> None:
+def watch(poster_url: str, poster: str, job_id: str, company: str, title: str, applied: bool = True) -> None:
+    """Add a sent invitation to the acceptance watch list. `applied`: the note said 'I applied'."""
     with locked("invite_watch"):
         w = read_json(WATCH, [])
         if not any(x["poster_url"] == poster_url and x["job_id"] == str(job_id) for x in w):
             w.append({"poster_url": poster_url, "poster": poster, "job_id": str(job_id), "company": company,
-                      "title": title, "since": _now(), "accepted": False})
+                      "title": title, "since": _now(), "accepted": False, "closed": False, "misses": 0,
+                      "applied": applied})
             write_json(WATCH, w)
 
 
@@ -232,13 +236,35 @@ def watch_list() -> list:
     return read_json(WATCH, [])
 
 
-def mark_accepted(poster_url: str, job_id: str) -> None:
+def _watch_update(poster_url: str, job_id: str, **fields) -> None:
     with locked("invite_watch"):
         w = read_json(WATCH, [])
         for x in w:
             if x["poster_url"] == poster_url and x["job_id"] == str(job_id):
-                x["accepted"] = True
+                x.update(fields)
         write_json(WATCH, w)
+
+
+def mark_accepted(poster_url: str, job_id: str) -> None:
+    _watch_update(poster_url, job_id, accepted=True)
+
+
+def note_miss(poster_url: str, job_id: str, limit: int = 3) -> bool:
+    """The invitation looked neither pending nor accepted. Close it only after `limit` such checks in a row
+    (one odd page load must not end the watch). Returns True when it was closed."""
+    with locked("invite_watch"):
+        w = read_json(WATCH, [])
+        closed = False
+        for x in w:
+            if x["poster_url"] == poster_url and x["job_id"] == str(job_id):
+                x["misses"] = x.get("misses", 0) + 1
+                x["closed"] = closed = x["misses"] >= limit
+        write_json(WATCH, w)
+        return closed
+
+
+def clear_misses(poster_url: str, job_id: str) -> None:
+    _watch_update(poster_url, job_id, misses=0)
 
 
 def main(argv=None) -> int:
