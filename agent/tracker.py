@@ -28,5 +28,23 @@ def book(number: int, company: str, title: str, job_id: str, status: str, url: s
     return row
 
 
+def settle(number: int, status: str, note: str) -> dict:
+    """Move an existing row to a new status, recording WHY and WHEN. The row keeps its number and history of
+    where it came from; only an AWAITING RAJA row may be settled (a SUBMITTED row never goes backwards)."""
+    if status not in STATUSES:
+        raise ValueError(f"unknown status '{status}'")
+    with locked("tracker"):
+        rows_ = read_json(FILE, [])
+        row = next((r for r in rows_ if r["number"] == number), None)
+        if row is None:
+            raise ValueError(f"no application number {number}")
+        if row["status"] != "AWAITING RAJA":
+            raise ValueError(f"application {number} is {row['status']}, so it cannot be settled again")
+        row.update(status=status, note=note, settled=datetime.now(NY).isoformat(timespec="seconds"),
+                   previous_note=row.get("note", ""))
+        write_json(FILE, rows_)
+        return row
+
+
 def rows() -> list:
     return read_json(FILE, [])

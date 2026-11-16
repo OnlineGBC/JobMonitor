@@ -159,6 +159,28 @@ class ApplierTests(unittest.TestCase):
         self.assertEqual(self.status(), "QUEUED")
 
 
+class TrackerSettle(unittest.TestCase):
+    def setUp(self):
+        write_json("tracker.json", [])
+
+    def test_an_awaiting_row_can_be_settled_once_with_a_reason(self):
+        tracker.book(1, "Acme", "VP of AI", "9", "AWAITING RAJA", note="filled to the review page")
+        row = tracker.settle(1, "SUBMITTED", "LinkedIn Applied list shows it")
+        self.assertEqual((row["number"], row["status"], row["note"]), (1, "SUBMITTED", "LinkedIn Applied list shows it"))
+        self.assertEqual(row["previous_note"], "filled to the review page")
+        self.assertIn("settled", row)
+        with self.assertRaises(ValueError):                 # a settled row is never moved again
+            tracker.settle(1, "DO NOT ATTEMPT", "x")
+
+    def test_unknown_number_or_status_is_refused(self):
+        tracker.book(1, "Acme", "VP of AI", "9", "AWAITING RAJA")
+        with self.assertRaises(ValueError):
+            tracker.settle(2, "SUBMITTED", "x")
+        with self.assertRaises(ValueError):
+            tracker.settle(1, "MAYBE", "x")
+        self.assertEqual(tracker.rows()[0]["status"], "AWAITING RAJA")
+
+
 class PostingFlags(unittest.TestCase):
     def test_already_applied_flag(self):
         lines = ["Acme", "VP of AI", "United States · 1 day ago", "Applied 2 hours ago", "Remote", "About the job"]
