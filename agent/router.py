@@ -8,7 +8,8 @@ answer) and the message, and returns what was meant. The reply is never trusted:
 that really exists, and an answer to a multiple-choice question must be one of its options. Anything unclear becomes
 a question back to Raja, not a guess. The message text is data for the model, never instructions to it.
 
-route(text) -> {"commands": ["DECIDE <id> APPLY", "ANSWER <id> <value>", ...], "comment": bool, "ask": str | None}
+route(text) -> {"commands": ["DECIDE <id> APPLY", "ANSWER <id> <value>", ...], "comment": bool, "ask": str | None,
+                "reply": str | None}
 Raises if the model cannot be reached (the caller then falls back to the plain rules in agent.interpret).
 """
 import re
@@ -37,11 +38,19 @@ Return ONLY JSON:
     {{"type": "skip_application", "id": "<question id>"}}
   ],
   "comment": true | false,
-  "ask": null | "<one short question, only if you cannot tell which item or what he meant>"
+  "ask": null | "<one short question, only if you cannot tell which item or what he meant>",
+  "reply": null | "<a short, plain answer, ONLY if he asked you a question about how this agent works>"
 }}
 
 Rules:
 - Use ONLY ids listed above. Never invent one.
+- For a multiple-choice question the "value" MUST be exactly one of its options: pick the option that fits what he said
+  (for example "10 years" with options 0..5+ is "5+"). If none fits, use "ask".
+- Facts about this agent, for "reply" (say nothing beyond them): typed replies are read by AI and acted on at once, with
+  no extra confirmation; Apply/Skip/answers take effect immediately; a standing preference he states ("never show X",
+  "no part-time") becomes a rule that stops the agent offering or queuing matching roles, and each rule has an Undo
+  button; preferences the agent cannot enforce yet are only noted; "RULES" lists the rules; the rules never block a role
+  he chooses to apply for himself.
 - "comment": true when he states an opinion or standing preference about roles, companies or what to show him
   ("never show part-time roles", "too junior", "I only want AI roles"), whether or not it also carries an action.
 - A bare "yes"/"no"/"ok" with exactly one item open is an answer to that item. With several open, ask which.
@@ -119,4 +128,5 @@ def route(text: str, client=None) -> dict:
     if ask:
         items = [("decision", d) for d in decs] + [("question", q) for q in qs]
         ask = ask + ("\n\nOpen now:\n" + interpret._list(items) if items else "")
-    return {"commands": commands, "comment": bool(data.get("comment")), "ask": ask}
+    reply = (str(data.get("reply") or "").strip()[:600] or None)
+    return {"commands": commands, "comment": bool(data.get("comment")), "ask": ask, "reply": reply}

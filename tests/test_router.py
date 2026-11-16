@@ -77,7 +77,7 @@ class Route(Base):
 
     def test_chat_does_nothing(self):
         out = router.route("how are you", client=client(actions=[], comment=False, ask=None))
-        self.assertEqual(out, {"commands": [], "comment": False, "ask": None})
+        self.assertEqual(out, {"commands": [], "comment": False, "ask": None, "reply": None})
 
     def test_the_message_and_open_items_reach_the_model_as_data(self):
         c = client(actions=[], comment=False, ask=None)
@@ -86,6 +86,19 @@ class Route(Base):
         self.assertIn("skip beta, too junior", prompt)
         self.assertIn(self.d2["id"], prompt)
         self.assertIn("Options: Yes, No", prompt)
+
+
+class Replies(Base):
+    def test_a_question_to_the_agent_gets_a_reply(self):
+        out = router.route("will you use my messages?", client=client(
+            actions=[], comment=False, ask=None, reply="Yes: what you type is acted on at once."))
+        self.assertEqual(out["reply"], "Yes: what you type is acted on at once.")
+
+    def test_the_prompt_tells_the_model_to_map_to_an_option(self):
+        c = client(actions=[], comment=False, ask=None)
+        router.route("10 years", client=c)
+        prompt = c.messages.create.call_args.kwargs["messages"][0]["content"]
+        self.assertIn('"5+"', prompt)
 
 
 class EndToEnd(Base):
@@ -107,6 +120,11 @@ class EndToEnd(Base):
         self.assertEqual(feedback.active_rules()[0]["value"], "Beta Corp")
         bodies = " ".join(m["body"] for m in read_json(reporter.OUTBOX, []))
         self.assertIn('You said: "skip beta, never show me Beta Corp again"', bodies)
+
+    def test_a_question_is_answered_on_whatsapp(self):
+        c = client(actions=[], comment=False, ask=None, reply="Yes, I act on what you type.")
+        self.say("you will take my messages right?", c)
+        self.assertIn("Yes, I act on what you type.", read_json(reporter.OUTBOX, [])[-1]["body"])
 
     def test_nothing_is_acted_on_when_the_model_returns_nonsense(self):
         r = SimpleNamespace(content=[SimpleNamespace(type="text", text="I think he wants to apply")], stop_reason="end_turn")

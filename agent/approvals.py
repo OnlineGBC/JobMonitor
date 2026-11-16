@@ -123,9 +123,11 @@ def handle_reply(text: str, via: str, source: str) -> bool:
         _answer(parse(c), source, said=text)
     if result["ask"]:
         reporter.enqueue("notice", "Which one?", result["ask"], email=(source == "gmail"))
+    if result.get("reply"):                    # he asked the agent a question: answer it, never leave him without a reply
+        reporter.enqueue("notice", "Reply", result["reply"], email=(source == "gmail"))
     if result["comment"]:
         feedback.handle(text, source)
-    return bool(result["commands"] or result["ask"] or result["comment"])
+    return bool(result["commands"] or result["ask"] or result["comment"] or result.get("reply"))
 
 
 def _by_rules(text: str, source: str) -> bool:
