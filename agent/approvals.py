@@ -12,14 +12,15 @@ import logging
 import re
 from datetime import datetime
 
-from . import config, gmail_client, confirmations, decisions, interpret, outreach, queue_tool, questions, reporter, tracker
+from . import config, gmail_client, confirmations, decisions, feedback, interpret, outreach, queue_tool, questions, reporter, tracker
 from .store import locked, read_json, write_json
 
 SEEN = "approvals_seen.json"
 INBOX = "whatsapp_inbox.json"
 
-_CMD = re.compile(r"^\s*(approve|reject|answer|decide|confirm|cancel)\s+([0-9a-f]{8})\b[ \t:,.-]*(.*)$", re.I | re.S)
+_CMD = re.compile(r"^\s*(approve|reject|answer|decide|confirm|cancel|rule)\s+([0-9a-f]{8})\b[ \t:,.-]*(.*)$", re.I | re.S)
 _PENDING = re.compile(r"^\s*pending\s*[.!]?\s*$", re.I)
+_RULES = re.compile(r"^\s*rules\s*[.!]?\s*$", re.I)
 _QUOTE_START = re.compile(r"^(>|On .{5,120} wrote:\s*$|-{2,}\s*Original Message|From: .+@|Sent from my\b|--\s*$)", re.I)
 
 
@@ -41,6 +42,8 @@ def parse(body: str):
         return {"action": m.group(1).upper(), "id": m.group(2).lower(), "text": m.group(3).strip() or None}
     if _PENDING.match(text.split("\n")[0] if text else ""):
         return {"action": "PENDING", "id": None, "text": None}
+    if _RULES.match(text.split("\n")[0] if text else ""):
+        return {"action": "RULES", "id": None, "text": None}
     return None
 
 
@@ -71,6 +74,10 @@ def apply(cmd: dict) -> str:
         return decisions.decide(cmd["id"], cmd["text"] or "")[1]
     if cmd["action"] == "ANSWER":
         return questions.answer(cmd["id"], cmd["text"] or "")[1]
+    if cmd["action"] == "RULES":
+        return feedback.digest()
+    if cmd["action"] == "RULE":
+        return feedback.remove(cmd["id"]) if (cmd["text"] or "").upper() == "REMOVE" else feedback.activate(cmd["id"])
     return pending_digest()
 
 
@@ -108,9 +115,13 @@ def handle_reply(text: str, via: str, source: str) -> bool:
             return True
         _answer(cmd, source)
         return True
+    if feedback.is_comment(text) and not _text_question_open():
+        return feedback.handle(text, source)
     result = interpret.interpret(text)
     if result is None:
-        return False
+        return feedback.handle(text, source) if feedback.worth_keeping(text) else False
+    if result["kind"] == "clarify" and feedback.worth_keeping(text):     # a long sentence is a comment, not a muddled choice
+        return feedback.handle(text, source)
     if result["kind"] == "resolve":
         _answer({"action": "CONFIRM" if result["accept"] else "CANCEL", "id": result["id"], "text": None}, source)
     elif result["kind"] == "propose":
@@ -118,6 +129,11 @@ def handle_reply(text: str, via: str, source: str) -> bool:
     else:
         reporter.enqueue("notice", "Which one?", result["message"], email=(source == "gmail"))
     return True
+
+
+def _text_question_open() -> bool:
+    """A free-text application question is waiting: a typed sentence is probably its answer, not a comment."""
+    return any(q.get("type") == "text" for q in questions.open_questions())
 
 
 def _describe_answer(cmd: dict) -> str:

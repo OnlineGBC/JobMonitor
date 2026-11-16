@@ -11,6 +11,7 @@ except ImportError:  # python-dotenv is in requirements.txt; tolerate its absenc
 
 CORE_CHECK_MODEL = os.environ.get("AGENT_CORE_CHECK_MODEL", "claude-sonnet-5-5")
 FORM_ANSWER_MODEL = os.environ.get("AGENT_FORM_ANSWER_MODEL", "claude-sonnet-5-5")
+FEEDBACK_MODEL = os.environ.get("AGENT_FEEDBACK_MODEL", "claude-sonnet-5-5")
 # UI strings are short and translated once, then cached, so the small model is enough.
 TRANSLATE_MODEL = os.environ.get("AGENT_TRANSLATE_MODEL", "claude-haiku-5-5")
 

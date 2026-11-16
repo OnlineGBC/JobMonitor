@@ -557,6 +557,8 @@ def agent_status(job: dict) -> tuple:
         seen = ledger.seen_outcomes()
         for jid in job.get("job_ids") or []:
             outcome = seen.get(jid, {}).get("outcome")
+            if outcome and outcome.startswith("skipped: your rule"):
+                return False, f"not sent to WhatsApp, because of a rule you set ({outcome.split('your rule: ', 1)[-1]})"
             if outcome and not outcome.startswith("queued"):
                 return False, (f"the agent's own rules would skip it ({outcome.split(': ', 1)[-1]}); "
                                "you can still choose Apply on WhatsApp")

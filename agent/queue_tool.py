@@ -9,7 +9,7 @@ import sys
 import uuid
 from datetime import datetime, timedelta, timezone
 
-from . import config
+from . import config, feedback
 from .dup_gate import key
 from .store import locked, read_json, write_json
 
@@ -40,6 +40,9 @@ def add(posting: dict, forced: bool = False):
     workplace = (posting.get("workplace") or "").strip().lower()
     if workplace != "remote" and not forced:
         return False, f"dropped: workplace is {posting.get('workplace') or 'unknown'}"
+    rule = None if forced else feedback.matches(posting)
+    if rule:
+        return False, f"your rule: {feedback.describe(rule)}"
     with locked("queue"):
         items = read_json(FILE, [])
         k = key(posting["company"], posting["title"])

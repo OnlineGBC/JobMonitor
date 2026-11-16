@@ -18,7 +18,7 @@ import sys
 import uuid
 from datetime import datetime
 
-from . import ledger, queue_tool, reporter, tracker
+from . import feedback, ledger, queue_tool, reporter, tracker
 from .dup_gate import key
 from .store import locked, read_json, write_json
 
@@ -85,6 +85,11 @@ def offer(job: dict, note: str = "") -> dict:
     if already_handled(job):
         return None
     if not is_remote(job):          # nothing that is not Remote is ever sent
+        return None
+    rule = feedback.matches(job)
+    if rule:                        # something Raja told the agent he does not want
+        for jid in job.get("job_ids") or ([job["job_id"]] if job.get("job_id") else []):
+            ledger.add(jid, f"skipped: your rule: {feedback.describe(rule)}")
         return None
     ids = [str(i) for i in job.get("job_ids") or ([job["job_id"]] if job.get("job_id") else [])]
     if not ids:
