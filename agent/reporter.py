@@ -10,7 +10,7 @@ import uuid
 from datetime import datetime
 from zoneinfo import ZoneInfo
 
-from . import gmail_client, whatsapp
+from . import chatlog, gmail_client, whatsapp
 from .store import locked, read_json, write_json
 
 OUTBOX = "outbox.json"
@@ -77,6 +77,7 @@ def process(send_email=gmail_client.send, send_whatsapp=whatsapp.send_text, send
                     if _deliver_whatsapp(e, send_whatsapp, send_buttons):
                         e["whatsapp"] = "sent"
                         stats["whatsapp"] += 1
+                        chatlog.add("agent", e["subject"], e["body"])
                     else:
                         e["whatsapp"] = "window_closed"  # email carries it
                         stats["whatsapp_closed"] += 1

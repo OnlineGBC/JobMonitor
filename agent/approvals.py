@@ -12,7 +12,7 @@ import logging
 import re
 from datetime import datetime
 
-from . import config, gmail_client, confirmations, decisions, feedback, interpret, outreach, queue_tool, questions, reporter, router, tracker
+from . import chatlog, config, gmail_client, confirmations, decisions, feedback, interpret, manual, outreach, queue_tool, questions, reporter, router, tracker
 from .store import locked, read_json, write_json
 
 SEEN = "approvals_seen.json"
@@ -20,6 +20,7 @@ INBOX = "whatsapp_inbox.json"
 
 _CMD = re.compile(r"^\s*(approve|reject|answer|decide|confirm|cancel|rule)\s+([0-9a-f]{8})\b[ \t:,.-]*(.*)$", re.I | re.S)
 _PENDING = re.compile(r"^\s*pending\s*[.!]?\s*$", re.I)
+_APPLIED = re.compile(r"^\s*applied\s+(\d{6,})\s*[.!]?\s*$", re.I)
 _RULES = re.compile(r"^\s*rules\s*[.!]?\s*$", re.I)
 _QUOTE_START = re.compile(r"^(>|On .{5,120} wrote:\s*$|-{2,}\s*Original Message|From: .+@|Sent from my\b|--\s*$)", re.I)
 
@@ -44,6 +45,9 @@ def parse(body: str):
         return {"action": "PENDING", "id": None, "text": None}
     if _RULES.match(text.split("\n")[0] if text else ""):
         return {"action": "RULES", "id": None, "text": None}
+    m = _APPLIED.match(text.split("\n")[0] if text else "")
+    if m:
+        return {"action": "APPLIED", "id": m.group(1), "text": None}
     return None
 
 
@@ -74,6 +78,8 @@ def apply(cmd: dict) -> str:
         return decisions.decide(cmd["id"], cmd["text"] or "")[1]
     if cmd["action"] == "ANSWER":
         return questions.answer(cmd["id"], cmd["text"] or "")[1]
+    if cmd["action"] == "APPLIED":
+        return manual.mark_applied(cmd["id"])[1]
     if cmd["action"] == "RULES":
         return feedback.digest()
     if cmd["action"] == "RULE":
@@ -168,8 +174,10 @@ def process_whatsapp() -> int:
         write_json(INBOX, inbox)
     n = 0
     for m in todo:
-        if m["text"] and handle_reply(m["text"], m.get("via", "text"), "whatsapp"):
-            n += 1
+        if m["text"]:
+            if handle_reply(m["text"], m.get("via", "text"), "whatsapp"):
+                n += 1
+            chatlog.add("raja", "", m["text"])
     return n
 
 

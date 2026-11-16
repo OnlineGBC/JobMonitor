@@ -8,7 +8,7 @@ from unittest import mock
 
 os.environ.setdefault("AGENT_DATA_DIR", tempfile.mkdtemp())
 
-from agent import answers, approvals, decisions, feedback, ledger, queue_tool, questions, reporter, router, tracker  # noqa: E402
+from agent import answers, approvals, chatlog, decisions, feedback, ledger, manual, queue_tool, questions, reporter, router, tracker  # noqa: E402
 from agent.store import read_json, write_json  # noqa: E402
 
 FILES = ((decisions.FILE, []), (questions.FILE, []), ("pending_confirmations.json", []), (reporter.OUTBOX, []),
@@ -31,6 +31,10 @@ class Base(unittest.TestCase):
         for f, empty in FILES:
             write_json(f, empty)
         self.addCleanup(lambda: [write_json(f, e) for f, e in FILES])
+        self.addCleanup(lambda: os.path.exists(os.path.join(os.environ['AGENT_DATA_DIR'], chatlog.FILE))
+                        and os.remove(os.path.join(os.environ['AGENT_DATA_DIR'], chatlog.FILE)))
+        if os.path.exists(os.path.join(os.environ['AGENT_DATA_DIR'], chatlog.FILE)):
+            os.remove(os.path.join(os.environ['AGENT_DATA_DIR'], chatlog.FILE))
         bank = Path(tempfile.mkdtemp()) / "bank.txt"
         bank.write_text("Standing answers\n", encoding="utf-8")
         for p in (mock.patch.object(answers, "ANSWER_BANK", bank), mock.patch("agent.scheduler.run_soon", return_value=True)):
@@ -126,13 +130,32 @@ class EndToEnd(Base):
         self.say("you will take my messages right?", c)
         self.assertIn("Yes, I act on what you type.", read_json(reporter.OUTBOX, [])[-1]["body"])
 
-    def test_recent_messages_reach_the_model_so_an_error_can_be_explained(self):
-        write_json(reporter.OUTBOX, [{"subject": "Applier could not process: CTO at NET-Group", "whatsapp": "sent",
-                                      "body": "Three attempts failed. Last error: Timeout waiting for dialog[open]"}])
-        c = client(actions=[], comment=False, ask=None, reply="The Easy Apply window never opened.")
+    def test_the_last_50_messages_of_the_conversation_reach_the_model(self):
+        chatlog.add("agent", "Applier could not process: CTO at NET-Group", "Three attempts failed. Timeout waiting for dialog[open]")
+        for i in range(60):
+            chatlog.add("agent" if i % 2 else "raja", f"s{i}", f"message number {i}")
+        c = client(actions=[], comment=False, ask=None, reply="x")
         router.route("share more details on the error", client=c)
         prompt = c.messages.create.call_args.kwargs["messages"][0]["content"]
-        self.assertIn("Timeout waiting for dialog[open]", prompt)
+        self.assertIn("message number 59", prompt)
+        self.assertIn("message number 10", prompt)               # 50 back from the newest
+        self.assertNotIn("message number 9\n", prompt)           # older than that is not sent
+        self.assertIn("RAJA:", prompt)
+        self.assertIn("AGENT:", prompt)
+
+    def test_an_error_stays_answerable_with_its_full_text(self):
+        chatlog.add("agent", "Applier could not process: CTO at NET-Group", "Last error: Timeout waiting for dialog[open]")
+        c = client(actions=[], comment=False, ask=None, reply="x")
+        router.route("share more details on the error", client=c)
+        self.assertIn("Timeout waiting for dialog[open]", c.messages.create.call_args.kwargs["messages"][0]["content"])
+
+    def test_i_applied_myself_becomes_a_command_for_a_known_job_only(self):
+        write_json(queue_tool.FILE, [{"job_id": "4490945016", "title": "CTO", "company": "NET-Group Ltd",
+                                      "status": "AWAITING RAJA", "queued_at": "2026-11-16T20:43:21+00:00"}])
+        out = router.route("I applied to that one", client=client(
+            actions=[{"type": "mark_applied", "job_id": "4490945016"}, {"type": "mark_applied", "job_id": "999999999"}],
+            comment=False, ask=None, reply="Recorded."))
+        self.assertEqual(out["commands"], ["APPLIED 4490945016"])
 
     def test_a_real_message_that_matches_nothing_gets_an_answer_not_silence(self):
         c = client(actions=[], comment=False, ask=None, reply=None)
