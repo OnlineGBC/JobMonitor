@@ -51,6 +51,40 @@ def send_text(text: str, session=requests, now: float = None) -> bool:
     return True
 
 
+MAX_BUTTONS, BUTTON_TITLE_MAX, BUTTON_ID_MAX, BUTTON_BODY_MAX = 3, 20, 256, 1024
+
+
+def check_buttons(body: str, buttons: list) -> None:
+    """WhatsApp's limits for reply buttons: 1-3 buttons, title <= 20, id <= 256, body <= 1024 characters."""
+    if not 1 <= len(buttons) <= MAX_BUTTONS:
+        raise ValueError(f"a message can have 1 to {MAX_BUTTONS} buttons, not {len(buttons)}")
+    if not body or len(body) > BUTTON_BODY_MAX:
+        raise ValueError(f"the text of a message with buttons must be 1 to {BUTTON_BODY_MAX} characters, not {len(body or '')}")
+    for button_id, title in buttons:
+        if not title or len(title) > BUTTON_TITLE_MAX:
+            raise ValueError(f"button title '{title}' must be 1 to {BUTTON_TITLE_MAX} characters")
+        if not button_id or len(button_id) > BUTTON_ID_MAX:
+            raise ValueError("a button id must be 1 to 256 characters")
+    if len({b[0] for b in buttons}) != len(buttons):
+        raise ValueError("button ids must be different")
+
+
+def send_buttons(body: str, buttons: list, session=requests, now: float = None) -> bool:
+    """Send a message with tappable reply buttons: buttons = [(id, title), ...].
+
+    Tapping one sends its id back through the webhook, where parse_inbound() turns it into the same text
+    command as typing it (e.g. id 'APPROVE 9e6ae9d2'). Like any free-form message it needs the 24-hour window
+    to be open; if it is closed this sends nothing and returns False.
+    """
+    check_buttons(body, buttons)
+    if not window_open(now):
+        return False
+    _post({"type": "interactive", "interactive": {
+        "type": "button", "body": {"text": body},
+        "action": {"buttons": [{"type": "reply", "reply": {"id": i, "title": t}} for i, t in buttons]}}}, session)
+    return True
+
+
 def send_keepalive(session=requests, now: float = None) -> bool:
     """Send the approved check-in template, at most once per 12 hours."""
     with locked("whatsapp_state"):
@@ -80,6 +114,12 @@ def parse_inbound(payload: dict) -> list:
     for entry in payload.get("entry", []):
         for change in entry.get("changes", []):
             for m in change.get("value", {}).get("messages", []):
-                if m.get("from") == mine:
+                if m.get("from") != mine:
+                    continue
+                if m.get("type") == "interactive":   # a tapped button: its id IS the command we attached to it
+                    tap = (m.get("interactive") or {})
+                    reply = tap.get("button_reply") or tap.get("list_reply") or {}
+                    out.append((m["from"], str(reply.get("id", "")).strip()))
+                else:
                     out.append((m["from"], (m.get("text", {}) or {}).get("body", "").strip()))
     return out

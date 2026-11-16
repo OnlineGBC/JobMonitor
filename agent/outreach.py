@@ -129,7 +129,13 @@ def announce(d: dict) -> None:
         f"{d['poster']} ({d['title']} at {d['company']}):\n{d['poster_url']}\n\n"
         f"{d['kind'].title()} ({len(d['text'])} characters), exactly as it would be sent:\n\n{d['text']}\n\n"
         f"Reply APPROVE {d['id']} to send it as shown, APPROVE {d['id']} followed by your own text to send "
-        f"that instead, or REJECT {d['id']}.\n{gate}")
+        f"that instead, or REJECT {d['id']}.\n{gate}",
+        # WhatsApp: the exact text, then three tappable buttons. A tap sends the same command as typing it.
+        buttons=[(f"APPROVE {d['id']}", "Approve"), (f"REJECT {d['id']}", "Reject"), ("PENDING", "Pending list")],
+        wa_text=(f"Outreach draft {d['id']}\n{d['kind'].title()} to {d['poster']} ({d['title']} at {d['company']}), "
+                 f"exactly as it would be sent:\n\n{d['text']}\n\n{gate}\n\n"
+                 f"Tap Approve to send it as shown, or reply APPROVE {d['id']} followed by your own text."),
+        wa_prompt=f"Draft {d['id']} ({d['kind']} to {d['poster']}): tap to answer.")
 
 
 def find(kind: str, poster_url: str, job_id: str):

@@ -62,7 +62,7 @@ def button_role(english_text: str) -> str:
         return "send"
     if t.startswith("add a note"):
         return "add_note"
-    if t in ("close", "dismiss", "cancel", "x"):
+    if t in ("close", "dismiss", "cancel", "x", "done"):
         return "close"
     if t.startswith("review"):
         return "review"

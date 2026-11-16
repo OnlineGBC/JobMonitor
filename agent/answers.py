@@ -58,6 +58,26 @@ def learn(label: str, value: str, path: Path = None) -> bool:
     return True
 
 
+def _q_key(text: str) -> str:
+    return re.sub(r"\W+", " ", text.lower()).strip()
+
+
+def exact_answer(label: str, bank: str):
+    """The answer Raja saved for exactly this question ('- <question> → <answer>'), or None.
+
+    Matching is on the whole question text (case and punctuation ignored), never on part of it, so an answer
+    to one question can not leak onto a similar-looking one.
+    """
+    want = _q_key(label)
+    if not want:
+        return None
+    for line in bank.splitlines():
+        m = re.match(r"^\s*-\s*(.+?)\s*→\s*(.+?)\s*$", line)
+        if m and _q_key(m.group(1)) == want:
+            return m.group(2)
+    return None
+
+
 def acceptable_earlier_answer(label: str, value: str) -> bool:
     """An earlier answer may fill a gap only if it passes the same safety rules as a model answer."""
     if not value or BANNED_SCHOOLS.search(value):
@@ -135,6 +155,18 @@ def decide_answer(question: dict, bank: str = None, client=None, model: str = No
     # Optional questions stay blank
     if not required:
         return {"action": "blank", "value": None, "reason": "optional"}
+
+    # An answer Raja gave to THIS EXACT question (a "question -> answer" line in the standing answers) is used
+    # as given, with no model involved. It still has to pass the same safety rules as any other answer.
+    known = exact_answer(label, bank if bank is not None else load_bank())
+    if known is not None:
+        if not acceptable_earlier_answer(label, known):
+            return _pause("the saved answer to this question breaks a safety rule")
+        if options:
+            known = _match_option(known, options)
+            if known is None:
+                return _pause("the saved answer is not one of the form's options")
+        return {"action": "answer", "value": known, "reason": "your saved answer to this exact question"}
 
     # Salary: Open/blank where allowed (not reachable here, it is required); a forced range uses 206000
     if SALARY_Q.search(label):

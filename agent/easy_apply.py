@@ -169,8 +169,12 @@ def _paused(reason, question=None, steps=None, learned=None):
             "steps": steps or [], "learned": learned or []}
 
 
-def run_form(page, title: str, allow_submit: bool = False, decide=answers.decide_answer) -> dict:
-    """Fill the open Easy Apply form. Returns {'status': 'ready'|'paused'|'skipped', ...}."""
+def run_form(page, title: str, allow_submit: bool = False, decide=answers.decide_answer, company: str = None) -> dict:
+    """Fill the open Easy Apply form. Returns {'status': 'ready'|'submitted'|'paused'|'skipped', ...}.
+
+    With allow_submit=False (the default, and what the applier uses) it stops at the review page. With
+    allow_submit=True it also clicks Submit there, after submit_application's checks, and `company` is required.
+    """
     steps, learned = [], []
     resume = resumes.resume_name(title)
     if resume is None:
@@ -224,6 +228,13 @@ def run_form(page, title: str, allow_submit: bool = False, decide=answers.decide
         advance = btns.get("next") or btns.get("review")
         if advance is None:
             if "submit" in btns:
+                if allow_submit:
+                    try:
+                        sent = submit_application(page, company, btns["submit"]["text"])
+                    except SubmitRefused as e:
+                        return _paused(f"refused to submit: {e}", None, steps, learned)
+                    return {"status": "submitted", "reason": sent["evidence"] or "Submit was clicked",
+                            "confirmed": sent["confirmed"], "steps": steps, "learned": learned}
                 return {"status": "ready", "reason": "reached the final review page",
                         "steps": steps, "learned": learned, "review": after["text"]}
             return _paused("no Next/Review button on this page", None, steps, learned)
@@ -256,15 +267,84 @@ def close_form(page, save: bool) -> str:
     return "none"
 
 
+_APPLY_CONTROL = re.compile(r"^(Easy Apply|Continue|Einfach bewerben|Fortfahren)$", re.I)
+
+
+def _top_card_apply_controls(page) -> list:
+    """The Easy Apply / Continue controls in the posting's OWN top card (never a sidebar or another job's card).
+
+    'Easy Apply' is a button on a fresh posting; once a draft is saved the same place shows 'Continue', a link.
+    """
+    found = []
+    for role in ("button", "link"):
+        loc = page.get_by_role(role, name=_APPLY_CONTROL)
+        for i in range(loc.count()):
+            box = loc.nth(i).bounding_box()
+            if box and box["y"] < 600 and box["x"] < 1000:
+                found.append(loc.nth(i))
+    return found
+
+
 def open_easy_apply(page, url: str) -> None:
+    """Open the application dialog: a fresh one via 'Easy Apply', or a saved draft via 'Continue'. A saved draft
+    reopens at its first page, so run_form walks forward through the pages again."""
     page.goto(url, wait_until="domcontentloaded", timeout=45000)
     page.wait_for_timeout(3500)
-    btn = page.get_by_role("button", name=re.compile(r"^(Easy Apply|Einfach bewerben)", re.I))
-    if not btn.count():
-        raise RuntimeError("no Easy Apply button on this posting")
-    btn.first.click()
+    controls = _top_card_apply_controls(page)
+    if not controls:
+        raise RuntimeError("no Easy Apply or Continue control in this posting's top card")
+    if len(controls) != 1:
+        raise RuntimeError(f"expected one Easy Apply/Continue control in the top card, found {len(controls)}")
+    controls[0].click()
     page.wait_for_selector("dialog[open]", timeout=15000)
     page.wait_for_timeout(2000)
+
+
+class SubmitRefused(Exception):
+    """A safety check failed, so Submit was not clicked."""
+
+
+SUCCESS = re.compile(r"application (was )?sent|application submitted|was sent to|successfully submitted|gesendet", re.I)
+
+
+def submit_application(page, company: str, submit_label: str) -> dict:
+    """Click Submit on the review page, but only after the checks. Raises SubmitRefused if any fails.
+
+    Checks: exactly one dialog is open; it names this company; it has exactly one Submit button and no
+    Next/Review. Afterwards it waits for LinkedIn's confirmation and closes the success dialog. Settling
+    ("Applied" on the job tracker AND the posting page) is done by agent.reconcile, not here.
+    """
+    if not company or not company.strip():
+        raise SubmitRefused("no company was given to check the dialog against")
+    if page.locator("dialog[open]").count() != 1:
+        raise SubmitRefused(f"expected one open dialog, found {page.locator('dialog[open]').count()}")
+    words = set(re.findall(r"[^\W\d_]+", _dlg(page).inner_text().lower()))
+    if not set(re.findall(r"[^\W\d_]+", company.lower())) <= words:
+        raise SubmitRefused(f"the dialog does not name {company}")
+    roles = [b["role"] for b in read_step(page)["buttons_info"]]
+    if roles.count("submit") != 1 or "next" in roles or "review" in roles:
+        raise SubmitRefused(f"this is not the final review page (buttons: {roles})")
+    _dlg(page).get_by_role("button", name=submit_label, exact=True).click()
+    evidence = ""
+    for _ in range(48):                                   # up to 12 s
+        page.wait_for_timeout(250)
+        evidence = _dlg(page).inner_text() if page.locator("dialog[open]").count() else ""
+        if SUCCESS.search(evidence) or not evidence:
+            break
+    confirmed = bool(SUCCESS.search(evidence))
+    for _ in range(3):                                    # dismiss the success dialog if there is one
+        if not page.locator("dialog[open]").count():
+            break
+        labels = _dlg(page).evaluate(
+            "d => [...d.querySelectorAll('button')].map(b => (b.getAttribute('aria-label') || b.innerText || '').trim()).filter(Boolean)")
+        tr = translate.translate(labels)
+        close = next((l for l in labels if translate.button_role(tr.get(l, l)) in ("close", "discard")), None)
+        if close and "submit" not in translate.button_role(tr.get(close, close)):
+            _dlg(page).get_by_role("button", name=close, exact=True).first.click()
+        else:
+            page.keyboard.press("Escape")
+        page.wait_for_timeout(600)
+    return {"clicked": True, "confirmed": confirmed, "evidence": " ".join(evidence.split())[:200]}
 
 
 def main():
