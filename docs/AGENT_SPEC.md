@@ -36,7 +36,7 @@ Applies only when the title carries none of: AI, artificial intelligence, GenAI,
 Same company + same role title already in the tracker = duplicate (including reposts). Same client role via a different company is not. Queue twins: apply to one, drop the rest at once. Qualification is sticky.
 
 ## Step 5: Queueing
-Passers are queued in `pending_survivors.json` through `queue_tool.py` only, with job ID, title, company, location, workplace, applicant count, apply type, poster, and the note "QUEUED — awaiting the application process." Remote passers are queued; Hybrid/On-site are held out (IDs stay ledgered) and queued by hand only on Raja's word. Mark "I'm interested" on each passing company's page once per company per run; log failures; never report marks.
+Passers are queued in `pending_survivors.json` through `queue_tool.py` only, with job ID, title, company, location, workplace, applicant count, apply type, poster, and the note "QUEUED — awaiting the application process." Remote passers are queued; Hybrid/On-site are held out (IDs stay ledgered) and queued by hand only on Raja's word. ~~Mark "I'm interested" on each passing company's page once per company per run; log failures; never report marks.~~ **Not implemented (decision 2026-11-16).** LinkedIn company pages return a Cloudflare bot check to headless browsers, which every scheduled process uses; they only load in a visible browser. Rather than work around that check, Raja chose to skip this feature. A visible-browser batch (run by hand) or a visible window per scan were the alternatives.
 
 ## Step 6: Applying
 - Claim one queued posting atomically (oldest eligible; skip AWAITING RAJA / DO NOT ATTEMPT / PICKUP IN PROGRESS; a live claim blocks the same company; claims go stale after 70 min).
