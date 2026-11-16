@@ -544,8 +544,12 @@ class Applier(unittest.TestCase):
         self.assertEqual(n("CEO"), resumes.CHIEF)
         self.assertEqual(n("VP / Director of AI"), resumes.VP)
         self.assertIsNone(n("Senior AI Engineer"))
-        for name in (resumes.VP, resumes.DIRECTOR, resumes.CHIEF):  # files really exist
-            self.assertTrue((resumes.RESUME_DIR / name).exists(), name)
+        # VP and Chief resumes exist on disk (any extension); the Director resume lives on LinkedIn only
+        self.assertTrue(resumes.local_path("VP of AI").exists())
+        self.assertTrue(resumes.local_path("Chief AI Officer").exists())
+        self.assertIsNone(resumes.local_path("Director of AI"))
+        self.assertIn("DataScience", resumes.DIRECTOR)
+        self.assertNotIn("SAP", resumes.DIRECTOR)
 
     def test_hard_blockers(self):
         self.assertEqual(self.ans("What is your risk appetite?", required=False)["action"], "skip_application")

@@ -69,6 +69,35 @@ class ResumeMatching(unittest.TestCase):
         self.assertFalse(easy_apply._is_resume_group({"kind": "radio", "options": []}))
 
 
+class ResumeChoice(unittest.TestCase):
+    def group(self, *names):
+        return {"kind": "radio", "resume": True,
+                "options": [{"id": f"r{i}", "aria": n, "checked": i == 0} for i, n in enumerate(names)]}
+
+    def test_a_resume_missing_from_linkedin_and_disk_pauses_instead_of_substituting(self):
+        g = self.group("RajaGopalanVPEnterpriseAI_DataScience.docx", "RajaGopalanChiefAI_DataOfficer.docx")
+        with self.assertRaisesRegex(easy_apply.ResumeUnavailable, "not on LinkedIn"):
+            easy_apply.choose_resume(None, g, "RajaGopalanDir-SystemArchitectEnterpriseAI_DataScience.docx", None)
+
+    def test_director_uses_the_resume_already_on_linkedin_and_never_uploads(self):
+        from agent import resumes
+        self.assertEqual(easy_apply.stem(resumes.resume_name("Director of AI")),
+                         easy_apply.stem("RajaGopalanDir-SystemArchitectEnterpriseAI_DataScience.docx"))
+        self.assertIsNone(resumes.local_path("Director of AI"))  # nothing on disk to upload
+
+    def test_run_form_pauses_when_the_resume_is_unavailable(self):
+        step = {"page": [2, 4], "errors": [], "buttons_info": [],
+                "fields": [self.group("RajaGopalanVPEnterpriseAI_DataScience.docx")]}
+        original = easy_apply.read_step
+        easy_apply.read_step = lambda page: step
+        try:
+            result = easy_apply.run_form(None, "Director of AI")  # Director resume is not on this account
+        finally:
+            easy_apply.read_step = original
+        self.assertEqual(result["status"], "paused")
+        self.assertIn("not on LinkedIn", result["reason"])
+
+
 class Learning(unittest.TestCase):
     def test_learn_appends_once_under_a_marked_section(self):
         p = Path(tempfile.mkdtemp()) / "bank.txt"
@@ -160,6 +189,33 @@ class ReadFormMarkup(unittest.TestCase):
         self.assertEqual((text["label"], text["value"]), ("How many years of Management experience do you currently have?", "15"))
         self.assertEqual(raw["page"], [1, 5])
         self.assertEqual(raw["buttons"], ["Back", "Review"])
+
+
+class SelectReading(unittest.TestCase):
+    PAGE = (
+        '<dialog open><h2>Apply</h2>'
+        '<label for="s1">Proficiency in Chinese?*</label><select id="s1">'
+        '<option>Select an option</option><option selected>None</option><option>Conversational</option></select>'
+        '<label for="s2">Country</label><select id="s2"><option>Select an option</option>'
+        '<option value="us" selected>United States (+1)</option><option value="ca">Canada (+1)</option></select>'
+        '<label for="s3">Education level?*</label><select id="s3"><option>Select an option</option>'
+        '<option>Bachelor</option></select></dialog>')
+
+    def test_reads_visible_text_not_the_code_and_treats_the_placeholder_as_empty(self):
+        try:
+            from playwright.sync_api import sync_playwright
+        except ImportError:
+            self.skipTest("playwright not installed")
+        with sync_playwright() as p:
+            b = p.chromium.launch(headless=True)
+            page = b.new_page()
+            page.set_content(self.PAGE)
+            raw = page.locator("dialog[open]").first.evaluate(easy_apply.READ_JS)
+            b.close()
+        fields = {f["label"]: easy_apply._current({**f, "resume": False}) for f in raw["fields"]}
+        self.assertEqual(fields["Proficiency in Chinese?"], "None")
+        self.assertEqual(fields["Country"], "United States (+1)")   # not the code 'us'
+        self.assertEqual(fields["Education level?"], "")            # placeholder is not an answer
 
 
 class CloseForm(unittest.TestCase):

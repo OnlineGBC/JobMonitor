@@ -47,6 +47,8 @@ READ_JS = r"""(d) => {
       const label = (lab || aria).replace(/\*$/, '').trim();
       fields.push({kind: el.tagName === 'SELECT' ? 'select' : (el.tagName === 'TEXTAREA' ? 'textarea' : 'text'),
         input_type: el.type, id: el.id, label, value: el.value,
+        // visible text of the chosen option; index 0 is the placeholder ("Select an option"), i.e. no answer
+        selected: el.tagName === 'SELECT' && el.selectedIndex > 0 ? el.options[el.selectedIndex].text.trim() : '',
         required: el.required || el.getAttribute('aria-required') === 'true' || /\*$/.test(lab) || starred(aria),
         options: el.tagName === 'SELECT' ? [...el.options].map(o => o.text.trim()) : []});
     }
@@ -61,8 +63,7 @@ READ_JS = r"""(d) => {
 }"""
 
 
-def stem(name: str) -> str:
-    return EXTENSIONS.sub("", name or "").strip().lower()
+stem = resumes.stem  # one definition of "same resume": the name without docx/doc/pdf
 
 
 def _dlg(page):
@@ -107,10 +108,20 @@ def _contact_field(f: dict) -> bool:
     return bool(re.search(r"e-?mail|phone|mobile|country code", f.get("label", ""), re.I))
 
 
-def choose_resume(page, group: dict, path: Path) -> str:
-    """Select the resume by name (extension ignored); upload the local file if LinkedIn lacks it."""
-    target = stem(path.name)
+class ResumeUnavailable(Exception):
+    """The wanted resume is not on LinkedIn and there is no local file to upload."""
+
+
+def choose_resume(page, group: dict, name: str, path: Path = None) -> str:
+    """Select the resume `name` already on LinkedIn (extension ignored).
+
+    Uploads `path` only when LinkedIn lacks the resume AND a local file exists; otherwise raises
+    ResumeUnavailable so the application pauses instead of using a different resume.
+    """
+    target = stem(name)
     match = next((o for o in group["options"] if stem(o["aria"]) == target), None)
+    if match is None and path is None:
+        raise ResumeUnavailable(f"resume '{name}' is not on LinkedIn and not in the resumes folder")
     if match is None:
         info = read_step(page)["buttons_info"]
         up = next((b for b in info if b["role"] == "upload"), None)
@@ -136,6 +147,8 @@ def choose_resume(page, group: dict, path: Path) -> str:
 def _current(f: dict) -> str:
     if f["kind"] in ("radio", "checkbox"):
         return next((o["en"] for o in f["options"] if o["checked"]), "")
+    if f["kind"] == "select":
+        return f.get("selected", "")  # the option's visible text, never its internal code
     return (f.get("value") or "").strip()
 
 
@@ -159,9 +172,10 @@ def _paused(reason, question=None, steps=None, learned=None):
 def run_form(page, title: str, allow_submit: bool = False, decide=answers.decide_answer) -> dict:
     """Fill the open Easy Apply form. Returns {'status': 'ready'|'paused'|'skipped', ...}."""
     steps, learned = [], []
-    resume = resumes.pick_resume(title)
+    resume = resumes.resume_name(title)
     if resume is None:
         return _paused(f"no resume rule for the title '{title}'")
+    resume_file = resumes.local_path(title)  # may be None: the resume can live on LinkedIn only
     bank = answers.load_bank()
     for _ in range(MAX_STEPS):
         step = read_step(page)
@@ -169,7 +183,10 @@ def run_form(page, title: str, allow_submit: bool = False, decide=answers.decide
         notes = []
         for f in step["fields"]:
             if f.get("resume"):
-                notes.append(f"resume: {choose_resume(page, f, resume)}")
+                try:
+                    notes.append(f"resume: {choose_resume(page, f, resume, resume_file)}")
+                except ResumeUnavailable as e:
+                    return _paused(str(e), None, steps, learned)
                 continue
             if f["kind"] in ("radio", "checkbox") and not f["options"]:
                 continue

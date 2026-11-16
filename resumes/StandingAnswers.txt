@@ -30,3 +30,6 @@ Desired salary: leave open/blank where allowed; a forced range dropdown takes th
 Address: 1 Main St, New York, NY 10001, New York County. Pacific Time schedule alignment: Yes.
 Preferred contact channel: SMS (email and SMS when possible). Current employer's work setting: Remotely. Current role start: January 2021.
 AI safety written answer (standing template): "Keeping advanced AI systems under human control as they get more capable, with the data and decisions behind them governed properly."
+
+Learned from earlier applications (added automatically; edit or delete freely)
+- What is your level of proficiency in Chinese? → None
