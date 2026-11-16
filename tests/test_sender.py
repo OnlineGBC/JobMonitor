@@ -127,5 +127,30 @@ class ManualDraft(unittest.TestCase):
         self.assertEqual(outreach.all_items(), [])
 
 
+class Reopen(unittest.TestCase):
+    def setUp(self):
+        reset()
+        self.d = outreach.create("invite", "1", "Cody Rice", URL, "Acme", "VP of AI")
+
+    def test_a_failed_approved_draft_can_be_retried_with_the_same_text(self):
+        outreach.approve(self.d["id"])
+        outreach.mark(self.d["id"], "FAILED", error="no dialog")
+        ok, _ = outreach.reopen(self.d["id"])
+        got = outreach.get(self.d["id"])
+        self.assertEqual((ok, got["status"], got["error"], got["text"]), (True, "APPROVED", None, self.d["text"]))
+
+    def test_sent_unsettled_rejected_and_unapproved_drafts_are_never_reopened(self):
+        self.assertFalse(outreach.reopen(self.d["id"])[0])          # never approved
+        outreach.approve(self.d["id"])
+        for status in ("SENT", "UNSETTLED"):
+            outreach.mark(self.d["id"], status)
+            self.assertFalse(outreach.reopen(self.d["id"])[0], status)
+            self.assertEqual(outreach.get(self.d["id"])["status"], status)
+        outreach.mark(self.d["id"], "FAILED")
+        outreach._update(self.d["id"], sent="2026-11-16T00:00:00")   # something did go out
+        self.assertFalse(outreach.reopen(self.d["id"])[0])
+        self.assertFalse(outreach.reopen("zzzzzzzz")[0])
+
+
 if __name__ == "__main__":
     unittest.main()

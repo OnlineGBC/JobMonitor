@@ -191,6 +191,21 @@ def mark(item_id: str, status: str, error: str = None) -> None:
     _update(item_id, **fields)
 
 
+def reopen(item_id: str):
+    """Make a FAILED draft sendable again after the cause was fixed. Only for drafts that never went out.
+
+    The text Raja approved is unchanged. SENT and UNSETTLED drafts are never reopened (something may
+    have been sent), and a draft that was never approved cannot be reopened into approval.
+    """
+    item = get(item_id)
+    if item is None:
+        return False, f"No outreach draft with id {item_id}."
+    if item["status"] != "FAILED" or item["sent"] or not item["approved"]:
+        return False, f"Draft {item_id} is {item['status']} and cannot be reopened."
+    _update(item["id"], status="APPROVED", error=None)
+    return True, f"Draft {item['id']} is approved again with the same text."
+
+
 def bump_attempts(item_id: str) -> int:
     with locked("outreach"):
         items = read_json(FILE, [])
@@ -243,7 +258,12 @@ def main(argv=None) -> int:
     d.add_argument("--text")
     d.add_argument("--no-applied-check", action="store_true", help="send once approved, without waiting for 'Applied'")
     sub.add_parser("list")
+    r = sub.add_parser("retry")
+    r.add_argument("id")
     a = ap.parse_args(argv)
+    if a.cmd == "retry":
+        print(reopen(a.id)[1])
+        return 0
     if a.cmd == "list":
         for i in all_items():
             print(f"{i['id']}  {i['status']:<9} {i['kind']:<7} {i['poster']} ({i['company']})")

@@ -54,6 +54,27 @@ def card_state(page) -> dict:
             "more_buttons": sum(1 for t in s["controls"] if t.strip().lower() == "more")}
 
 
+def _dlg(page):
+    """The visible dialog. LinkedIn's invitation modal is a div[role=dialog] inside the shadow root of
+    #interop-outlet, not a native <dialog>; Playwright's role selector sees through the shadow root."""
+    return page.get_by_role("dialog").filter(visible=True)
+
+
+def _wait_for_dialog(page, ms: int = 7000) -> bool:
+    for _ in range(ms // 250):
+        if _dlg(page).count():
+            return True
+        page.wait_for_timeout(250)
+    return False
+
+
+def _button_labels(page) -> list:
+    """Visible text or aria-label of each button in the dialog (the close X has only an aria-label)."""
+    return _dlg(page).first.evaluate(
+        "d => [...d.querySelectorAll('button')]"
+        ".map(b => (b.getAttribute('aria-label') || b.innerText || '').trim()).filter(Boolean)")
+
+
 def _abort(reason: str, close=None) -> dict:
     if close:
         close()
@@ -61,24 +82,22 @@ def _abort(reason: str, close=None) -> dict:
 
 
 def _dialog_roles(page) -> list:
-    """[(text, role)] for the buttons of the open dialog, roles from the translation cache."""
-    names = [t.strip() for t in page.locator("dialog[open] button").all_inner_texts() if t.strip()]
+    """[(label, role)] for the buttons of the open dialog, roles from the translation cache."""
+    names = _button_labels(page)
     tr = translate.translate(names)
     return [(n, translate.button_role(tr.get(n, n))) for n in names]
 
 
 def close_dialog(page) -> None:
-    """Close whatever dialog is open WITHOUT sending: its close button, Escape, then Discard if asked."""
-    for _ in range(3):
-        if not page.locator("dialog[open]").count():
+    """Close whatever dialog is open WITHOUT sending: Discard if asked, else its Dismiss/close button,
+    else Escape. Never touches a Send button."""
+    for _ in range(4):
+        if not _dlg(page).count():
             return
         roles = _dialog_roles(page)
-        discard = next((n for n, r in roles if r == "discard"), None)
-        close = next((n for n, r in roles if r == "close"), None)
-        if discard:
-            page.get_by_role("button", name=discard).first.click()
-        elif close:
-            page.locator("dialog[open]").last.get_by_role("button", name=close).first.click()
+        button = next((n for n, r in roles if r == "discard"), None) or next((n for n, r in roles if r == "close"), None)
+        if button:
+            _dlg(page).first.get_by_role("button", name=button, exact=True).first.click()
         else:
             page.keyboard.press("Escape")
         page.wait_for_timeout(700)
@@ -122,22 +141,25 @@ def send_invite(page, url: str, name: str, text: str, confirm=None, navigate: bo
     connect.first.click()
 
     # 3. The invitation dialog must appear. If it does not, we cannot tell what happened.
-    try:
-        page.wait_for_selector("dialog[open]", timeout=7000)
-    except Exception:
+    if not _wait_for_dialog(page):
         page.wait_for_timeout(1500)
         if card_state(page)["pending"]:
             return {"result": "sent_without_note",
                     "reason": "Connect sent an invitation immediately with no dialog; the note was NOT delivered"}
         return _abort("no invitation dialog appeared (nothing seems to have been sent)")
-    page.wait_for_timeout(800)
+    if _dlg(page).count() != 1:
+        return _abort(f"expected one open dialog, found {_dlg(page).count()}", lambda: close_dialog(page))
+    # The dialog itself names who the invitation is for ("Personalize your invitation to Cody Rice...")
+    words = set(re.findall(r"[^\W\d_]+", _dlg(page).first.inner_text().lower()))
+    if not set(_tokens(name)) <= words:
+        return _abort(f"the invitation dialog does not name {name}", lambda: close_dialog(page))
+    page.wait_for_timeout(500)
 
-    roles = _dialog_roles(page)
-    add = next((n for n, r in roles if r == "add_note"), None)
+    add = next((n for n, r in _dialog_roles(page) if r == "add_note"), None)
     if add:
-        page.locator("dialog[open]").last.get_by_role("button", name=add).first.click()
+        _dlg(page).first.get_by_role("button", name=add, exact=True).click()
         page.wait_for_timeout(1000)
-    area = page.locator("dialog[open] textarea")
+    area = _dlg(page).first.locator("textarea")
     if area.count() != 1:
         return _abort("could not find the note box; never sending without the note", lambda: close_dialog(page))
 
@@ -159,16 +181,16 @@ def send_invite(page, url: str, name: str, text: str, confirm=None, navigate: bo
     sends = [n for n, r in _dialog_roles(page) if r == "send"]
     if len(sends) != 1:
         return _abort(f"expected exactly one Send button, found {len(sends)}", lambda: close_dialog(page))
-    page.locator("dialog[open]").last.get_by_role("button", name=sends[0], exact=True).click()
+    _dlg(page).first.get_by_role("button", name=sends[0], exact=True).click()
 
     # 7. Settle on LinkedIn's own state: the dialog closes and the profile shows Pending
     for _ in range(16):
-        if not page.locator("dialog[open]").count():
+        if not _dlg(page).count():
             break
         page.wait_for_timeout(500)
     if navigate:
         page.reload(wait_until="domcontentloaded")
         page.wait_for_timeout(3500)
-    if not page.locator("dialog[open]").count() and card_state(page)["pending"]:
+    if not _dlg(page).count() and card_state(page)["pending"]:
         return {"result": "sent", "reason": "LinkedIn shows the invitation as Pending"}
     return {"result": "unsettled", "reason": "Send was clicked but Pending was not confirmed"}
