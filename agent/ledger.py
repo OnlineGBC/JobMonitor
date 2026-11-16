@@ -10,6 +10,11 @@ def seen_ids() -> set:
     return set(read_json(FILE, {}))
 
 
+def seen_outcomes() -> dict:
+    """{job_id: {"first_seen", "outcome"}} for every processed job."""
+    return read_json(FILE, {})
+
+
 def new_ids(ids) -> list:
     seen = seen_ids()
     return [str(i) for i in ids if str(i) not in seen]

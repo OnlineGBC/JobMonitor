@@ -417,10 +417,12 @@ def extract_job_listings_new_layout(page) -> list:
             continue
         title = suffix.sub("", lines[0])
         rest = [l for l in lines[1:] if suffix.sub("", l).strip().lower() != title.strip().lower()]
-        jobs.append({"title": title, "company": rest[0] if rest else "",
+        footer = " ".join(rest[2:])      # after company and place: "Actively reviewing", "Applied", "Easy Apply" ...
+        jobs.append({"job_id": card["id"], "title": title, "company": rest[0] if rest else "",
                      "location": rest[1] if len(rest) > 1 else "",
                      "url": f"https://www.linkedin.com/jobs/view/{card['id']}",
-                     "easy_apply": "easy apply" in card["text"].lower()})
+                     "easy_apply": "easy apply" in footer.lower(),
+                     "applied": bool(re.search(r"\bapplied\b", footer, re.I))})   # LinkedIn's own marker
     return jobs
 
 
@@ -503,32 +505,138 @@ def summarize_jobs_with_ai(jobs: list) -> list:
     return jobs
 
 
+def _place(location: str) -> str:
+    """'Connecticut, United States (Remote)' -> 'Connecticut'."""
+    return re.sub(r"\s*\((Remote|Hybrid|On-site)\)\s*$", "", location or "").replace(", United States", "").strip()
+
+
+def collapse_jobs(jobs: list) -> list:
+    """One entry per (title, company): the same role posted once per state becomes a single line.
+
+    Keeps every posting's id and link, the list of places, and whether ANY of them is Easy Apply / applied.
+    """
+    groups, order = {}, []
+    for job in jobs:
+        key = ((job.get("title") or "").strip().lower(), (job.get("company") or "").strip().lower())
+        if key not in groups:
+            groups[key] = {**job, "places": [], "urls": [], "job_ids": [], "count": 0}
+            order.append(key)
+        g = groups[key]
+        g["count"] += 1
+        g["urls"].append(job.get("url", ""))
+        if job.get("job_id"):
+            g["job_ids"].append(str(job["job_id"]))
+        place = _place(job.get("location", ""))
+        if place and place not in g["places"]:
+            g["places"].append(place)
+        g["easy_apply"] = g.get("easy_apply") or job.get("easy_apply", False)
+        g["applied"] = g.get("applied") or job.get("applied", False)
+    return [groups[k] for k in order]
+
+
+def agent_status(job: dict) -> tuple:
+    """What the job agent has done about this role, from its own records: (applied: bool, text).
+
+    Read-only. If the agent's data cannot be read, says so plainly instead of guessing.
+    """
+    try:
+        from agent import ledger, queue_tool, tracker
+        ids = set(job.get("job_ids") or [])
+        rows = [r for r in tracker.rows() if str(r.get("job_id")) in ids]
+        for r in rows:
+            if r["status"] == "SUBMITTED":
+                return True, f"applied by the agent (application #{r['number']})"
+        if job.get("applied"):
+            return True, "LinkedIn shows you have already applied"
+        for r in rows:
+            if r["status"] == "AWAITING RAJA":
+                return False, f"started (application #{r['number']}); waiting for you, see the agent's report"
+        if any(str(q.get("job_id")) in ids for q in queue_tool.all_items()):
+            return False, "queued; the agent will apply on its next run (within about 15 minutes)"
+        seen = ledger.seen_outcomes()
+        for jid in job.get("job_ids") or []:
+            outcome = seen.get(jid, {}).get("outcome")
+            if outcome and not outcome.startswith("queued"):
+                return False, f"the agent will not apply: {outcome.split(': ', 1)[-1]}"
+        return False, "passed to the agent; it will be checked on its next discovery run"
+    except Exception as e:
+        if job.get("applied"):
+            return True, "LinkedIn shows you have already applied"
+        return False, f"agent status unavailable ({e})"
+
+
+def _job_lines(i: int, job: dict, status: str = "") -> list:
+    header = f"{i}. {job.get('title', 'Unknown Title')}"
+    if job.get("company"):
+        header += f" \u2014 {job['company']}"
+    places = job.get("places") or ([_place(job["location"])] if job.get("location") else [])
+    remote = "Remote" if "(remote)" in (job.get("location") or "").lower() else ""
+    if places:
+        shown = ", ".join(places[:4]) + (f" +{len(places) - 4} more" if len(places) > 4 else "")
+        header += f" ({remote + ': ' if remote else ''}{shown})"
+    if job.get("count", 1) > 1:
+        header += f" [{job['count']} postings]"
+    lines = [header]
+    if status:
+        lines.append(f"   {status}")
+    if job.get("summary"):
+        lines.append(f"   {job['summary']}")
+    lines.append(f"   {(job.get('urls') or [job.get('url', '')])[0]}")
+    lines.append("")
+    return lines
+
+
 def format_jobs_for_email(new_jobs: list) -> str:
-    """Format new job listings as a readable block to prepend to the email body."""
+    """New jobs in three sections: Easy Apply roles already applied for, Easy Apply roles not yet applied for
+    (with what the agent is doing about each), and everything else (applied for on the company's site)."""
     if not new_jobs:
         return ""
-    lines = [f"NEW JOBS FOUND ({len(new_jobs)}):\n"]
-    for i, job in enumerate(new_jobs, 1):
-        apply_type = "Easy Apply" if job.get("easy_apply") else "Apply"
-        title    = job.get("title", "Unknown Title")
-        company  = job.get("company", "")
-        location = job.get("location", "")
-        url      = job.get("url", "")
-        summary  = job.get("summary", "")
+    jobs = collapse_jobs(new_jobs)
+    applied, pending, other = [], [], []
+    for job in jobs:
+        if job.get("easy_apply") or job.get("applied"):
+            done, status = agent_status(job)
+            (applied if done else pending).append((job, status))
+        else:
+            other.append(job)
+    out = []
+    if applied:
+        out.append(f"EASY APPLY, ALREADY APPLIED ({len(applied)}):\n")
+        for i, (job, status) in enumerate(applied, 1):
+            out += _job_lines(i, job, status)
+    if pending:
+        out.append(f"EASY APPLY, NOT YET APPLIED ({len(pending)}):\n")
+        for i, (job, status) in enumerate(pending, 1):
+            out += _job_lines(i, job, status)
+    if other:
+        out.append(f"OTHER NEW JOBS, apply on the company's site ({len(other)}):\n")
+        for i, job in enumerate(other, 1):
+            out += _job_lines(i, job)
+    return "\n".join(out)
 
-        header = f"{i}. {title}"
-        if company:
-            header += f" — {company}"
-        if location:
-            header += f" ({location})"
-        header += f" [{apply_type}]"
-        lines.append(header)
-        if summary:
-            lines.append(f"   {summary}")
-        if url:
-            lines.append(f"   {url}")
-        lines.append("")
-    return "\n".join(lines)
+
+def hand_easy_apply_jobs_to_agent(new_jobs: list) -> int:
+    """Pass Easy Apply roles that are not applied for yet to the job agent, to run through ITS gates.
+
+    Written to a hand-off file that agent.discovery reads on its next run. The agent still applies only what
+    passes its own rules (Remote, title, criteria, the core check); nothing is applied for from here.
+    """
+    try:
+        from agent.store import locked, read_json, write_json
+        fresh = [j for j in new_jobs if j.get("easy_apply") and not j.get("applied") and j.get("job_id")]
+        if not fresh:
+            return 0
+        with locked("monitor_hints"):
+            hints = read_json("monitor_hints.json", {})
+            for j in fresh:
+                entry = {k: j.get(k, "") for k in ("title", "company", "location", "url")}
+                entry["added"] = datetime.now().isoformat(timespec="seconds")
+                hints.setdefault(str(j["job_id"]), entry)
+            write_json("monitor_hints.json", hints)
+        return len(fresh)
+    except Exception as e:
+        logging.warning(f"Could not hand Easy Apply jobs to the agent: {e}")
+        return 0
 
 
 # =============================================================================
@@ -1525,6 +1633,8 @@ def process_monitor(
 
                 job_digest = ""
                 if new_jobs:
+                    if not dry_run:
+                        hand_easy_apply_jobs_to_agent(new_jobs)
                     try:
                         new_jobs = summarize_jobs_with_ai(new_jobs)
                         job_digest = format_jobs_for_email(new_jobs) + "\n"
