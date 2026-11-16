@@ -111,9 +111,15 @@ class Queue(unittest.TestCase):
     def setUp(self):
         write_json("pending_survivors.json", [])
 
-    def test_hybrid_held_out_unless_forced(self):
-        self.assertFalse(queue_tool.add(post(job_id="h", workplace="Hybrid"))[0])
-        self.assertTrue(queue_tool.add(post(job_id="h", workplace="Hybrid"), force=True)[0])
+    def test_only_remote_is_ever_queued(self):
+        for wp in ("Hybrid", "On-site", "On-Site", "", None):
+            ok, why = queue_tool.add(post(job_id="h", workplace=wp))
+            self.assertFalse(ok, wp)
+            self.assertTrue(why.startswith("dropped"), why)
+        self.assertEqual(queue_tool.all_items(), [])
+        self.assertTrue(queue_tool.add(post(job_id="r", workplace="Remote"))[0])
+        with self.assertRaises(TypeError):          # there is no override: Raja decided these are dropped
+            queue_tool.add(post(job_id="h2", workplace="Hybrid"), force=True)
 
     def test_twin_dropped(self):
         self.assertTrue(queue_tool.add(post(job_id="a"))[0])
@@ -208,10 +214,43 @@ class Discovery(unittest.TestCase):
         closed = self.d.parse_posting("X | Y | LinkedIn", ["Y", "X", "No longer accepting applications"], "")
         self.assertTrue(closed["not_accepting"])
 
+    def test_the_spec_profile_is_the_default_and_the_test_profile_is_separate(self):
+        write_json("discovery_profile.json", {})
+        self.assertEqual(self.d.current_profile(), "spec")
+        m = self.d.title_matches_search
+        for title in ("Director, ML", "AI Architect", "Principal Machine Learning Engineer", "Head of Data Science",
+                      "Lead GenAI Engineer", "Manager, Agentic AI", "Senior Data Scientist, Principal"):
+            self.assertFalse(m(title, "spec"), title)       # the spec rule is unchanged
+            self.assertTrue(m(title, "test"), title)
+        for title in ("Software Engineer", "VP Marketing", "Director of Sales", "Architect", "Machine Learning"):
+            self.assertFalse(m(title, "test"), title)        # still needs a role word AND a domain word
+        for title in ("VP of AI", "Chief AI Officer", "CTO"):
+            self.assertTrue(m(title, "spec") and m(title, "test"), title)   # the test profile only adds
+
+    def test_the_test_profile_adds_easy_apply_to_the_search_and_the_spec_profile_does_not(self):
+        self.assertNotIn("f_AL", self.d.build_search_url(1, "spec"))
+        self.assertIn("f_AL=true", self.d.build_search_url(1, "test"))
+        self.assertIn("Machine%20Learning", self.d.build_search_url(1, "test"))
+        self.assertNotIn("Machine%20Learning", self.d.build_search_url(1, "spec"))
+        for profile in ("spec", "test"):                      # everything else about the search is shared
+            u = self.d.build_search_url(1, profile)
+            for part in ("/jobs/search-results/", "f_TPR=r86400", "f_EA=true", "geoId=103644278"):
+                self.assertIn(part, u)
+
+    def test_profile_is_saved_between_runs_and_rejects_nonsense(self):
+        self.d.set_profile("test")
+        self.assertEqual(self.d.current_profile(), "test")
+        self.d.set_profile("spec")
+        self.assertEqual(self.d.current_profile(), "spec")
+        with self.assertRaises(ValueError):
+            self.d.set_profile("wide-open")
+        write_json("discovery_profile.json", {"profile": "garbage"})
+        self.assertEqual(self.d.current_profile(), "spec")    # a bad file falls back to the spec
+
     def test_pipeline(self):
         never = core_check.judge  # AI-word titles pass unjudged, so no API client is needed
         self.assertEqual(self.d.decide(self.card, self.detail(), never, [])[0], "queue")
-        self.assertEqual(self.d.decide(self.card, self.detail(workplace="Hybrid"), never, [])[0], "held")
+        self.assertEqual(self.d.decide(self.card, self.detail(workplace="Hybrid"), never, [])[0], "dropped")
         self.assertEqual(self.d.decide(self.card, self.detail(not_accepting=True), never, [])[0], "closed")
         self.assertEqual(self.d.decide(self.card, self.detail(company="Jobgether"), never, [])[0], "error")
         self.assertEqual(self.d.decide({**self.card, "company": "Jobgether"},

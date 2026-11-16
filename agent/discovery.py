@@ -16,6 +16,7 @@ from urllib.parse import quote
 
 from . import core_check, dup_gate, ledger, queue_tool
 from .criteria_gate import gate1
+from .store import read_json, write_json
 
 STATE = Path("snapshots/agent_linkedin_state.json")
 US_GEO_ID = "103644278"
@@ -25,24 +26,53 @@ AI_WORDS = ['AI', 'Artificial Intelligence']
 TOP_OFFICER = ['CAIO', 'CTO', 'Chief Technology Officer', 'CIO', 'Chief Information Officer',
                'Fractional CTO', 'Fractional CIO']
 
+# TEST-ONLY profile, switched on 2026-11-16 to validate Easy Apply on more postings. It widens the title rule
+# (roles like "Director, ML" or "AI Architect") and restricts the search to Easy Apply. The spec profile is the
+# default and is what the spec describes. Switch with:  python -m agent.discovery --set-profile test|spec
+TEST_LEADERSHIP = ['Architect', 'Principal', 'Lead', 'Manager']
+TEST_AI_WORDS = ['ML', 'Machine Learning', 'GenAI', 'Generative AI', 'LLM', 'Data Science', 'Data Scientist', 'Agentic']
+PROFILE_FILE = "discovery_profile.json"
+PROFILES = ("spec", "test")
 
-def search_keywords() -> str:
+
+def current_profile() -> str:
+    name = read_json(PROFILE_FILE, {}).get("profile", "spec")
+    return name if name in PROFILES else "spec"
+
+
+def set_profile(name: str) -> None:
+    if name not in PROFILES:
+        raise ValueError(f"profile must be one of {PROFILES}")
+    write_json(PROFILE_FILE, {"profile": name})
+
+
+def _terms(profile: str):
+    test = profile == "test"
+    return (LEADERSHIP + (TEST_LEADERSHIP if test else []), AI_WORDS + (TEST_AI_WORDS if test else []))
+
+
+def search_keywords(profile: str = None) -> str:
+    lead, ai = _terms(profile or current_profile())
+
     def anyof(words):
         return "(" + " OR ".join(f'title:"{w}"' for w in words) + ")"
-    return f"({anyof(LEADERSHIP)} AND {anyof(AI_WORDS)}) OR {anyof(TOP_OFFICER)}"
+    return f"({anyof(lead)} AND {anyof(ai)}) OR {anyof(TOP_OFFICER)}"
 
 
-def build_search_url(page: int = 1) -> str:
+def build_search_url(page: int = 1, profile: str = None) -> str:
     """Direct search-results URL in LinkedIn's current layout.
 
-    Only f_TPR (past 24 hours) and f_EA (under 10 applicants) survive in the URL. Going
-    straight to /jobs/search-results/ avoids the hidden salary filter (f_SAL) that the old
-    /jobs/search/ path redirects into. Remote and the title rule are enforced from each
-    card, and the sort option no longer exists in this layout.
+    Only f_TPR (past 24 hours) and f_EA (under 10 applicants) survive in the URL, plus f_AL (Easy Apply) for the
+    test profile. Going straight to /jobs/search-results/ avoids the hidden salary filter (f_SAL) that the old
+    /jobs/search/ path redirects into. Remote and the title rule are enforced from each card, and the sort
+    option no longer exists in this layout.
     """
+    profile = profile or current_profile()
     url = ("https://www.linkedin.com/jobs/search-results/?"
-           f"keywords={quote(search_keywords())}&geoId={US_GEO_ID}"
+           f"keywords={quote(search_keywords(profile))}&geoId={US_GEO_ID}"
            "&f_TPR=r86400&f_EA=true")
+    if profile == "test":
+        url += "&f_AL=true"
     return url + (f"&start={25 * (page - 1)}" if page > 1 else "")
 
 
@@ -55,13 +85,11 @@ def _word_re(words):
     return re.compile(rf"(?<![\w-])({alt})(?![\w-])", re.I)
 
 
-_LEAD, _AI, _TOP = _word_re(LEADERSHIP), _word_re(AI_WORDS), _word_re(TOP_OFFICER)
-
-
-def title_matches_search(title: str) -> bool:
-    """The spec's deterministic title rule. LinkedIn's search is now semantic, so enforce it here:
-    (leadership word AND AI word) OR a top-officer title on its own."""
-    return bool((_LEAD.search(title) and _AI.search(title)) or _TOP.search(title))
+def title_matches_search(title: str, profile: str = None) -> bool:
+    """The deterministic title rule. LinkedIn's search is now semantic, so enforce it here:
+    (leadership word AND AI word) OR a top-officer title on its own. The test profile adds more words."""
+    lead, ai = _terms(profile or current_profile())
+    return bool((_word_re(lead).search(title) and _word_re(ai).search(title)) or _word_re(TOP_OFFICER).search(title))
 
 
 _CARD_SUFFIX = re.compile(r"\s*\((Verified job|Promoted)\)$", re.I)
@@ -136,7 +164,7 @@ def decide(card: dict, detail: dict, judge=core_check.judge, tracker=None):
       error   - extraction/judgment failure: do NOT ledger, do NOT queue
       closed  - not accepting applications: ledger
       skip    - failed a gate: ledger
-      held    - passed but not Remote: ledger, not queued
+      dropped - not Remote (Hybrid/On-site/unknown): ledger, never queued
       queue   - passed everything and is Remote: ledger + queue
     """
     if not detail.get("loaded") or not same_posting(card, detail):
@@ -157,7 +185,7 @@ def decide(card: dict, detail: dict, judge=core_check.judge, tracker=None):
     if dup:
         return "skip", f"gate 2: {why}"
     if (posting.get("workplace") or "").strip().lower() != "remote":
-        return "held", f"workplace is {posting.get('workplace') or 'unknown'}"
+        return "dropped", f"workplace is {posting.get('workplace') or 'unknown'}"
     return "queue", "passed all gates"
 
 
@@ -189,7 +217,7 @@ FILTER_STATE_JS = r"""() => {
     }
     return null;
   };
-  return {past_24h: read('Past 24 hours'), under_10_applicants: read('Under 10 applicants')};
+  return {past_24h: read('Past 24 hours'), under_10_applicants: read('Under 10 applicants'), easy_apply: read('Easy Apply')};
 }"""
 
 POSTING_JS = r"""() => {
@@ -215,13 +243,16 @@ POSTING_JS = r"""() => {
 }"""
 
 
-def verify_filters(page) -> dict:
-    """Open 'All filters' and read the real controls. Remote is enforced per card (see run)."""
+def verify_filters(page, profile: str = None) -> dict:
+    """Open 'All filters' and read the real controls. Remote is enforced per card (see run).
+    Easy Apply must be on only for the test profile; it is not part of the spec's search."""
     page.get_by_text("All filters", exact=True).first.click()
     page.wait_for_timeout(2000)
     state = page.evaluate(FILTER_STATE_JS)
     page.keyboard.press("Escape")
     page.wait_for_timeout(500)
+    if (profile or current_profile()) != "test":
+        state.pop("easy_apply", None)
     return {k: bool(v) for k, v in state.items()}
 
 
@@ -232,11 +263,14 @@ def read_detail(page, url: str) -> dict:
     return parse_posting(raw["tab"], raw["lines"], raw["desc"], raw.get("hiring"))
 
 
-def run(dry_run: bool = True, headed: bool = False, max_pages: int = 2) -> list:
+def run(dry_run: bool = True, headed: bool = False, max_pages: int = 2, profile: str = None) -> list:
     from playwright.sync_api import sync_playwright
 
     if not STATE.exists():
         sys.exit("No agent session. Run:  python manual_login.py agent")
+    profile = profile or current_profile()
+    if profile == "test":
+        logging.warning("TEST PROFILE ACTIVE: wider title rule and Easy Apply only (not the spec's search)")
     results = []
 
     def record(card, action, why, detail=None):
@@ -258,12 +292,12 @@ def run(dry_run: bool = True, headed: bool = False, max_pages: int = 2) -> list:
             page = ctx.new_page()
             cards = []
             for page_no in range(1, max_pages + 1):
-                page.goto(build_search_url(page_no), wait_until="domcontentloaded", timeout=45000)
+                page.goto(build_search_url(page_no, profile), wait_until="domcontentloaded", timeout=45000)
                 page.wait_for_timeout(4000)
                 if "/login" in page.url or "authwall" in page.url:
                     sys.exit("LinkedIn session expired. Run:  python manual_login.py agent")
                 if page_no == 1:
-                    badges = verify_filters(page)
+                    badges = verify_filters(page, profile)
                     logging.info(f"Filters: {badges}. Remote is enforced per card. Sort is not "
                                  "available in LinkedIn's current layout; reading in its default order.")
                     if not all(badges.values()):
@@ -278,11 +312,11 @@ def run(dry_run: bool = True, headed: bool = False, max_pages: int = 2) -> list:
                     break  # page 2 only when page 1 had nothing new
 
             for card in cards:
-                if not title_matches_search(card["title"]):
+                if not title_matches_search(card["title"], profile):
                     record(card, "skip", "title does not match the search rule")
                     continue
                 if card["workplace"].lower() in ("hybrid", "on-site"):
-                    record(card, "held", f"workplace is {card['workplace']}")
+                    record(card, "dropped", f"workplace is {card['workplace']}")
                     continue
                 # Remote, or the card is silent: open the posting. decide() makes the final call.
                 try:
@@ -301,8 +335,14 @@ if __name__ == "__main__":
     ap = argparse.ArgumentParser()
     ap.add_argument("--dry-run", action="store_true", help="decide and print; write nothing")
     ap.add_argument("--headed", action="store_true")
+    ap.add_argument("--profile", choices=PROFILES, help="use this profile for this run only")
+    ap.add_argument("--set-profile", choices=PROFILES, help="make this profile the default for scheduled runs, then exit")
     a = ap.parse_args()
     logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
-    out = run(dry_run=a.dry_run, headed=a.headed)
+    if a.set_profile:
+        set_profile(a.set_profile)
+        print(f"Discovery profile is now '{a.set_profile}'.")
+        sys.exit(0)
+    out = run(dry_run=a.dry_run, headed=a.headed, profile=a.profile)
     print(f"\n{len(out)} posting(s) processed" + (" (dry run, nothing written)" if a.dry_run else ""),
           dict(Counter(a for _, a, _ in out)))

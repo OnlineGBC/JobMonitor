@@ -219,6 +219,33 @@ class SelectReading(unittest.TestCase):
         self.assertEqual(fields["Education level?"], "")            # placeholder is not an answer
 
 
+class FilterPanel(unittest.TestCase):
+    """discovery.FILTER_STATE_JS against a local copy of LinkedIn's 'Jobs filters' panel (right-hand side)."""
+    PANEL = (
+        '<div style="position:absolute;left:1100px;top:50px">'
+        '<label><input type="radio" name="d" checked>Past 24 hours</label>'
+        '<div><span>Easy Apply</span><input type="checkbox" role="switch" __EASY__></div>'
+        '<div><span>Under 10 applicants</span><input type="checkbox" role="switch" checked></div></div>')
+
+    def read(self, easy):
+        try:
+            from playwright.sync_api import sync_playwright
+        except ImportError:
+            self.skipTest("playwright not installed")
+        from agent import discovery
+        with sync_playwright() as p:
+            b = p.chromium.launch(headless=True)
+            page = b.new_page(viewport={"width": 1500, "height": 800})
+            page.set_content(self.PANEL.replace("__EASY__", "checked" if easy else ""))
+            state = page.evaluate(discovery.FILTER_STATE_JS)
+            b.close()
+        return state
+
+    def test_reads_the_three_controls(self):
+        self.assertEqual(self.read(True), {"past_24h": True, "under_10_applicants": True, "easy_apply": True})
+        self.assertEqual(self.read(False)["easy_apply"], False)
+
+
 class CloseForm(unittest.TestCase):
     """close_form() against a local page that behaves like LinkedIn's Save/Discard confirmation."""
     PAGE = (

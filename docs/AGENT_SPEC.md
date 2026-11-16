@@ -25,6 +25,13 @@ Core check: Sonnet. Form answers: Sonnet (Haiku was considered; Sonnet chosen be
 - Load check: the posting's own page must load live with matching title and company. Removed/invalid page or mismatch = extraction error: do not ledger, do not queue. A live page saying it is not accepting applications is skipped for good and ledgered.
 - Ledger every genuinely new processed ID in `seen_jobs.json` at once. A ledgered ID is never reopened or re-judged.
 
+### TEST-ONLY discovery profile (2026-11-16, temporary)
+To validate Easy Apply on more postings, Discovery has a second profile, `test`, selected with
+`python -m agent.discovery --set-profile test` (and back with `--set-profile spec`; `spec` is the default). It adds
+role words (Architect, Principal, Lead, Manager) and domain words (ML, Machine Learning, GenAI, Generative AI, LLM,
+Data Science, Data Scientist, Agentic) to the title rule, and restricts the search to Easy Apply. Everything else, including
+the gates, is unchanged. It is not the spec's search. Switch back to `spec` when testing is done.
+
 ## Step 2: Gate 1 (`criteria_gate.py`)
 Skip if: excluded company (exact name): Jobgether, Archer, Hackajob, Axial Search, Crossover, Get IT, Ethos, Talentify, DataAnnotation, Toptal, Stealth Stanford AI Startup, Lensa, Tempus, Harnham, Swooped (Ladders is eligible; RemoteJobsOne is a standing ban); title contains "partnerships" or "business development"; marketing/revenue/GTM title with no AI-type word; title contains "process intelligence" or "process mining"; equity-only terms; PhD/doctorate required (including "PhD or equivalent"; "preferred" does not block).
 No leadership-title, applicant-count, workplace or location check in Gate 1.
@@ -36,7 +43,7 @@ Applies only when the title carries none of: AI, artificial intelligence, GenAI,
 Same company + same role title already in the tracker = duplicate (including reposts). Same client role via a different company is not. Queue twins: apply to one, drop the rest at once. Qualification is sticky.
 
 ## Step 5: Queueing
-Passers are queued in `pending_survivors.json` through `queue_tool.py` only, with job ID, title, company, location, workplace, applicant count, apply type, poster, and the note "QUEUED — awaiting the application process." Remote passers are queued; Hybrid/On-site are held out (IDs stay ledgered) and queued by hand only on Raja's word. ~~Mark "I'm interested" on each passing company's page once per company per run; log failures; never report marks.~~ **Not implemented (decision 2026-11-16).** LinkedIn company pages return a Cloudflare bot check to headless browsers, which every scheduled process uses; they only load in a visible browser. Rather than work around that check, Raja chose to skip this feature. A visible-browser batch (run by hand) or a visible window per scan were the alternatives.
+Passers are queued in `pending_survivors.json` through `queue_tool.py` only, with job ID, title, company, location, workplace, applicant count, apply type, poster, and the note "QUEUED — awaiting the application process." Remote passers are queued. **Hybrid, On-site and unknown-workplace postings are dropped (decision 2026-11-16):** their IDs stay ledgered and they are never queued, with no override. ~~Mark "I'm interested" on each passing company's page once per company per run; log failures; never report marks.~~ **Not implemented (decision 2026-11-16).** LinkedIn company pages return a Cloudflare bot check to headless browsers, which every scheduled process uses; they only load in a visible browser. Rather than work around that check, Raja chose to skip this feature. A visible-browser batch (run by hand) or a visible window per scan were the alternatives.
 
 ## Step 6: Applying
 - Claim one queued posting atomically (oldest eligible; skip AWAITING RAJA / DO NOT ATTEMPT / PICKUP IN PROGRESS; a live claim blocks the same company; claims go stale after 70 min).
