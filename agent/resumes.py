@@ -2,11 +2,13 @@
 
 Spec: VP titles -> VP resume; Director family -> Director resume; Chief -> Chief; Head -> VP; CEO -> Chief.
 
-On LinkedIn the agent selects a resume ALREADY UPLOADED there, matched by name (the extension is
-ignored: docx and pdf hold the same content). The Director resume is the one LinkedIn already has,
-'...Dir-SystemArchitectEnterpriseAI_DataScience'; it is not in resumes/, so it is never uploaded.
-A resume that is missing from LinkedIn is uploaded only when a file with that name exists on disk.
-BDO, FDE and the SAP Director resume are reserved for later.
+Two places a resume is used, with two rules:
+  * LinkedIn Easy Apply: select a resume ALREADY UPLOADED there, matched by name (extension ignored: docx
+    and pdf hold the same content). For Director that is '...Dir-SystemArchitectEnterpriseAI_DataScience',
+    which is not on disk, so it is never uploaded. A resume missing from LinkedIn is uploaded only when a
+    file with that name exists in resumes/ (local_path).
+  * Company sites: upload a file from resumes/ (company_site_path). For Director that is the SAP resume.
+BDO and FDE are reserved for later.
 """
 import re
 from pathlib import Path
@@ -14,6 +16,7 @@ from pathlib import Path
 RESUME_DIR = Path(__file__).resolve().parent.parent / "resumes"
 VP = "RajaGopalanVPEnterpriseAI_DataScience.pdf"
 DIRECTOR = "RajaGopalanDir-SystemArchitectEnterpriseAI_DataScience.docx"  # lives on LinkedIn only
+DIRECTOR_COMPANY_SITE = "RajaGopalanDir-SystemArchitectEnterpriseAI_SAP.docx"  # the Director file in resumes/
 CHIEF = "RajaGopalanChiefAI_DataOfficer.pdf"
 
 _CHIEF = re.compile(r"(?<![\w-])(chief|ceo|cto|cio|caio|cdo)(?![\w-])", re.I)
@@ -48,3 +51,15 @@ def local_path(title: str):
         if stem(p.name) == stem(name):
             return p
     return None
+
+
+def company_site_path(title: str):
+    """The file in resumes/ to upload on a company's own site, or None if no rule applies.
+
+    Same choice as local_path, except Director uses the SAP Director resume that is on disk.
+    """
+    name = resume_name(title)
+    if name is None:
+        return None
+    wanted = DIRECTOR_COMPANY_SITE if name == DIRECTOR else name
+    return next((p for p in sorted(RESUME_DIR.glob("*")) if stem(p.name) == stem(wanted)), None)

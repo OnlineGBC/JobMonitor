@@ -110,6 +110,17 @@ class ApplierTests(unittest.TestCase):
         self.assertIn(LINK, self.outbox()[0]["body"])
         self.assertEqual(tracker.rows()[0]["note"], "company-site application (not automated)")
 
+    def test_company_site_director_report_names_the_sap_resume_on_disk(self):
+        write_json("pending_survivors.json", [])
+        write_json("tracker.json", [])
+        queue_tool.add({"job_id": "77", "title": "Director of AI", "company": "Globex", "workplace": "Remote"})
+        item = queue_tool.claim()
+        self.assertEqual(applier.process_item(item, FakeOps(detail={"apply_type": "Apply"})), "paused: company site")
+        body = self.outbox()[-1]["body"]
+        self.assertIn("RajaGopalanDir-SystemArchitectEnterpriseAI_SAP.docx", body)
+        self.assertNotIn("DataScience", body)  # the LinkedIn-only Director resume cannot be uploaded elsewhere
+        self.assertEqual(tracker.rows()[-1]["resume"], "RajaGopalanDir-SystemArchitectEnterpriseAI_SAP.docx")
+
     def test_failures_retry_then_ask_for_help_without_using_a_number(self):
         for attempt in (1, 2):
             ops = FakeOps(open_error=RuntimeError("button missing"))

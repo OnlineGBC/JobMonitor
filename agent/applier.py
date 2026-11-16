@@ -58,11 +58,14 @@ def process_item(item: dict, ops) -> str:
 
         if detail.get("apply_type") != "Easy Apply":
             number = next_number.reserve()
+            site_file = resumes.company_site_path(title)  # a file in resumes/, e.g. the SAP Director resume
+            site_resume = site_file.name if site_file else ""
             _book_and_report(
                 item, number, "paused", f"#{number} Company-site application: {title} at {company}",
                 f"This posting applies on the company's own site, which the agent cannot fill yet.\n"
-                f"Apply here: {_link(item)}\nSuggested resume: {resume or 'none (no rule for this title)'}",
-                "company-site application (not automated)", resume or "")
+                f"Apply here: {_link(item)}\n"
+                f"Resume to upload (from the resumes folder): {site_resume or 'none (no rule for this title)'}",
+                "company-site application (not automated)", site_resume)
             return "paused: company site"
 
         ops.open_form(_link(item))

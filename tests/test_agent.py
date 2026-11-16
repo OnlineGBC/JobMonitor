@@ -550,6 +550,12 @@ class Applier(unittest.TestCase):
         self.assertIsNone(resumes.local_path("Director of AI"))
         self.assertIn("DataScience", resumes.DIRECTOR)
         self.assertNotIn("SAP", resumes.DIRECTOR)
+        # company sites upload a file from resumes/: Director uses the SAP Director resume on disk
+        self.assertEqual(resumes.company_site_path("Director of AI").name, resumes.DIRECTOR_COMPANY_SITE)
+        self.assertTrue(resumes.company_site_path("Director of AI").exists())
+        self.assertEqual(resumes.company_site_path("VP of AI"), resumes.local_path("VP of AI"))
+        self.assertEqual(resumes.company_site_path("Chief AI Officer"), resumes.local_path("Chief AI Officer"))
+        self.assertIsNone(resumes.company_site_path("Senior AI Engineer"))
 
     def test_hard_blockers(self):
         self.assertEqual(self.ans("What is your risk appetite?", required=False)["action"], "skip_application")
