@@ -20,7 +20,7 @@ Core check: Sonnet. Form answers: Sonnet (Haiku was considered; Sonnet chosen be
 - One deterministic title search: (leadership word: VP, Vice President, Vice-President, SVP, EVP, Director, Head, Leader, Chief AND AI word: AI, Artificial Intelligence, in the title) OR a top-officer title alone (CAIO, CTO, Chief Technology Officer, CIO, Chief Information Officer, Fractional CTO, Fractional CIO).
 - No company list in the search; company exclusions live in Gate 1 only.
 - US geography, Past 24 hours, Remote only, Most recent sort, Under-10-applicants filter applied on screen. Verify all three filter badges are visibly active before reading results. If the sort will not hold, record that and continue with page 1.
-- Easy Apply not required; company-site postings in scope; contract roles welcome.
+- Discovery searches Easy Apply postings only (decision 2026-11-16). Company-site postings are not searched by Discovery; the monitor emails still list them. Contract roles welcome.
 - Only IDs not in the seen ledger are new. Open every new posting on page 1; if page 1 has no new IDs, check page 2.
 - Load check: the posting's own page must load live with matching title and company. Removed/invalid page or mismatch = extraction error: do not ledger, do not queue. A live page saying it is not accepting applications is skipped for good and ledgered.
 - Ledger every genuinely new processed ID in `seen_jobs.json` at once. A ledgered ID is never reopened or re-judged.

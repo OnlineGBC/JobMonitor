@@ -231,12 +231,12 @@ class Discovery(unittest.TestCase):
         spec, test = self.d.build_search_url(1, "spec"), self.d.build_search_url(1, "test")
         for part in ("f_TPR=r86400", "f_EA=true"):               # spec: past 24 hours, under 10 applicants
             self.assertIn(part, spec)
-        self.assertNotIn("f_AL", spec)
+        self.assertIn("f_AL=true", spec)                          # spec: Easy Apply only, like the test profile
         self.assertIn("f_TPR=r604800", test)                      # test: past week
         self.assertIn("f_AL=true", test)                          # test: Easy Apply
         self.assertNotIn("f_EA", test)                            # test: no applicant limit
         self.assertNotIn("f_TPR=r86400", test)
-        self.assertEqual(self.d.EXPECTED_FILTERS["spec"], {"past_24h": True, "under_10_applicants": True})
+        self.assertEqual(self.d.EXPECTED_FILTERS["spec"], {"past_24h": True, "under_10_applicants": True, "easy_apply": True})
         self.assertEqual(self.d.EXPECTED_FILTERS["test"], {"past_week": True, "under_10_applicants": False, "easy_apply": True})
         self.assertIn("Machine%20Learning", test)
         self.assertNotIn("Machine%20Learning", spec)

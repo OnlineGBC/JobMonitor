@@ -36,7 +36,7 @@ PROFILES = ("spec", "test")
 # What LinkedIn's filter panel must show for each profile (control -> should it be ON). The test profile wants
 # NO applicant limit and a week's window; if the panel disagrees, the run stops and reads nothing.
 EXPECTED_FILTERS = {
-    "spec": {"past_24h": True, "under_10_applicants": True},
+    "spec": {"past_24h": True, "under_10_applicants": True, "easy_apply": True},
     "test": {"past_week": True, "under_10_applicants": False, "easy_apply": True},
 }
 TEST_MAX_PAGES = 4   # the wider pool is read deeper than the spec's 2 pages
@@ -69,7 +69,7 @@ def search_keywords(profile: str = None) -> str:
 def build_search_url(page: int = 1, profile: str = None) -> str:
     """Direct search-results URL in LinkedIn's current layout.
 
-    Spec profile: f_TPR=r86400 (past 24 hours) and f_EA=true (under 10 applicants). Test profile: a wider pool,
+    Spec profile: f_TPR=r86400 (past 24 hours), f_EA=true (under 10 applicants) and f_AL=true (Easy Apply only). Test profile: a wider pool,
     f_TPR=r604800 (past week), NO applicant filter, and f_AL=true (Easy Apply). Going straight to
     /jobs/search-results/ avoids the hidden salary filter (f_SAL) that the old /jobs/search/ path redirects into.
     Remote and the title rule are enforced from each card, and the sort option no longer exists in this layout.
@@ -77,7 +77,7 @@ def build_search_url(page: int = 1, profile: str = None) -> str:
     profile = profile or current_profile()
     url = ("https://www.linkedin.com/jobs/search-results/?"
            f"keywords={quote(search_keywords(profile))}&geoId={US_GEO_ID}")
-    url += "&f_TPR=r604800&f_AL=true" if profile == "test" else "&f_TPR=r86400&f_EA=true"
+    url += "&f_TPR=r604800&f_AL=true" if profile == "test" else "&f_TPR=r86400&f_EA=true&f_AL=true"
     return url + (f"&start={25 * (page - 1)}" if page > 1 else "")
 
 
