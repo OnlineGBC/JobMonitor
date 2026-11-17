@@ -96,6 +96,20 @@ class Sections(unittest.TestCase):
         self.assertNotIn("ALREADY APPLIED", text)
 
 
+class RemoteOnly(unittest.TestCase):
+    def test_roles_that_are_not_remote_are_left_out_of_every_section(self):
+        jobs = [{"job_id": "1", "title": "Remote One", "company": "A", "location": "Texas (Remote)", "url": "u1", "easy_apply": True},
+                {"job_id": "2", "title": "Hybrid One", "company": "B", "location": "Bay Area (Hybrid)", "url": "u2", "easy_apply": True},
+                {"job_id": "3", "title": "Onsite Site", "company": "C", "location": "Austin, TX", "url": "u3", "easy_apply": False},
+                {"job_id": "4", "title": "Remote Site", "company": "D", "location": "Ohio (Remote)", "url": "u4", "easy_apply": False}]
+        text = monitor.format_jobs_for_email(jobs)
+        self.assertIn("Remote One", text)
+        self.assertIn("Remote Site", text)
+        self.assertNotIn("Hybrid One", text)
+        self.assertNotIn("Onsite Site", text)
+        self.assertEqual(monitor.format_jobs_for_email([jobs[1], jobs[2]]), "")
+
+
 class HandOff(unittest.TestCase):
     def setUp(self):
         write_json(discovery.HINTS_FILE, {})

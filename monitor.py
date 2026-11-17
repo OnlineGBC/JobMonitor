@@ -593,6 +593,8 @@ def _job_lines(i: int, job: dict, status: str = "") -> list:
 def format_jobs_for_email(new_jobs: list) -> str:
     """New jobs in three sections: Easy Apply roles already applied for, Easy Apply roles not yet applied for
     (with what the agent is doing about each), and everything else (applied for on the company's site)."""
+    from agent.decisions import is_remote
+    new_jobs = [j for j in (new_jobs or []) if is_remote(j)]        # remote roles only, in every section
     if not new_jobs:
         return ""
     jobs = collapse_jobs(new_jobs)
