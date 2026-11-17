@@ -300,7 +300,34 @@ def open_easy_apply(page, url: str) -> None:
         raise RuntimeError(f"expected one Easy Apply/Continue control in the top card, found {len(controls)}")
     controls[0].click()
     page.wait_for_selector("dialog[open]", timeout=15000)
+    first = _dialog_text(page)
     page.wait_for_timeout(2000)
+    if not page.locator("dialog[open]").count():
+        shown = first[:300] or "(no text)"
+        raise RuntimeError("a dialog opened after clicking Easy Apply but closed again within 2 seconds, "
+                           f"before the form could be read. Its text was: {shown}")
+
+
+def _dialog_text(page) -> str:
+    try:
+        return " ".join(page.locator("dialog[open]").first.inner_text(timeout=2000).split())
+    except Exception:
+        return ""
+
+
+def snapshot(page, name: str, folder: Path) -> str:
+    """Save a screenshot and the visible dialog text of a failed step; returns a short description."""
+    folder.mkdir(parents=True, exist_ok=True)
+    note = []
+    try:
+        png = folder / f"{name}.png"
+        page.screenshot(path=str(png))
+        note.append(f"screenshot {png}")
+    except Exception as e:
+        note.append(f"no screenshot ({e})")
+    text = _dialog_text(page)
+    note.append(f"dialog text: {text[:300]}" if text else "no dialog open")
+    return "; ".join(note)
 
 
 class SubmitRefused(Exception):

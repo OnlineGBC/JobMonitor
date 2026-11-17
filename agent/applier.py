@@ -10,6 +10,7 @@ Exit codes follow the scheduler's convention: 0 = ok (including 'nothing to do')
 """
 import logging
 import sys
+import time
 
 from . import dup_gate, next_number, outreach, queue_tool, questions, reconcile, reporter, resumes, tracker
 from .store import read_json, write_json
@@ -59,6 +60,15 @@ def _link(item) -> str:
     return item.get("url") or f"https://www.linkedin.com/jobs/view/{item['job_id']}/"
 
 
+def _log_screen(ops, jid) -> None:
+    try:
+        snap = getattr(ops, "snapshot", None)
+        if snap:
+            logging.error(f"[{jid}] screen at failure: {snap(f'{jid}_{int(time.time())}')}")
+    except Exception as e:
+        logging.error(f"[{jid}] could not capture the screen: {e}")
+
+
 def process_item(item: dict, ops) -> str:
     """Handle one claimed queue item. `ops` supplies the browser side. Returns what happened."""
     jid, company, title = item["job_id"], item["company"], item["title"]
@@ -98,6 +108,7 @@ def process_item(item: dict, ops) -> str:
         try:
             result = ops.fill(title, company=company, submit=auto)
         except Exception:
+            _log_screen(ops, jid)                  # before closing: the screen as it was when it failed
             ops.close(save=False)
             raise
 
@@ -193,6 +204,11 @@ class LinkedInOps:
     def fill(self, title, company=None, submit=False):
         from . import easy_apply
         return easy_apply.run_form(self.page, title, allow_submit=submit, company=company)
+
+    def snapshot(self, name):
+        from . import easy_apply
+        from .store import data_dir
+        return easy_apply.snapshot(self.page, name, data_dir() / "failures")
 
     def close(self, save):
         from . import easy_apply
