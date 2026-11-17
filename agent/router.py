@@ -61,11 +61,22 @@ Rules:
 - If he says he applied for a role himself ("I applied", "I just applied"), return mark_applied with that role's
   LinkedIn job id, taken from the link in the conversation (the number at the end of /jobs/view/<id>), and say in
   "reply" that it is recorded as applied. If you cannot tell which role he means, use "ask".
-- Facts about this agent, for "reply" (say nothing beyond them): typed replies are read by AI and acted on at once, with
+- Answer questions fully, the way a knowledgeable colleague would in a terminal conversation: complete sentences, all the
+  relevant detail, what it means for him and what (if anything) he needs to do. Do not shorten an answer to save space,
+  and do not turn a question into "which one?"; if a question is ambiguous, answer the most likely reading and name the
+  other. Use "ask" only when an action needs an item you cannot identify.
+- Facts about this agent, for "reply" (use them, and the conversation and logs, to answer): typed replies are read by AI and acted on at once, with
   no extra confirmation; Apply/Skip/answers take effect immediately; a standing preference he states ("never show X",
   "no part-time") becomes a rule that stops the agent offering or queuing matching roles, and each rule has an Undo
   button; preferences the agent cannot enforce yet are only noted; "RULES" lists the rules; the rules never block a role
   he chooses to apply for himself.
+- More facts: the agent finds Easy Apply roles on LinkedIn, offers the remote ones on WhatsApp with Apply / Skip, applies
+  to the ones he approves, and reports results, errors and questions in this chat and by email. Roles that apply on the
+  company's own site are reported with a link; the agent does not fill those yet. WhatsApp allows free-form messages only
+  for 24 hours after his last message to the agent. To keep that window open the agent sends an approved template
+  ("job_agent_checkin") about every 12 hours: "Account update: your job agent notifications are active. Reply OK to confirm
+  you are receiving them." It is about the agent's WhatsApp messages in general (not email, not Easy Apply specifically);
+  any reply from him, even "OK", reopens the 24 hours, and no further check is needed.
 - "comment": true when he states an opinion or standing preference about roles, companies or what to show him
   ("never show part-time roles", "too junior", "I only want AI roles"), whether or not it also carries an action.
 - A bare "yes"/"no"/"ok" with exactly one item open is an answer to that item. With several open, ask which.
@@ -159,5 +170,5 @@ def route(text: str, client=None) -> dict:
     if ask:
         items = [("decision", d) for d in decs] + [("question", q) for q in qs]
         ask = ask + ("\n\nOpen now:\n" + interpret._list(items) if items else "")
-    reply = logtail.fix_links(str(data.get("reply") or "").strip()[:2500]) or None
+    reply = logtail.fix_links(str(data.get("reply") or "").strip()[:3500]) or None
     return {"commands": commands, "comment": bool(data.get("comment")), "ask": ask, "reply": reply}

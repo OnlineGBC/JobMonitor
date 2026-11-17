@@ -105,6 +105,16 @@ class Replies(Base):
         self.assertIn('"5+"', prompt)
 
 
+class FullAnswers(Base):
+    def test_the_prompt_asks_for_complete_answers_and_knows_the_keepalive(self):
+        c = client(actions=[], comment=False, ask=None)
+        router.route("what is that account update message?", client=c)
+        prompt = c.messages.create.call_args.kwargs["messages"][0]["content"]
+        self.assertIn("terminal conversation", prompt)
+        self.assertIn("job_agent_checkin", prompt)
+        self.assertIn("not email", prompt)
+
+
 class Limits(Base):
     def test_there_is_room_for_a_long_log_based_answer(self):
         c = client(actions=[], comment=False, ask=None, reply="x")
