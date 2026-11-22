@@ -188,9 +188,29 @@ def send_invite(page, url: str, name: str, text: str, confirm=None, navigate: bo
         if not _dlg(page).count():
             break
         page.wait_for_timeout(500)
-    if navigate:
-        page.reload(wait_until="domcontentloaded")
-        page.wait_for_timeout(3500)
-    if not _dlg(page).count() and card_state(page)["pending"]:
-        return {"result": "sent", "reason": "LinkedIn shows the invitation as Pending"}
-    return {"result": "unsettled", "reason": "Send was clicked but Pending was not confirmed"}
+    return _settle(page, navigate)
+
+
+def _settle(page, navigate: bool) -> dict:
+    """LinkedIn can take several seconds to show Pending, so look for up to about 25 seconds (reloading the
+    profile at the start and again partway through) instead of checking once."""
+    for attempt in range(6):
+        if navigate and attempt in (0, 3):
+            page.reload(wait_until="domcontentloaded")
+        page.wait_for_timeout(3500 if attempt == 0 else 4000)
+        if not _dlg(page).count() and card_state(page)["pending"]:
+            return {"result": "sent", "reason": "LinkedIn shows the invitation as Pending"}
+    return {"result": "unsettled",
+            "reason": "Send was clicked but Pending was not confirmed. " + _observed(page)}
+
+
+def _observed(page) -> str:
+    """What the page showed when the check gave up, for the message to Raja."""
+    try:
+        dialogs = [" ".join(_dlg(page).nth(i).inner_text().split())[:120] for i in range(_dlg(page).count())]
+        s = card_state(page)
+        buttons = [t for t in page.evaluate(CARD_JS)["controls"] if t][:6]
+        return (f"The page showed: {'a dialog: ' + dialogs[0] if dialogs else 'no dialog'}; "
+                f"buttons {buttons}; degree {s['degree'] or 'unknown'}.")
+    except Exception as e:
+        return f"(could not read the page: {e})"
