@@ -267,42 +267,6 @@ def read_detail(page, url: str) -> dict:
     return parse_posting(raw["tab"], raw["lines"], raw["desc"], raw.get("hiring"))
 
 
-HINTS_FILE = "monitor_hints.json"
-HINT_MAX_AGE_HOURS = 72
-
-
-def monitor_hint_cards(exclude=(), now=None) -> list:
-    """Cards for Easy Apply postings the monitor emails spotted (written by monitor.py), not yet judged here.
-
-    A hint is only a lead: the card then goes through exactly the same title rule, Remote check, criteria and
-    core check as any search result. Already-ledgered ids and hints older than 72 hours are dropped.
-    """
-    from datetime import datetime
-    from .store import locked, read_json, write_json
-    now = now or datetime.now()
-    with locked("monitor_hints"):
-        hints = read_json(HINTS_FILE, {})
-        fresh = {}
-        for jid, h in hints.items():
-            try:
-                age = (now - datetime.fromisoformat(h["added"])).total_seconds() / 3600
-            except (KeyError, ValueError):
-                continue
-            if age <= HINT_MAX_AGE_HOURS and jid not in set(exclude):
-                fresh[jid] = h
-        if fresh != hints:
-            write_json(HINTS_FILE, fresh)    # drop stale and duplicate leads; the ledger blocks re-judging
-    ids = set(ledger.new_ids(fresh))
-    cards = []
-    for jid in ids:
-        h = fresh[jid]
-        m = re.search(r"\((Remote|Hybrid|On-site)\)", h.get("location", ""), re.I)
-        cards.append({"job_id": jid, "title": h.get("title", ""), "company": h.get("company", ""),
-                      "location": h.get("location", ""), "workplace": m.group(1).title() if m else "",
-                      "url": f"https://www.linkedin.com/jobs/view/{jid}/"})
-    return cards
-
-
 def run(dry_run: bool = True, headed: bool = False, max_pages: int = None, profile: str = None) -> list:
     from playwright.sync_api import sync_playwright
 
@@ -353,11 +317,6 @@ def run(dry_run: bool = True, headed: bool = False, max_pages: int = None, profi
                 if new:
                     break  # page 2 only when page 1 had nothing new
 
-            hinted = monitor_hint_cards(exclude={c["job_id"] for c in cards})
-            if hinted:
-                logging.info(f"{len(hinted)} Easy Apply posting(s) passed on by the monitor emails; "
-                             "they go through the same gates as everything else.")
-            cards += hinted
             for card in cards:
                 if not title_matches_search(card["title"], profile):
                     record(card, "skip", "title does not match the search rule")

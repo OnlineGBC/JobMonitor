@@ -649,30 +649,6 @@ def offer_easy_apply_decisions(new_jobs: list) -> int:
         return 0
 
 
-def hand_easy_apply_jobs_to_agent(new_jobs: list) -> int:
-    """Pass Easy Apply roles that are not applied for yet to the job agent, to run through ITS gates.
-
-    Written to a hand-off file that agent.discovery reads on its next run. The agent still applies only what
-    passes its own rules (Remote, title, criteria, the core check); nothing is applied for from here.
-    """
-    try:
-        from agent.store import locked, read_json, write_json
-        fresh = [j for j in new_jobs if j.get("easy_apply") and not j.get("applied") and j.get("job_id")]
-        if not fresh:
-            return 0
-        with locked("monitor_hints"):
-            hints = read_json("monitor_hints.json", {})
-            for j in fresh:
-                entry = {k: j.get(k, "") for k in ("title", "company", "location", "url")}
-                entry["added"] = datetime.now().isoformat(timespec="seconds")
-                hints.setdefault(str(j["job_id"]), entry)
-            write_json("monitor_hints.json", hints)
-        return len(fresh)
-    except Exception as e:
-        logging.warning(f"Could not hand Easy Apply jobs to the agent: {e}")
-        return 0
-
-
 # =============================================================================
 # LinkedIn Login
 # =============================================================================

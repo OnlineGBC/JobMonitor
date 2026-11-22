@@ -1,13 +1,12 @@
 import os
 import tempfile
 import unittest
-from datetime import datetime, timedelta
 
 os.environ.setdefault("AGENT_DATA_DIR", tempfile.mkdtemp())
 
 import monitor  # noqa: E402
-from agent import discovery, ledger, queue_tool, tracker  # noqa: E402
-from agent.store import read_json, write_json  # noqa: E402
+from agent import ledger, queue_tool, tracker  # noqa: E402
+from agent.store import write_json  # noqa: E402
 
 
 class FakePage:
@@ -108,30 +107,6 @@ class RemoteOnly(unittest.TestCase):
         self.assertNotIn("Hybrid One", text)
         self.assertNotIn("Onsite Site", text)
         self.assertEqual(monitor.format_jobs_for_email([jobs[1], jobs[2]]), "")
-
-
-class HandOff(unittest.TestCase):
-    def setUp(self):
-        write_json(discovery.HINTS_FILE, {})
-        write_json(ledger.FILE, {})
-
-    def test_only_unapplied_easy_apply_jobs_are_handed_over(self):
-        jobs = [{"job_id": "1", "title": "A", "company": "x", "location": "T (Remote)", "url": "u", "easy_apply": True},
-                {"job_id": "2", "title": "B", "company": "y", "location": "T (Remote)", "url": "u", "easy_apply": True, "applied": True},
-                {"job_id": "3", "title": "C", "company": "z", "location": "T (Remote)", "url": "u", "easy_apply": False}]
-        self.assertEqual(monitor.hand_easy_apply_jobs_to_agent(jobs), 1)
-        self.assertEqual(list(read_json(discovery.HINTS_FILE, {})), ["1"])
-
-    def test_discovery_turns_hints_into_cards_but_skips_judged_and_stale_ones(self):
-        now = datetime(2026, 11, 16, 12, 0)
-        entry = lambda hours: {"title": "T", "company": "C", "location": "Texas (Remote)", "url": "u",
-                               "added": (now - timedelta(hours=hours)).isoformat()}
-        write_json(discovery.HINTS_FILE, {"1": entry(1), "2": entry(80), "3": entry(1), "4": entry(1)})
-        ledger.add("3", "queued")
-        cards = discovery.monitor_hint_cards(exclude={"4"}, now=now)
-        self.assertEqual([c["job_id"] for c in cards], ["1"])
-        self.assertEqual(cards[0]["workplace"], "Remote")
-        self.assertEqual(cards[0]["url"], "https://www.linkedin.com/jobs/view/1/")
 
 
 if __name__ == "__main__":
