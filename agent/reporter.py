@@ -38,7 +38,7 @@ def ny_now() -> str:
 
 
 def enqueue(kind: str, subject: str, body: str, needs_action: bool = False, buttons: list = None,
-            wa_text: str = None, wa_prompt: str = None, email: bool = True) -> str:
+            wa_text: str = None, wa_prompt: str = None, email: bool = False) -> str:
     """Queue a report. `buttons` [(id, title)] make the WhatsApp copy tappable; the email is unchanged.
     `wa_text` replaces the WhatsApp text (it must carry everything Raja is asked to approve, word for word);
     `wa_prompt` is the short line shown with the buttons if that text is too long for one message."""

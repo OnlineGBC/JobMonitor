@@ -487,13 +487,19 @@ class Reporter(unittest.TestCase):
         self.assertIn("New York time:", a["body"])
 
     def test_email_always_whatsapp_when_open(self):
-        self.r.enqueue("applied", "A", "b")
+        self.r.enqueue("applied", "A", "b", email=True)
         mail, wa = [], []
         st = self.r.process(lambda s, b: mail.append(s), lambda t: wa.append(t) or True)
         self.assertEqual((len(mail), len(wa), st["whatsapp"]), (1, 1, 1))
 
+    def test_a_report_goes_to_whatsapp_only_unless_email_is_asked_for(self):
+        self.r.enqueue("needs_you", "A", "b")
+        mail = []
+        self.r.process(lambda s, b: mail.append(s), lambda t: True)
+        self.assertEqual(mail, [])
+
     def test_window_closed_still_emails(self):
-        self.r.enqueue("applied", "A", "b")
+        self.r.enqueue("applied", "A", "b", email=True)
         mail = []
         st = self.r.process(lambda s, b: mail.append(s), lambda t: False)
         self.assertEqual((len(mail), st["whatsapp_closed"]), (1, 1))
@@ -521,7 +527,7 @@ class Reporter(unittest.TestCase):
         self.assertEqual(read_json("outbox.json", [])[0]["whatsapp"], "window_closed")
 
     def test_email_failure_retries_and_whatsapp_failure_does_not_block(self):
-        self.r.enqueue("applied", "A", "b")
+        self.r.enqueue("applied", "A", "b", email=True)
 
         def boom(s, b): raise RuntimeError("gmail down")
         def wa_boom(t): raise RuntimeError("meta down")
@@ -532,7 +538,7 @@ class Reporter(unittest.TestCase):
         mail = []
         self.r.process(lambda s, b: mail.append(s), wa_boom)  # retry; whatsapp already sent
         self.assertEqual(len(mail), 1)
-        self.r.enqueue("applied", "B", "b")
+        self.r.enqueue("applied", "B", "b", email=True)
         mail = []
         st = self.r.process(lambda s, b: mail.append(s), wa_boom)
         self.assertEqual(len(mail), 1)  # email delivered despite WhatsApp error
