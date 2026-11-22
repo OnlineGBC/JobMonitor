@@ -52,7 +52,7 @@ def process_row(row: dict, ops, submit: bool) -> str:
         if not (result.get("question") and questions.ask_and_report(row, result, link)):
             reporter.enqueue("question", f"#{row['number']} Still needs your answer: {row['title']} at {row['company']}",
                              f"Reopening the draft stopped again.\n\nQuestion (word for word):\n  {result.get('question') or '(none)'}"
-                             f"\n\nWhy: {result['reason']}\n{link}")
+                             f"\n\nWhy: {result['reason']}\n{link}", email=False)
         return f"{who}: stopped again, {result['reason']} (question: {result.get('question')}); draft kept"
     return f"{who}: {status}: {result.get('reason')}; draft kept, nothing submitted"
 

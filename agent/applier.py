@@ -41,7 +41,7 @@ def _book_and_report(item, number, kind, subject, body, note, resume):
                  url=item.get("url") or f"https://www.linkedin.com/jobs/view/{item['job_id']}/",
                  resume=resume, note=note)
     queue_tool.set_status(item["job_id"], AWAITING)
-    reporter.enqueue(kind, subject, body, needs_action=True)
+    reporter.enqueue(kind, subject, body, needs_action=True, email=(kind != "question"))   # questions: WhatsApp only
 
 
 def _offer_outreach(item: dict, detail: dict) -> None:
@@ -160,7 +160,7 @@ def process_item(item: dict, ops) -> str:
             if not questions.ask_and_report(row, result, _link(item), steps, tail):
                 reporter.enqueue("question", f"#{number} Needs your answer: {title} at {company}",
                                  f"The application stopped.\n\nWhy: {result['reason']}\n{_link(item)}",
-                                 needs_action=True)
+                                 needs_action=True, email=False)
             return "paused: question"
         _book_and_report(
             item, number, "question", f"#{number} Needs your answer: {title} at {company}",

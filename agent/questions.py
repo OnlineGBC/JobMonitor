@@ -140,7 +140,7 @@ def ask_and_report(row: dict, result: dict, link: str, steps: str = "", tail: st
         m = message(rec, result.get("reason", ""), steps, tail)
         reporter.enqueue("question", m["subject"].split(" Needs your answer")[0] + " Needs your answer: "
                          + f"{rec['title']} at {rec['company']}", m["body"], buttons=buttons(rec),
-                         wa_text=m["wa_text"], wa_prompt=m["wa_prompt"])
+                         wa_text=m["wa_text"], wa_prompt=m["wa_prompt"], email=False)
     return True
 
 

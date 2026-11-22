@@ -86,7 +86,8 @@ def process(applied_ids, confirm_posting, now: datetime = None) -> list:
             reporter.enqueue("applied", f"#{row['number']} Applied: {row['title']} at {row['company']}",
                              f"LinkedIn shows this application as submitted (the job is on your Applied list and the "
                              f"posting page confirms it).\n{link}\n\nThe agent prepared the form and saved the draft; "
-                             f"LinkedIn does not say who submitted it.\nResume prepared: {row.get('resume') or 'n/a'}")
+                             f"LinkedIn does not say who submitted it.\nResume prepared: {row.get('resume') or 'n/a'}",
+                             email=False)
             results.append((who, "SUBMITTED"))
         elif not row.get("reminded") and _minutes_since(row["booked"], now) >= REMIND_AFTER_MINUTES:
             tracker.mark_reminded(row["number"])
@@ -95,11 +96,11 @@ def process(applied_ids, confirm_posting, now: datetime = None) -> list:
                 reporter.enqueue("needs_you", f"#{row['number']} could not be confirmed on LinkedIn: {row['title']} at {row['company']}",
                                  f"The agent clicked Submit {minutes} minutes ago, but LinkedIn does not show this "
                                  f"application as applied. It may not have gone through.\n{link}\n\n"
-                                 f"Please check it. (This message is sent once.)")
+                                 f"Please check it. (This message is sent once.)", email=False)
             else:
                 reporter.enqueue("needs_you", f"#{row['number']} still waiting for you: {row['title']} at {row['company']}",
                                  f"This application was prepared {minutes} minutes ago and LinkedIn does not show it as "
-                                 f"submitted yet.\n{link}\n\nNote: {row.get('note', '')}\n(This reminder is sent once.)")
+                                 f"submitted yet.\n{link}\n\nNote: {row.get('note', '')}\n(This reminder is sent once.)", email=False)
             results.append((who, f"reminder sent ({minutes} minutes)"))
         else:
             results.append((who, "still waiting"))
