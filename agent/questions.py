@@ -124,8 +124,8 @@ def message(rec: dict, reason: str, steps: str = "", tail: str = "") -> dict:
              f"HOW TO ANSWER: {how_to_answer(rec)}\nOr use the Questions page in JobMonitor. Your answer is saved as a "
              f"standing answer for exactly this question, then the application is finished.")
     whatsapp = (f"#{n} needs your answer\n{title} at {company}\n\nQuestion:\n{rec['question']}\n\n"
-                + ("Tap an answer below." if rec.get("options") else
-                   f"Reply  ANSWER {rec['id']} <your answer>  (for example ANSWER {rec['id']} 20), or tap Skip."))
+                + ("Tap an answer below, or just type it." if rec.get("options") else
+                   "Just type your answer here, or tap Skip."))
     return {"subject": f"#{n} Needs your answer: {title} at {company}", "body": email, "wa_text": whatsapp,
             "wa_prompt": f"Question for #{n} at {company}: tap an answer."}
 
