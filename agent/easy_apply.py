@@ -171,21 +171,38 @@ def _paused(reason, question=None, steps=None, learned=None, options=None, qtype
             "options": list(options or []), "qtype": qtype or ""}
 
 
+class FormStopped(RuntimeError):
+    """The form stopped responding or closed by itself. The message says which page and step it had reached."""
+
+
 def run_form(page, title: str, allow_submit: bool = False, decide=answers.decide_answer, company: str = None) -> dict:
+    """Fill the open Easy Apply form; if it breaks, say where (see _run_form for the result)."""
+    progress = {"stage": "before the first page was read", "steps": []}
+    try:
+        return _run_form(page, title, allow_submit, decide, company, progress)
+    except Exception as e:
+        done = "; ".join(progress["steps"]) or "nothing was filled in yet"
+        raise FormStopped(f"the application form closed or stopped responding {progress['stage']}. "
+                          f"Done before that: {done}. Technical detail: {str(e).splitlines()[0][:160]}") from e
+
+
+def _run_form(page, title, allow_submit, decide, company, progress) -> dict:
     """Fill the open Easy Apply form. Returns {'status': 'ready'|'submitted'|'paused'|'skipped', ...}.
 
     With allow_submit=False (the default, and what the applier uses) it stops at the review page. With
     allow_submit=True it also clicks Submit there, after submit_application's checks, and `company` is required.
     """
-    steps, learned = [], []
+    steps, learned = progress["steps"], []
     resume = resumes.resume_name(title)
     if resume is None:
         return _paused(f"no resume rule for the title '{title}'")
     resume_file = resumes.local_path(title)  # may be None: the resume can live on LinkedIn only
     bank = answers.load_bank()
-    for _ in range(MAX_STEPS):
+    for n in range(1, MAX_STEPS + 1):
+        progress["stage"] = f"while reading form page {n}"
         step = read_step(page)
         label = f"page {step['page'][0]}/{step['page'][1]}" if step["page"] else "page ?"
+        progress["stage"] = f"while filling {label}"
         notes = []
         for f in step["fields"]:
             if f.get("resume"):
@@ -224,6 +241,7 @@ def run_form(page, title: str, allow_submit: bool = False, decide=answers.decide
                 notes.append(f"already '{cur}' for: {f['label']}")
         steps.append(f"{label}: " + ("; ".join(notes) if notes else "nothing to fill"))
         page.wait_for_timeout(500)
+        progress["stage"] = f"after filling {label}, before choosing the next button"
 
         after = read_step(page)
         btns = {b["role"]: b for b in after["buttons_info"]}
@@ -240,6 +258,7 @@ def run_form(page, title: str, allow_submit: bool = False, decide=answers.decide
                 return {"status": "ready", "reason": "reached the final review page",
                         "steps": steps, "learned": learned, "review": after["text"]}
             return _paused("no Next/Review button on this page", None, steps, learned)
+        progress["stage"] = f"after clicking '{advance['text']}' on {label}"
         _dlg(page).get_by_role("button", name=advance["text"]).first.click()
         page.wait_for_timeout(2500)
         nxt = read_step(page)

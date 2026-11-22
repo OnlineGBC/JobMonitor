@@ -81,5 +81,29 @@ class Snapshot(unittest.TestCase):
             applier._log_screen(ops, "42")
 
 
+class FormStoppedMessage(unittest.TestCase):
+    def test_a_form_that_vanishes_names_the_page_and_step(self):
+        step = {"page": (2, 4), "fields": [], "buttons_info": [{"text": "Next", "en": "Next", "role": "next"}],
+                "errors": [], "text": "t"}
+        calls = {"n": 0}
+
+        def read(page):
+            calls["n"] += 1
+            if calls["n"] >= 3:                       # the third read: the form has gone
+                raise RuntimeError("Locator.evaluate: Timeout 30000ms exceeded.\nCall log:\n  - waiting for locator")
+            return step
+        page = mock.MagicMock()
+        with mock.patch.object(easy_apply, "read_step", side_effect=read), \
+                mock.patch.object(easy_apply.resumes, "resume_name", return_value="r.docx"), \
+                mock.patch.object(easy_apply.resumes, "local_path", return_value=None), \
+                mock.patch.object(easy_apply.answers, "load_bank", return_value=""):
+            with self.assertRaises(easy_apply.FormStopped) as cm:
+                easy_apply.run_form(page, "Director of AI")
+        msg = str(cm.exception)
+        self.assertIn("closed or stopped responding after clicking 'Next' on page 2/4", msg)
+        self.assertIn("page 2/4: nothing to fill", msg)
+        self.assertIn("Timeout 30000ms exceeded", msg)
+
+
 if __name__ == "__main__":
     unittest.main()
