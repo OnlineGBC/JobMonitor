@@ -85,8 +85,7 @@ def process(applied_ids, confirm_posting, now: datetime = None) -> list:
             queue_tool.remove(jid)
             reporter.enqueue("applied", f"#{row['number']} Applied: {row['title']} at {row['company']}",
                              f"LinkedIn shows this application as submitted (the job is on your Applied list and the "
-                             f"posting page confirms it).\n{link}\n\nThe agent prepared the form and saved the draft; "
-                             f"LinkedIn does not say who submitted it.\nResume prepared: {row.get('resume') or 'n/a'}",
+                             f"posting page confirms it).\n{link}\n\nResume prepared: {row.get('resume') or 'n/a'}",
                              email=False)
             results.append((who, "SUBMITTED"))
         elif not row.get("reminded") and _minutes_since(row["booked"], now) >= REMIND_AFTER_MINUTES:

@@ -40,7 +40,7 @@ class Reconcile(unittest.TestCase):
         (ev,) = self.reports()
         self.assertEqual(ev["kind"], "applied")
         self.assertIn("https://www.linkedin.com/jobs/view/4490239950/", ev["body"])
-        self.assertIn("does not say who submitted", ev["body"])
+        self.assertNotIn("does not say who submitted", ev["body"])
         self.assertNotIn("you submitted", ev["body"].lower())
         self.assertIn("New York time", ev["body"])
 
