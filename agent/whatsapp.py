@@ -85,14 +85,19 @@ def send_buttons(body: str, buttons: list, session=requests, now: float = None) 
     return True
 
 
+KEEPALIVE_LEAD_SECONDS = 3 * 3600     # send it when the 24-hour window has this little time left (or is closed)
 KEEPALIVE_RETRY_SECONDS = 6 * 3600   # wait this long after a FAILED keepalive (e.g. template still in review)
 
 
 def send_keepalive(session=requests, now: float = None) -> bool:
-    """Send the approved check-in template, at most once per 12 hours."""
+    """Send the approved check-in template, at most once per 12 hours, and only when the 24-hour window has less
+    than 3 hours left or is already closed (while he is chatting, it is not needed)."""
     with locked("whatsapp_state"):
         s = read_json(STATE, {})
         t = now or time.time()
+        inbound = s.get("last_inbound")
+        if inbound is not None and WINDOW_SECONDS - (t - inbound) > KEEPALIVE_LEAD_SECONDS:
+            return False
         last = s.get("last_keepalive")
         if last is not None and t - last < 12 * 3600:
             return False

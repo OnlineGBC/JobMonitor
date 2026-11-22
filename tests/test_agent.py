@@ -1,4 +1,5 @@
 import os
+import time
 import tempfile
 import unittest
 from datetime import datetime, timedelta, timezone
@@ -309,12 +310,23 @@ class WhatsApp(unittest.TestCase):
         self.assertFalse(self.w.send_text("late", self.session, now=1000 + 25 * 3600))
 
     def test_keepalive_once_per_12h(self):
+        write_json("whatsapp_state.json", {})
         self.assertTrue(self.w.send_keepalive(self.session, now=5000))
         self.assertFalse(self.w.send_keepalive(self.session, now=5000 + 11 * 3600))
         self.assertTrue(self.w.send_keepalive(self.session, now=5000 + 12 * 3600))
         self.assertEqual(self.sent[0][2]["type"], "template")
 
+    def test_keepalive_only_when_the_window_has_under_3_hours_left(self):
+        write_json("whatsapp_state.json", {})
+        self.w.note_inbound(now=1000)
+        self.assertFalse(self.w.send_keepalive(self.session, now=1000 + 20 * 3600))        # 4 hours left: not yet
+        self.assertTrue(self.w.send_keepalive(self.session, now=1000 + 21 * 3600 + 1))     # under 3 hours left
+        write_json("whatsapp_state.json", {})
+        self.w.note_inbound(now=1000)
+        self.assertTrue(self.w.send_keepalive(self.session, now=1000 + 30 * 3600))         # already closed: send
+
     def test_a_failed_keepalive_waits_six_hours_before_trying_again(self):
+        write_json("whatsapp_state.json", {})
         class Failing:
             calls = 0
 
@@ -485,6 +497,27 @@ class Reporter(unittest.TestCase):
         mail = []
         st = self.r.process(lambda s, b: mail.append(s), lambda t: False)
         self.assertEqual((len(mail), st["whatsapp_closed"]), (1, 1))
+        self.assertEqual(read_json("outbox.json", [])[0]["whatsapp"], "window_closed")
+
+    def test_a_whatsapp_only_message_is_emailed_and_held_while_the_window_is_closed(self):
+        self.r.enqueue("applied", "A", "b", email=False)
+        mail = []
+        self.r.process(lambda s, b: mail.append(s), lambda t: False)
+        self.assertEqual(len(mail), 1)                                   # fallback email, once
+        self.assertEqual(read_json("outbox.json", [])[0]["whatsapp"], "pending")
+        self.r.process(lambda s, b: mail.append(s), lambda t: False)
+        self.assertEqual(len(mail), 1)                                   # not emailed again on the next pass
+        wa = []
+        self.r.process(lambda s, b: mail.append(s), lambda t: wa.append(t) or True)   # window reopens
+        self.assertEqual(len(wa), 1)
+        self.assertEqual(read_json("outbox.json", [])[0]["whatsapp"], "sent")
+
+    def test_a_held_message_is_dropped_after_72_hours(self):
+        self.r.enqueue("applied", "A", "b", email=False)
+        items = read_json("outbox.json", [])
+        items[0]["created"] = time.time() - 73 * 3600
+        write_json("outbox.json", items)
+        self.r.process(lambda s, b: None, lambda t: False)
         self.assertEqual(read_json("outbox.json", [])[0]["whatsapp"], "window_closed")
 
     def test_email_failure_retries_and_whatsapp_failure_does_not_block(self):

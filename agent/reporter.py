@@ -6,6 +6,7 @@ email (always) and WhatsApp (when the 24h window is open).
     python -m agent.reporter          # deliver everything pending, then the keepalive check
 """
 import logging
+import time
 import uuid
 from datetime import datetime
 from zoneinfo import ZoneInfo
@@ -29,6 +30,7 @@ REPORTABLE = {
     "notice",     # acknowledgement of a command Raja sent (approved, rejected, not valid, pending list)
 }
 MAX_ATTEMPTS = 10
+HOLD_SECONDS = 72 * 3600     # a WhatsApp-only message the closed window could not carry is kept this long
 
 
 def ny_now() -> str:
@@ -46,7 +48,8 @@ def enqueue(kind: str, subject: str, body: str, needs_action: bool = False, butt
         subject = f"{subject} — updates needed"
     event = {"id": uuid.uuid4().hex[:8], "kind": kind, "subject": subject,
              "body": f"{body}\n\nNew York time: {ny_now()}",
-             "email_sent": not email, "whatsapp": "pending", "attempts": 0}   # email=False: WhatsApp only
+             "email_sent": not email, "whatsapp": "pending", "attempts": 0,
+             "wa_only": not email, "created": time.time()}   # email=False: WhatsApp only
     if buttons:
         whatsapp.check_buttons(wa_prompt or "x", [tuple(b) for b in buttons])   # refuse impossible buttons now
         event.update(buttons=[list(b) for b in buttons], wa_text=wa_text, wa_prompt=wa_prompt)
@@ -79,8 +82,21 @@ def process(send_email=gmail_client.send, send_whatsapp=whatsapp.send_text, send
                         stats["whatsapp"] += 1
                         chatlog.add("agent", e["subject"], e["body"])
                     else:
-                        e["whatsapp"] = "window_closed"  # email carries it
                         stats["whatsapp_closed"] += 1
+                        if e.get("wa_only"):
+                            # WhatsApp-only and the window is closed: email it now so it is not missed, and keep it
+                            # pending so it is sent on WhatsApp (buttons included) once he next messages the agent.
+                            if not e.get("fallback_emailed"):
+                                try:
+                                    send_email(e["subject"], e["body"])
+                                    e["fallback_emailed"] = True
+                                    stats["emailed"] += 1
+                                except Exception as ex:
+                                    logging.error(f"Fallback email for event {e['id']} failed: {ex}")
+                            if time.time() - e.get("created", 0) >= HOLD_SECONDS:
+                                e["whatsapp"] = "window_closed"
+                        else:
+                            e["whatsapp"] = "window_closed"  # email carries it
                 except Exception as ex:
                     e["whatsapp"] = "failed"
                     logging.error(f"WhatsApp for event {e['id']} failed: {ex}")
