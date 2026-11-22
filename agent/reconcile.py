@@ -61,6 +61,18 @@ def _minutes_since(iso: str, now: datetime) -> float:
     return (now - datetime.fromisoformat(iso)).total_seconds() / 60
 
 
+def _poster_line(job_id: str) -> str:
+    """Says whether the posting names a job poster, and where the invite to them stands."""
+    from . import outreach
+    d = next((i for i in outreach.all_items() if i["kind"] == "invite" and i["job_id"] == str(job_id)), None)
+    if d is None:
+        return "Job poster: not named on the posting."
+    state = {"DRAFT": "waiting for your approval", "APPROVED": "approved, being sent", "SENT": "sent",
+             "REJECTED": "rejected by you"}.get(d["status"], d["status"].lower())
+    return (f"Job poster: {d['poster']} ({d['poster_url']}).\nInvite {d['id']}: {state}. "
+            f"A message follows once they accept.")
+
+
 def process(applied_ids, confirm_posting, now: datetime = None) -> list:
     """Reconcile every AWAITING RAJA row. `applied_ids` is the set of job numbers on the Applied tab, or None if
     that tab could not be read. `confirm_posting(job_id)` says whether the posting page shows it as applied."""
@@ -85,7 +97,7 @@ def process(applied_ids, confirm_posting, now: datetime = None) -> list:
             queue_tool.remove(jid)
             reporter.enqueue("applied", f"#{row['number']} Applied: {row['title']} at {row['company']}",
                              f"LinkedIn shows this application as submitted (the job is on your Applied list and the "
-                             f"posting page confirms it).\n{link}\n\nResume prepared: {row.get('resume') or 'n/a'}",
+                             f"posting page confirms it).\n{link}\n\nResume prepared: {row.get('resume') or 'n/a'}\n{_poster_line(jid)}",
                              email=False)
             results.append((who, "SUBMITTED"))
         elif not row.get("reminded") and _minutes_since(row["booked"], now) >= REMIND_AFTER_MINUTES:

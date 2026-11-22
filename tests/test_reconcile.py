@@ -42,6 +42,7 @@ class Reconcile(unittest.TestCase):
         self.assertIn("https://www.linkedin.com/jobs/view/4490239950/", ev["body"])
         self.assertNotIn("does not say who submitted", ev["body"])
         self.assertNotIn("you submitted", ev["body"].lower())
+        self.assertIn("Job poster: not named", ev["body"])
         self.assertIn("New York time", ev["body"])
 
     def test_on_the_applied_list_but_the_posting_page_disagrees_changes_nothing(self):
@@ -155,6 +156,16 @@ class ReadApplied(unittest.TestCase):
 
     def test_a_page_with_no_entries_reads_as_empty_which_run_treats_as_unreadable(self):
         self.assertEqual(self.read("<html><body><main><h1>Job tracker</h1></main></body></html>"), [])
+
+
+class PosterLine(unittest.TestCase):
+    def test_names_the_poster_and_the_invite_state(self):
+        from agent import outreach
+        d = outreach.create("invite", "777", "Jane Roe", "https://www.linkedin.com/in/jane/", "Acme", "Director of AI")
+        line = reconcile._poster_line("777")
+        self.assertIn("Jane Roe", line)
+        self.assertIn(f"Invite {d['id']}: waiting for your approval", line)
+        self.assertIn("message follows once they accept", line)
 
 
 if __name__ == "__main__":
