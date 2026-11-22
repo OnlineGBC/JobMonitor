@@ -38,7 +38,7 @@ def ny_now() -> str:
 
 
 def enqueue(kind: str, subject: str, body: str, needs_action: bool = False, buttons: list = None,
-            wa_text: str = None, wa_prompt: str = None, email: bool = False) -> str:
+            wa_text: str = None, wa_prompt: str = None, email: bool = False, ref: str = None) -> str:
     """Queue a report. `buttons` [(id, title)] make the WhatsApp copy tappable; the email is unchanged.
     `wa_text` replaces the WhatsApp text (it must carry everything Raja is asked to approve, word for word);
     `wa_prompt` is the short line shown with the buttons if that text is too long for one message."""
@@ -50,6 +50,8 @@ def enqueue(kind: str, subject: str, body: str, needs_action: bool = False, butt
              "body": f"{body}\n\nNew York time: {ny_now()}",
              "email_sent": not email, "whatsapp": "pending", "attempts": 0,
              "wa_only": not email, "created": time.time()}   # email=False: WhatsApp only
+    if ref:                                   # "question <id>" / "draft <id>": a WhatsApp Reply to it is matched to that item
+        event["ref"] = ref
     if buttons:
         whatsapp.check_buttons(wa_prompt or "x", [tuple(b) for b in buttons])   # refuse impossible buttons now
         event.update(buttons=[list(b) for b in buttons], wa_text=wa_text, wa_prompt=wa_prompt)
@@ -77,7 +79,9 @@ def process(send_email=gmail_client.send, send_whatsapp=whatsapp.send_text, send
                     logging.error(f"Email for event {e['id']} failed: {ex}")
             if e["whatsapp"] == "pending":
                 try:
-                    if _deliver_whatsapp(e, send_whatsapp, send_buttons):
+                    with whatsapp.sending_for(e.get("ref")):
+                        delivered = _deliver_whatsapp(e, send_whatsapp, send_buttons)
+                    if delivered:
                         e["whatsapp"] = "sent"
                         stats["whatsapp"] += 1
                         chatlog.add("agent", e["subject"], e["body"])

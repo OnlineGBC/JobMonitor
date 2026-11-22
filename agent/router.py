@@ -14,7 +14,7 @@ Raises if the model cannot be reached (the caller then falls back to the plain r
 """
 import re
 
-from . import chatlog, config, decisions, llm, logtail, manual, questions
+from . import chatlog, config, decisions, llm, logtail, manual, outreach, questions
 
 MAX_COMMANDS = 20
 
@@ -26,7 +26,10 @@ Open Easy Apply roles (he can apply or skip each):
 Open application questions (he can answer or skip the application):
 {questions}
 
-The last 50 messages of the WhatsApp conversation, oldest first (AGENT = what the agent sent, RAJA = what he typed):
+Open outreach drafts (messages to people, awaiting his approval):
+{drafts}
+
+{about}The last 50 messages of the WhatsApp conversation, oldest first (AGENT = what the agent sent, RAJA = what he typed):
 {recent}
 
 Lines from the agent's own log files about the role(s) he mentioned (or the latest lines, if he asked for the logs):
@@ -42,7 +45,9 @@ Return ONLY JSON:
     {{"type": "decide", "id": "<role id>", "choice": "APPLY" | "SKIP"}},
     {{"type": "answer", "id": "<question id>", "value": "<the answer, exactly as he gave it>"}},
     {{"type": "skip_application", "id": "<question id>"}},
-    {{"type": "mark_applied", "job_id": "<LinkedIn job id>"}}
+    {{"type": "mark_applied", "job_id": "<LinkedIn job id>"}},
+    {{"type": "approve_draft", "id": "<draft id>", "text": null | "<the exact wording to send instead>"}},
+    {{"type": "reject_draft", "id": "<draft id>"}}
   ],
   "comment": true | false,
   "ask": null | "<one short question, only if you cannot tell which item or what he meant>",
@@ -81,7 +86,26 @@ Rules:
   ("never show part-time roles", "too junior", "I only want AI roles"), whether or not it also carries an action.
 - A bare "yes"/"no"/"ok" with exactly one item open is an answer to that item. With several open, ask which.
 - Casual chat ("hello", "thanks", a question to you, anything unrelated) -> no actions, comment false, ask null.
+- A draft action is allowed ONLY when his reply says it is a reply to that draft (see above). "approve_draft" with
+  text null sends the draft as shown ("ok", "send it", "looks good"). Give "text" only when his reply is itself the
+  complete wording he wants sent; copy it exactly. If he asks for a change ("make it shorter", "add my phone number")
+  rather than giving the wording, do not approve: use "ask" and tell him to reply again with the exact wording.
 - When unsure which role or question he means, set "ask" and leave the actions out. Never guess."""
+
+
+def _drafts_text():
+    drafts = [d for d in outreach.all_items() if d["status"] == "DRAFT"]
+    lines = [f"- id {d['id']}: {d['kind']} to {d['poster']} ({d['title']} at {d['company']}): {d['text']}" for d in drafts]
+    return drafts, "\n".join(lines) or "(none)"
+
+
+def _about_text(about):
+    """The line telling the model which message he used WhatsApp's Reply on."""
+    if not about:
+        return ""
+    kind, _, item_id = about.partition(" ")
+    return (f"He used WhatsApp's Reply on the agent's message about {kind} {item_id}, so this reply is about that "
+            f"item. Treat a bare answer as an answer to it.\n\n")
 
 
 def _context():
@@ -127,20 +151,23 @@ def _normalise_answer(q: dict, value: str):
     return None
 
 
-def route(text: str, client=None) -> dict:
+def route(text: str, client=None, about: str = None) -> dict:
     from . import interpret
     decs, qs, d_text, q_text = _context()
+    drafts, draft_text = _drafts_text()
     if client is None:
         import anthropic
         client = anthropic.Anthropic()
     resp = client.messages.create(
         model=config.ROUTER_MODEL, max_tokens=4000,
         messages=[{"role": "user", "content": PROMPT.format(decisions=d_text, questions=q_text, message=text, recent=_recent(),
+                                                      drafts=draft_text, about=_about_text(about),
                                                       logs=logtail.excerpts(text))}])
     data = llm.json_object(resp)
 
     by_dec = {d["id"]: d for d in decs}
     by_q = {q["id"]: q for q in qs}
+    by_draft = {d["id"]: d for d in drafts}
     commands, problems = [], []
     for a in (data.get("actions") or [])[:MAX_COMMANDS]:
         kind, aid = a.get("type"), str(a.get("id") or "").strip().lower()
@@ -152,6 +179,12 @@ def route(text: str, client=None) -> dict:
                 problems.append(by_q[aid])
             else:
                 commands.append(f"ANSWER {aid} {v}")
+        elif kind in ("approve_draft", "reject_draft") and about == f"draft {aid}" and aid in by_draft:
+            if kind == "reject_draft":
+                commands.append(f"REJECT {aid}")
+            else:
+                own = re.sub(r"[ 	]+", " ", str(a.get("text") or "")).strip()
+                commands.append(f"APPROVE {aid} {own}".rstrip())
         elif kind == "skip_application" and aid in by_q:
             commands.append(f"ANSWER {aid} SKIP")
         elif kind == "mark_applied" and re.fullmatch(r"\d{6,}", str(a.get("job_id") or "").strip()) \

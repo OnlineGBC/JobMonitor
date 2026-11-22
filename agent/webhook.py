@@ -30,11 +30,11 @@ def whatsapp_webhook():
     body = request.get_data()
     if not whatsapp.valid_signature(body, request.headers.get("X-Hub-Signature-256", "")):
         return "forbidden", 403
-    for _sender, text, via in whatsapp.parse_inbound_events(request.get_json(silent=True) or {}):
+    for _sender, text, via, reply_to in whatsapp.parse_inbound_events(request.get_json(silent=True) or {}):
         whatsapp.note_inbound()  # any message from Raja reopens the 24h window
         with locked("whatsapp_inbox"):
             inbox = read_json(INBOX, [])
-            inbox.append({"ts": time.time(), "text": text, "via": via, "handled": False})
+            inbox.append({"ts": time.time(), "text": text, "via": via, "reply_to": reply_to, "handled": False})
             write_json(INBOX, inbox[-200:])
     return "ok", 200
 

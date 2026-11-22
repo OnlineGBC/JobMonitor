@@ -102,7 +102,7 @@ _CASUAL = {"ok", "okay", "thanks", "thank", "you", "great", "cool", "hi", "hello
            "noted", "again", "please"}
 
 
-def handle_reply(text: str, via: str, source: str) -> bool:
+def handle_reply(text: str, via: str, source: str, about: str = None) -> bool:
     """One reply from Raja. What he types or taps IS the confirmation: nothing is echoed back for approval first.
 
     A button or an exact command acts at once. Any other typed text is read by the model (agent.router), checked in
@@ -113,7 +113,7 @@ def handle_reply(text: str, via: str, source: str) -> bool:
         _answer(cmd, source)
         return True
     words = interpret._words(text)
-    if not words or set(words) <= _CASUAL:
+    if not words or (set(words) <= _CASUAL and not about):
         return False
     if confirmations.open_ones():              # a confirmation sent before this change: a plain yes / no still settles it
         old = interpret.interpret(text)
@@ -121,9 +121,12 @@ def handle_reply(text: str, via: str, source: str) -> bool:
             _answer({"action": "CONFIRM" if old["accept"] else "CANCEL", "id": old["id"], "text": None}, source)
             return True
     try:
-        result = router.route(text)
+        result = router.route(text, about=about)
     except Exception as e:
         logging.warning(f"Could not read the reply with the model ({e}); using the plain rules")
+        if about and about.startswith("question "):       # he replied to that question: his text is the answer
+            _answer({"action": "ANSWER", "id": about.split()[1], "text": text.strip()}, source, said=text)
+            return True
         return _by_rules(text, source)
     for c in result["commands"]:
         _answer(parse(c), source, said=text)
@@ -164,6 +167,11 @@ def _text_question_open() -> bool:
     return any(q.get("type") == "text" for q in questions.open_questions())
 
 
+def whatsapp_ref(message_id):
+    from . import whatsapp
+    return whatsapp.ref_for(message_id)
+
+
 def process_whatsapp() -> int:
     """Handle unread WhatsApp replies. The webhook has already checked the signature and Raja's number."""
     with locked("whatsapp_inbox"):
@@ -175,7 +183,8 @@ def process_whatsapp() -> int:
     n = 0
     for m in todo:
         if m["text"]:
-            if handle_reply(m["text"], m.get("via", "text"), "whatsapp"):
+            about = whatsapp_ref(m.get("reply_to")) if m.get("via", "text") == "text" else None
+            if handle_reply(m["text"], m.get("via", "text"), "whatsapp", about=about):
                 n += 1
             chatlog.add("raja", "", m["text"])
     return n

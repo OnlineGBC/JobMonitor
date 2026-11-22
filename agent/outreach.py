@@ -134,8 +134,9 @@ def announce(d: dict) -> None:
         buttons=[(f"APPROVE {d['id']}", "Approve"), (f"REJECT {d['id']}", "Reject"), ("PENDING", "Pending list")],
         wa_text=(f"Outreach draft {d['id']}\n{d['kind'].title()} to {d['poster']} ({d['title']} at {d['company']}), "
                  f"exactly as it would be sent:\n\n{d['text']}\n\n{gate}\n\n"
-                 f"Tap Approve to send it as shown, or reply APPROVE {d['id']} followed by your own text."),
-        wa_prompt=f"Draft {d['id']} ({d['kind']} to {d['poster']}): tap to answer.")
+                 "Tap Approve to send it as shown, or use WhatsApp's Reply on this message and type the exact "
+                 "wording you want sent instead."),
+        wa_prompt=f"Draft {d['id']} ({d['kind']} to {d['poster']}): tap to answer.", ref=f"draft {d['id']}")
 
 
 def find(kind: str, poster_url: str, job_id: str):
