@@ -64,7 +64,7 @@ def button_role(english_text: str) -> str:
         return "add_note"
     if t in ("close", "dismiss", "cancel", "x", "done"):
         return "close"
-    if t.startswith("review"):
+    if t.startswith("review") and "job post" not in t:   # "Review job post" is LinkedIn's safety reminder, not a step
         return "review"
     if t in ("next", "continue", "next step", "continue to next step"):
         return "next"

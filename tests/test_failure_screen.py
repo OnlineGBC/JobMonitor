@@ -59,6 +59,35 @@ class DialogGone(unittest.TestCase):
         self.open(Page(["Apply to NET-Group"], ["Apply to NET-Group"]))
 
 
+class SafetyReminder(unittest.TestCase):
+    def page(self):
+        page = Page(["Job search safety reminder Research the company Review job post Continue applying"],
+                    ["Job search safety reminder Research the company Review job post Continue applying"])
+        page.clicked = []
+
+        class Link:
+            def click(inner):
+                page.clicked.append("Continue applying")
+                page.dialogs = ["Apply to Acme Contact info"]
+                page.after = page.dialogs
+        loc = Loc(page)
+        loc.get_by_role = lambda role, name=None, exact=False: Link() if (role, name) == ("link", "Continue applying") else None
+        page.locator = lambda sel: loc
+        return page
+
+    def test_the_safety_reminder_is_passed_with_continue_applying_only(self):
+        page = self.page()
+        with mock.patch.object(easy_apply, "_top_card_apply_controls", return_value=[mock.Mock()]):
+            easy_apply.open_easy_apply(page, "https://x")
+        self.assertEqual(page.clicked, ["Continue applying"])
+
+    def test_review_job_post_is_never_the_review_step(self):
+        from agent import translate
+        self.assertNotEqual(translate.button_role("Review job post"), "review")
+        self.assertEqual(translate.button_role("Review"), "review")
+        self.assertEqual(translate.button_role("Review your application"), "review")
+
+
 class Snapshot(unittest.TestCase):
     def test_saves_a_screenshot_and_the_dialog_text(self):
         folder = Path(tempfile.mkdtemp())

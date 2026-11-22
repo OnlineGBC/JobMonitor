@@ -321,10 +321,22 @@ def open_easy_apply(page, url: str) -> None:
     page.wait_for_selector("dialog[open]", timeout=15000)
     first = _dialog_text(page)
     page.wait_for_timeout(2000)
+    if "safety reminder" in _dialog_text(page).lower():
+        _dismiss_safety_reminder(page)
+        first = _dialog_text(page)
     if not page.locator("dialog[open]").count():
         shown = first[:300] or "(no text)"
         raise RuntimeError("a dialog opened after clicking Easy Apply but closed again within 2 seconds, "
                            f"before the form could be read. Its text was: {shown}")
+
+
+def _dismiss_safety_reminder(page) -> None:
+    """LinkedIn sometimes shows a 'Job search safety reminder' before the form, with 'Review job post' (which leaves
+    the application) and 'Continue applying' (which goes on to the form). Only 'Continue applying' is clicked."""
+    _dlg(page).get_by_role("link", name="Continue applying", exact=True).click()
+    page.wait_for_timeout(2000)
+    if not page.locator("dialog[open]").count():
+        raise RuntimeError("the form closed after clicking 'Continue applying' on LinkedIn's job search safety reminder")
 
 
 def _dialog_text(page) -> str:

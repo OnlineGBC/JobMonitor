@@ -178,7 +178,7 @@ def process_item(item: dict, ops) -> str:
         if attempts >= MAX_ATTEMPTS:
             queue_tool.set_status(jid, AWAITING)
             reporter.enqueue("needs_you", f"Applier could not process: {title} at {company}",
-                             f"Three attempts failed. What happened (last attempt):\n{e}\n\nPosting: {_link(item)}")
+                             f"Three attempts failed. What happened (last attempt):\n{e}\n\nPosting: {_link(item)}", email=False)
             return "failed three times: reported"
         queue_tool.release(jid)
         return f"failed (attempt {attempts}), will retry"
