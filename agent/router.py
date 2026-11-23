@@ -104,6 +104,9 @@ def _about_text(about):
     if not about:
         return ""
     kind, _, item_id = about.partition(" ")
+    if kind == "message":
+        return ("He used WhatsApp's Reply on this earlier message from the agent, so his reply is about it (the text "
+                "between the lines is that message):\n-----\n" + item_id + "\n-----\n\n")
     return (f"He used WhatsApp's Reply on the agent's message about {kind} {item_id}, so this reply is about that "
             f"item. Treat a bare answer as an answer to it.\n\n")
 

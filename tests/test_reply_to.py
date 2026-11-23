@@ -54,6 +54,21 @@ class SentIdsRemembered(unittest.TestCase):
         self.assertEqual(seen, ["question abcd1234"])
         self.assertIsNone(whatsapp._sending_for)
 
+class OrdinaryMessages(unittest.TestCase):
+    def test_any_message_is_remembered_by_its_text_so_a_reply_to_it_is_understood(self):
+        write_json(reporter.OUTBOX, [])
+        write_json(whatsapp.REFS, {})
+        write_json(whatsapp.STATE, {"last_inbound": 1000})
+        reporter.enqueue("needs_you", "Invite to Jo was NOT sent", "Nothing was sent. Reason: no Connect button")
+        with mock.patch.object(whatsapp.vault, "require", return_value="x"), mock.patch.object(whatsapp.time, "time", return_value=1100):
+            s = Session()
+            with mock.patch.object(whatsapp.requests, "post", s.post):
+                reporter.process(send_email=lambda *a: None)
+        ref = whatsapp.ref_for("wamid.1")
+        self.assertTrue(ref.startswith("message Invite to Jo was NOT sent"))
+        self.assertIn("no Connect button", router._about_text(ref))
+        self.assertIn("this earlier message", router._about_text(ref))
+
 
 class RepliesAreMatched(Base):
     def reply(self, text, about, routed=None, down=False):

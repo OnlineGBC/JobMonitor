@@ -79,7 +79,11 @@ def process(send_email=gmail_client.send, send_whatsapp=whatsapp.send_text, send
                     logging.error(f"Email for event {e['id']} failed: {ex}")
             if e["whatsapp"] == "pending":
                 try:
-                    with whatsapp.sending_for(e.get("ref")):
+                    # every message is remembered by its WhatsApp id: a question or draft by its id, any other by its text,
+                    # so a Reply to it tells the reader exactly which message he means
+                    shown = e.get("wa_text") or e["subject"] + "\n\n" + e["body"]
+                    about = e.get("ref") or "message " + shown[:1200]
+                    with whatsapp.sending_for(about):
                         delivered = _deliver_whatsapp(e, send_whatsapp, send_buttons)
                     if delivered:
                         e["whatsapp"] = "sent"
