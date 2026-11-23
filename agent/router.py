@@ -29,6 +29,9 @@ Open application questions (he can answer or skip the application):
 Open outreach drafts (messages to people, awaiting his approval):
 {drafts}
 
+Outreach drafts that failed and were NOT sent (he can ask for a retry):
+{failed}
+
 {about}The last 50 messages of the WhatsApp conversation, oldest first (AGENT = what the agent sent, RAJA = what he typed):
 {recent}
 
@@ -47,7 +50,8 @@ Return ONLY JSON:
     {{"type": "skip_application", "id": "<question id>"}},
     {{"type": "mark_applied", "job_id": "<LinkedIn job id>"}},
     {{"type": "approve_draft", "id": "<draft id>", "text": null | "<the exact wording to send instead>"}},
-    {{"type": "reject_draft", "id": "<draft id>"}}
+    {{"type": "reject_draft", "id": "<draft id>"}},
+    {{"type": "retry_invite", "id": "<failed draft id>"}}
   ],
   "comment": true | false,
   "ask": null | "<one short question, only if you cannot tell which item or what he meant>",
@@ -90,13 +94,19 @@ Rules:
   text null sends the draft as shown ("ok", "send it", "looks good"). Give "text" only when his reply is itself the
   complete wording he wants sent; copy it exactly. If he asks for a change ("make it shorter", "add my phone number")
   rather than giving the wording, do not approve: use "ask" and tell him to reply again with the exact wording.
+- "retry_invite": when he asks to try a failed invite or message again ("try again", "retry", "send it again"), use
+  the id from the failed list above (the one his reply, or the message he replied to, is about). The same approved text
+  is sent again. If you cannot tell which failed draft he means, use "ask".
 - When unsure which role or question he means, set "ask" and leave the actions out. Never guess."""
 
 
 def _drafts_text():
     drafts = [d for d in outreach.all_items() if d["status"] == "DRAFT"]
     lines = [f"- id {d['id']}: {d['kind']} to {d['poster']} ({d['title']} at {d['company']}): {d['text']}" for d in drafts]
-    return drafts, "\n".join(lines) or "(none)"
+    failed = [d for d in outreach.all_items() if d["status"] == "FAILED" and d.get("approved") and not d.get("sent")]
+    flines = [f"- id {d['id']}: {d['kind']} to {d['poster']} ({d['title']} at {d['company']}); why it failed: {d.get('error')}"
+              for d in failed]
+    return drafts, "\n".join(lines) or "(none)", failed, "\n".join(flines) or "(none)"
 
 
 def _about_text(about):
@@ -157,20 +167,21 @@ def _normalise_answer(q: dict, value: str):
 def route(text: str, client=None, about: str = None) -> dict:
     from . import interpret
     decs, qs, d_text, q_text = _context()
-    drafts, draft_text = _drafts_text()
+    drafts, draft_text, failed, failed_text = _drafts_text()
     if client is None:
         import anthropic
         client = anthropic.Anthropic()
     resp = client.messages.create(
         model=config.ROUTER_MODEL, max_tokens=4000,
         messages=[{"role": "user", "content": PROMPT.format(decisions=d_text, questions=q_text, message=text, recent=_recent(),
-                                                      drafts=draft_text, about=_about_text(about),
+                                                      drafts=draft_text, failed=failed_text, about=_about_text(about),
                                                       logs=logtail.excerpts(text))}])
     data = llm.json_object(resp)
 
     by_dec = {d["id"]: d for d in decs}
     by_q = {q["id"]: q for q in qs}
     by_draft = {d["id"]: d for d in drafts}
+    by_failed = {d["id"]: d for d in failed}
     commands, problems = [], []
     for a in (data.get("actions") or [])[:MAX_COMMANDS]:
         kind, aid = a.get("type"), str(a.get("id") or "").strip().lower()
@@ -188,6 +199,8 @@ def route(text: str, client=None, about: str = None) -> dict:
             else:
                 own = re.sub(r"[ 	]+", " ", str(a.get("text") or "")).strip()
                 commands.append(f"APPROVE {aid} {own}".rstrip())
+        elif kind == "retry_invite" and aid in by_failed:
+            commands.append(f"RETRY {aid}")
         elif kind == "skip_application" and aid in by_q:
             commands.append(f"ANSWER {aid} SKIP")
         elif kind == "mark_applied" and re.fullmatch(r"\d{6,}", str(a.get("job_id") or "").strip()) \

@@ -128,6 +128,36 @@ class DraftReplies(Base):
         self.assertEqual(router.route("ok", client=c)["commands"], [])
         self.assertEqual(router.route("ok", client=c, about="draft ffffffff")["commands"], [])
 
+class RetryFailedInvite(Base):
+    def setUp(self):
+        super().setUp()
+        write_json(outreach.FILE, [])
+        self.d = outreach.create("invite", "9", "Jane Roe", "https://www.linkedin.com/in/jane/", "Acme", "Director of AI")
+        outreach.approve(self.d["id"])
+        outreach.mark(self.d["id"], "FAILED", "expected exactly one Connect in the profile menu, found 0")
+        self.addCleanup(lambda: write_json(outreach.FILE, []))
+
+    def test_the_model_can_retry_a_failed_invite(self):
+        c = client(actions=[{"type": "retry_invite", "id": self.d["id"]}], comment=False, ask=None)
+        out = router.route("try again", client=c, about="message Invite to Jane was NOT sent")
+        self.assertEqual(out["commands"], [f"RETRY {self.d['id']}"])
+
+    def test_only_a_failed_draft_can_be_retried(self):
+        c = client(actions=[{"type": "retry_invite", "id": "deadbeef"}], comment=False, ask=None)
+        self.assertEqual(router.route("try again", client=c)["commands"], [])
+
+    def test_retry_makes_the_same_approved_text_sendable_again(self):
+        with mock.patch("agent.scheduler.run_soon", return_value=True) as soon:
+            msg = approvals.apply(approvals.parse(f"RETRY {self.d['id']}"))
+        self.assertEqual(outreach.get(self.d["id"])["status"], "APPROVED")
+        self.assertIn("sent again", msg)
+        soon.assert_called_once_with("sender")
+
+    def test_a_sent_draft_is_never_retried(self):
+        outreach.mark(self.d["id"], "SENT")
+        msg = approvals.apply(approvals.parse(f"RETRY {self.d['id']}"))
+        self.assertIn("cannot be reopened", msg)
+
 
 if __name__ == "__main__":
     unittest.main()

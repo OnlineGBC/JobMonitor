@@ -26,13 +26,14 @@ PAGE = """<!doctype html><html><head><title>__TITLE__</title><style>
 <aside><h2>More profiles for you</h2>
  <div>Maxx Wright · 2nd <button onclick="L('SIDEBAR CONNECT CLICKED')"><span>Connect</span></button></div>
  <div>Ally Bowers · 2nd <button onclick="L('SIDEBAR CONNECT CLICKED')"><span>Connect</span></button></div>
+ <div><a href="/preload/custom-invite/?vanityName=someone-else" onclick="L('SIDEBAR CONNECT CLICKED');return false">Connect</a></div>
 </aside>
 <main>
  <h1>__NAME__</h1><span>· __DEGREE__</span>
- <div id="actions"><button>Message</button><button>Follow</button>__PENDING__
+ <div id="actions">__TOPCARD__<button>Message</button><button>Follow</button>__PENDING__
   <button aria-label="More" onclick="document.getElementById('dd').classList.toggle('open')">...</button>
   <div id="dd" class="dd artdeco-dropdown__content"><ul>
-   <li><p>Send profile in a message</p></li><li><p onclick="startConnect()">Connect</p></li>__SECOND__
+   <li><p>Send profile in a message</p></li>__MENUCONNECT____SECOND__
    <li><p>Report</p></li></ul></div></div>
  <section>Grow your network <span onclick="L('MAIN CONNECT TEXT CLICKED')">Connect</span></section>
 </main>
@@ -65,8 +66,11 @@ function addNote(){
 
 
 def page_html(name="Cody Rice", title=None, degree="3rd", pending=False, instant=False, maxlength=300,
-              note_button=True, second_connect=False, dialog_name=None):
-    return (PAGE.replace("__TITLE__", title or f"{name} | LinkedIn").replace("__NAME__", name)
+              note_button=True, second_connect=False, dialog_name=None, top_card=False):
+    link = ('<a href="/preload/custom-invite/?vanityName=codyarice" aria-label="Invite Cody Rice to connect" '
+            'onclick="startConnect();return false">Connect</a>')
+    return (PAGE.replace("__TOPCARD__", link if top_card else "")
+            .replace("__MENUCONNECT__", "" if top_card else '<li><p onclick="startConnect()">Connect</p></li>').replace("__TITLE__", title or f"{name} | LinkedIn").replace("__NAME__", name)
             .replace("__DEGREE__", degree).replace("__PENDING__", "<button>Pending</button>" if pending else "")
             .replace("__INSTANT__", "true" if instant else "false").replace("__NOTEBTN__", "true" if note_button else "false")
             .replace("__MAXLEN__", str(maxlength)).replace("__DIALOGNAME__", dialog_name or name)
@@ -114,6 +118,21 @@ class InviteDriver(unittest.TestCase):
         self.assertEqual(result["result"], "sent")
         self.assertEqual(log, [f"SENT:{TEXT}"])   # exactly one send, exact text, no trap clicked
         self.assertEqual(dialogs, 0)
+
+    def test_the_top_card_connect_link_is_used_when_the_menu_has_no_connect(self):
+        result, log, dialogs = self.run_case(top_card=True)
+        self.assertEqual(result["result"], "sent")
+        self.assertEqual(log, [f"SENT:{TEXT}"])       # the sidebar's other Connect links were not touched
+        self.assertEqual(dialogs, 0)
+
+    def test_without_a_top_card_link_or_a_menu_connect_nothing_is_clicked(self):
+        page = self.browser.new_page(viewport={"width": 1500, "height": 900})
+        page.set_content(page_html().replace('<li><p onclick="startConnect()">Connect</p></li>', ""))
+        result = invite.send_invite(page, URL, "Cody Rice", TEXT, navigate=False)
+        log = page.evaluate("window.LOG")
+        page.close()
+        self.assertEqual(result["result"], "aborted")
+        self.assertEqual(log, [])
 
     def test_other_peoples_connect_buttons_are_never_clicked(self):
         _, log, _ = self.run_case()

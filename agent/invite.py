@@ -120,7 +120,12 @@ def send_invite(page, url: str, name: str, text: str, confirm=None, navigate: bo
     if state["more_buttons"] != 1:
         return _abort(f"expected one 'More' button in the profile's top card, found {state['more_buttons']}")
 
-    # 2. The ONE Connect that may be clicked: inside the profile's own More menu
+    # 2. The ONE Connect that may be clicked: this profile's own Connect link in the top card (its address names this
+    #    person), or else the one inside the profile's own More menu
+    direct = _top_card_connect(page, url)
+    if direct is not None:
+        direct.click()
+        return _after_connect(page, name, text, confirm, navigate)
     box = None
     for i in range(page.locator("main").get_by_role("button", name="More", exact=True).count()):
         b = page.locator("main").get_by_role("button", name="More", exact=True).nth(i).bounding_box()
@@ -139,7 +144,26 @@ def send_invite(page, url: str, name: str, text: str, confirm=None, navigate: bo
         page.keyboard.press("Escape")
         return _abort(f"expected exactly one Connect in the profile menu, found {connect.count()}")
     connect.first.click()
+    return _after_connect(page, name, text, confirm, navigate)
 
+
+def _top_card_connect(page, url: str):
+    """The Connect link in this profile's own top card, or None. Its address carries this person's profile name
+    (/preload/custom-invite/?vanityName=<name in the profile address>), and it must be the only such visible link in
+    the top card, so no other person's Connect (the sidebar's) can match."""
+    m = re.search(r"/in/([^/?#]+)", url or "")
+    if not m:
+        return None
+    links = page.locator(f'main a[href*="custom-invite"][href*="vanityName={m.group(1)}" i]')
+    found = []
+    for i in range(links.count()):
+        b = links.nth(i).bounding_box()
+        if b and b["width"] > 0 and b["y"] < 560 and b["x"] < 1000:
+            found.append(links.nth(i))
+    return found[0] if len(found) == 1 else None
+
+
+def _after_connect(page, name: str, text: str, confirm, navigate: bool) -> dict:
     # 3. The invitation dialog must appear. If it does not, we cannot tell what happened.
     if not _wait_for_dialog(page):
         page.wait_for_timeout(1500)

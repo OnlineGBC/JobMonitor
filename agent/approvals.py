@@ -18,7 +18,7 @@ from .store import locked, read_json, write_json
 SEEN = "approvals_seen.json"
 INBOX = "whatsapp_inbox.json"
 
-_CMD = re.compile(r"^\s*(approve|reject|answer|decide|confirm|cancel|rule)\s+([0-9a-f]{8})\b[ \t:,.-]*(.*)$", re.I | re.S)
+_CMD = re.compile(r"^\s*(approve|reject|answer|decide|confirm|cancel|rule|retry)\s+([0-9a-f]{8})\b[ \t:,.-]*(.*)$", re.I | re.S)
 _PENDING = re.compile(r"^\s*pending\s*[.!]?\s*$", re.I)
 _APPLIED = re.compile(r"^\s*applied\s+(\d{6,})\s*[.!]?\s*$", re.I)
 _RULES = re.compile(r"^\s*rules\s*[.!]?\s*$", re.I)
@@ -72,6 +72,16 @@ def apply(cmd: dict) -> str:
         return outreach.approve(cmd["id"], cmd["text"])[1]
     if cmd["action"] == "REJECT":
         return outreach.reject(cmd["id"])[1]
+    if cmd["action"] == "RETRY":
+        ok, msg = outreach.reopen(cmd["id"])
+        if ok:
+            try:
+                from . import scheduler
+                scheduler.run_soon("sender")           # send it at the next pass, not in 10-15 minutes
+            except Exception:
+                pass
+            return msg + " It will be sent again within a minute or two."
+        return msg
     if cmd["action"] in ("CONFIRM", "CANCEL"):
         return confirmations.resolve(cmd["id"], cmd["action"] == "CONFIRM", lambda c: apply(parse(c)))
     if cmd["action"] == "DECIDE":
