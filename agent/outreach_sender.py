@@ -63,7 +63,8 @@ def _record(item: dict, result: dict) -> str:
     if r == "aborted":
         outreach.mark(item["id"], "FAILED", error=why)
         reporter.enqueue("needs_you", f"Invite to {who} was NOT sent",
-                         f"Nothing was sent. Reason: {why}\nDraft {item['id']}:\n{item['poster_url']}")
+                         f"Nothing was sent. Reason: {why}\nDraft {item['id']}:\n{item['poster_url']}\n\n"
+                         "Reply to this message with \"try again\" to send it once more.")
         return f"aborted: {why}"
     # sent_without_note / unsettled: something may have gone out, so never retry
     outreach.mark(item["id"], "UNSETTLED", error=why)

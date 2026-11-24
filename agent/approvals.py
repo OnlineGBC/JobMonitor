@@ -21,6 +21,7 @@ INBOX = "whatsapp_inbox.json"
 _CMD = re.compile(r"^\s*(approve|reject|answer|decide|confirm|cancel|rule|retry)\s+([0-9a-f]{8})\b[ \t:,.-]*(.*)$", re.I | re.S)
 _PENDING = re.compile(r"^\s*pending\s*[.!]?\s*$", re.I)
 _APPLIED = re.compile(r"^\s*applied\s+(\d{6,})\s*[.!]?\s*$", re.I)
+_RETRYJOB = re.compile(r"^\s*retry\s+job\s+(\d{6,})\s*[.!]?\s*$", re.I)
 _RULES = re.compile(r"^\s*rules\s*[.!]?\s*$", re.I)
 _QUOTE_START = re.compile(r"^(>|On .{5,120} wrote:\s*$|-{2,}\s*Original Message|From: .+@|Sent from my\b|--\s*$)", re.I)
 
@@ -48,6 +49,9 @@ def parse(body: str):
     m = _APPLIED.match(text.split("\n")[0] if text else "")
     if m:
         return {"action": "APPLIED", "id": m.group(1), "text": None}
+    m = _RETRYJOB.match(text.split("\n")[0] if text else "")
+    if m:
+        return {"action": "RETRYJOB", "id": m.group(1), "text": None}
     return None
 
 
@@ -72,6 +76,15 @@ def apply(cmd: dict) -> str:
         return outreach.approve(cmd["id"], cmd["text"])[1]
     if cmd["action"] == "REJECT":
         return outreach.reject(cmd["id"])[1]
+    if cmd["action"] == "RETRYJOB":
+        ok, msg = queue_tool.retry(cmd["id"])
+        if ok:
+            try:
+                from . import scheduler
+                scheduler.run_soon("applier")
+            except Exception:
+                pass
+        return msg
     if cmd["action"] == "RETRY":
         ok, msg = outreach.reopen(cmd["id"])
         if ok:

@@ -159,5 +159,30 @@ class RetryFailedInvite(Base):
         self.assertIn("cannot be reopened", msg)
 
 
+class RetryGivenUpApplication(Base):
+    def setUp(self):
+        super().setUp()
+        from agent import queue_tool
+        self.queue_tool = queue_tool
+        write_json(queue_tool.FILE, [{"job_id": "4493373554", "title": "CMO", "company": "CMS", "status": "AWAITING RAJA",
+                                      "attempts": 3, "queued_at": "2026-11-20T00:00:00+00:00", "url": "u"}])
+
+    def test_the_model_can_requeue_a_posting_the_applier_gave_up_on(self):
+        c = client(actions=[{"type": "retry_application", "job_id": "4493373554"}], comment=False, ask=None)
+        out = router.route("try again", client=c, about="message Applier could not process: CMO at CMS")
+        self.assertEqual(out["commands"], ["RETRY JOB 4493373554"])
+
+    def test_an_unknown_job_is_not_retried(self):
+        c = client(actions=[{"type": "retry_application", "job_id": "999999999"}], comment=False, ask=None)
+        self.assertEqual(router.route("try again", client=c)["commands"], [])
+
+    def test_retry_resets_the_attempts_and_queues_it(self):
+        with mock.patch("agent.scheduler.run_soon", return_value=True):
+            msg = approvals.apply(approvals.parse("RETRY JOB 4493373554"))
+        item = self.queue_tool.all_items()[0]
+        self.assertEqual((item["status"], item["attempts"]), ("QUEUED", 0))
+        self.assertIn("queued again", msg)
+
+
 if __name__ == "__main__":
     unittest.main()

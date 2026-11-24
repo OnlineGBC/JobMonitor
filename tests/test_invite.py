@@ -133,6 +133,7 @@ class InviteDriver(unittest.TestCase):
         page.close()
         self.assertEqual(result["result"], "aborted")
         self.assertEqual(log, [])
+        self.assertIn("More menu offered: Send profile in a message", result["reason"])   # says what the page offered
 
     def test_other_peoples_connect_buttons_are_never_clicked(self):
         _, log, _ = self.run_case()

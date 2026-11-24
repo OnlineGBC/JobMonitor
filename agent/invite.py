@@ -51,7 +51,8 @@ def card_state(page) -> dict:
     labels = s["texts"] + s["controls"]
     return {"title": s["title"], "degree": m.group(1) if m else "",
             "pending": any(re.fullmatch(r"(pending|ausstehend)", t.strip(), re.I) for t in labels),
-            "more_buttons": sum(1 for t in s["controls"] if t.strip().lower() == "more")}
+            "more_buttons": sum(1 for t in s["controls"] if t.strip().lower() == "more"),
+            "buttons": s["controls"]}
 
 
 def _dlg(page):
@@ -141,8 +142,14 @@ def send_invite(page, url: str, name: str, text: str, confirm=None, navigate: bo
         return _abort(f"expected one open menu, found {menu.count()}", lambda: page.keyboard.press("Escape"))
     connect = menu.get_by_text(_CONNECT)
     if connect.count() != 1:
+        try:                                   # say what the page DID offer, so a layout change is clear at once
+            in_menu = " / ".join(t.strip() for t in menu.first.inner_text().split("\n") if t.strip())
+            in_card = " / ".join(t for t in card_state(page).get("buttons", []) if t)
+        except Exception:
+            in_menu = in_card = "unreadable"
         page.keyboard.press("Escape")
-        return _abort(f"expected exactly one Connect in the profile menu, found {connect.count()}")
+        return _abort(f"expected exactly one Connect in the profile menu, found {connect.count()}, and no Connect link "
+                      f"in the top card. The More menu offered: {in_menu}. The top card's buttons: {in_card}")
     connect.first.click()
     return _after_connect(page, name, text, confirm, navigate)
 

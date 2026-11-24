@@ -109,6 +109,25 @@ def bump_attempts(job_id: str) -> int:
     return 0
 
 
+def retry(job_id: str):
+    """Put a posting the applier gave up on back in the queue. Only for one that is on hold and was never booked as
+    an application (so nothing was filled or submitted). Returns (ok, message)."""
+    from . import tracker
+    jid = str(job_id)
+    item = next((i for i in all_items() if i["job_id"] == jid), None)
+    if item is None:
+        return False, f"Posting {jid} is not in the queue."
+    if item["status"] != "AWAITING RAJA" or any(str(r["job_id"]) == jid for r in tracker.rows()):
+        return False, f"{item['title']} at {item['company']} is {item['status']} or already booked, so it is not retried."
+    with locked("queue"):
+        items = read_json(FILE, [])
+        for i in items:
+            if i["job_id"] == jid:
+                i.update(status=QUEUED, attempts=0, claimed_at=None, claim_id=None)
+        write_json(FILE, items)
+    return True, f"{item['title']} at {item['company']} is queued again; the applier will try it on its next run."
+
+
 def remove(job_id: str) -> None:
     with locked("queue"):
         write_json(FILE, [i for i in read_json(FILE, []) if i["job_id"] != str(job_id)])

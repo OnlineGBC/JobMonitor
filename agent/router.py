@@ -14,7 +14,7 @@ Raises if the model cannot be reached (the caller then falls back to the plain r
 """
 import re
 
-from . import chatlog, config, decisions, llm, logtail, manual, outreach, questions
+from . import chatlog, config, decisions, llm, logtail, manual, outreach, queue_tool, questions, tracker
 
 MAX_COMMANDS = 20
 
@@ -31,6 +31,9 @@ Open outreach drafts (messages to people, awaiting his approval):
 
 Outreach drafts that failed and were NOT sent (he can ask for a retry):
 {failed}
+
+Postings the applier gave up on after three failed attempts (nothing was filled or submitted; he can ask for a retry):
+{given_up}
 
 {about}The last 50 messages of the WhatsApp conversation, oldest first (AGENT = what the agent sent, RAJA = what he typed):
 {recent}
@@ -51,7 +54,8 @@ Return ONLY JSON:
     {{"type": "mark_applied", "job_id": "<LinkedIn job id>"}},
     {{"type": "approve_draft", "id": "<draft id>", "text": null | "<the exact wording to send instead>"}},
     {{"type": "reject_draft", "id": "<draft id>"}},
-    {{"type": "retry_invite", "id": "<failed draft id>"}}
+    {{"type": "retry_invite", "id": "<failed draft id>"}},
+    {{"type": "retry_application", "job_id": "<LinkedIn job id from the given-up list>"}}
   ],
   "comment": true | false,
   "ask": null | "<one short question, only if you cannot tell which item or what he meant>",
@@ -97,6 +101,8 @@ Rules:
 - "retry_invite": when he asks to try a failed invite or message again ("try again", "retry", "send it again"), use
   the id from the failed list above (the one his reply, or the message he replied to, is about). The same approved text
   is sent again. If you cannot tell which failed draft he means, use "ask".
+- "retry_application": when he asks to try again a posting the applier could not process ("Applier could not process
+  ..." message), use the job id from the given-up list. If you cannot tell which one, use "ask".
 - When unsure which role or question he means, set "ask" and leave the actions out. Never guess."""
 
 
@@ -106,7 +112,11 @@ def _drafts_text():
     failed = [d for d in outreach.all_items() if d["status"] == "FAILED" and d.get("approved") and not d.get("sent")]
     flines = [f"- id {d['id']}: {d['kind']} to {d['poster']} ({d['title']} at {d['company']}); why it failed: {d.get('error')}"
               for d in failed]
-    return drafts, "\n".join(lines) or "(none)", failed, "\n".join(flines) or "(none)"
+    booked = {str(r["job_id"]) for r in tracker.rows()}
+    given_up = [q for q in queue_tool.all_items() if q["status"] == "AWAITING RAJA" and q["job_id"] not in booked]
+    glines = [f"- job id {q['job_id']}: {q['title']} at {q['company']}" for q in given_up]
+    return (drafts, "\n".join(lines) or "(none)", failed, "\n".join(flines) or "(none)",
+            given_up, "\n".join(glines) or "(none)")
 
 
 def _about_text(about):
@@ -167,14 +177,14 @@ def _normalise_answer(q: dict, value: str):
 def route(text: str, client=None, about: str = None) -> dict:
     from . import interpret
     decs, qs, d_text, q_text = _context()
-    drafts, draft_text, failed, failed_text = _drafts_text()
+    drafts, draft_text, failed, failed_text, given_up, given_up_text = _drafts_text()
     if client is None:
         import anthropic
         client = anthropic.Anthropic()
     resp = client.messages.create(
         model=config.ROUTER_MODEL, max_tokens=4000,
         messages=[{"role": "user", "content": PROMPT.format(decisions=d_text, questions=q_text, message=text, recent=_recent(),
-                                                      drafts=draft_text, failed=failed_text, about=_about_text(about),
+                                                      drafts=draft_text, failed=failed_text, given_up=given_up_text, about=_about_text(about),
                                                       logs=logtail.excerpts(text))}])
     data = llm.json_object(resp)
 
@@ -182,6 +192,7 @@ def route(text: str, client=None, about: str = None) -> dict:
     by_q = {q["id"]: q for q in qs}
     by_draft = {d["id"]: d for d in drafts}
     by_failed = {d["id"]: d for d in failed}
+    by_given_up = {q["job_id"]: q for q in given_up}
     commands, problems = [], []
     for a in (data.get("actions") or [])[:MAX_COMMANDS]:
         kind, aid = a.get("type"), str(a.get("id") or "").strip().lower()
@@ -201,6 +212,8 @@ def route(text: str, client=None, about: str = None) -> dict:
                 commands.append(f"APPROVE {aid} {own}".rstrip())
         elif kind == "retry_invite" and aid in by_failed:
             commands.append(f"RETRY {aid}")
+        elif kind == "retry_application" and str(a.get("job_id") or "").strip() in by_given_up:
+            commands.append(f"RETRY JOB {str(a['job_id']).strip()}")
         elif kind == "skip_application" and aid in by_q:
             commands.append(f"ANSWER {aid} SKIP")
         elif kind == "mark_applied" and re.fullmatch(r"\d{6,}", str(a.get("job_id") or "").strip()) \
