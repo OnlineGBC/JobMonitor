@@ -242,6 +242,13 @@ def main(argv=None) -> int:
                 return 10
     except Exception as e:
         logging.error(f"Finishing answered applications failed (the next run will retry): {e}")
+    try:                                 # then the ones he asked, in chat, to be finished
+        from . import submit_drafts
+        if submit_drafts.requested():
+            if submit_drafts.finish_requested(default_submit=submit_mode()) == 10:
+                return 10
+    except Exception as e:
+        logging.error(f"Finishing the applications you asked for failed: {e}")
     item = queue_tool.claim()
     if item is None:
         print("Nothing queued.")

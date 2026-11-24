@@ -18,7 +18,7 @@ import sys
 import uuid
 from datetime import datetime
 
-from . import answers, queue_tool, reporter, tracker
+from . import answers, queue_tool, reporter, resumes, tracker
 from .store import locked, read_json, write_json
 
 FILE = "pending_questions.json"
@@ -87,11 +87,20 @@ def ask(row: dict, result: dict, link: str):
             return same, False
         rec = {"id": uuid.uuid4().hex[:8], "number": row["number"], "job_id": str(row["job_id"]),
                "company": row["company"], "title": row["title"], "link": link, "question": question,
-               "options": options, "type": "choice" if options else "text", "status": "OPEN",
+               "options": options, "type": "resume" if result.get("qtype") == "resume" else ("choice" if options else "text"),
+               "status": "OPEN",
                "asked": _now(), "answer": None, "answered": None, "done": False}
         items.append(rec)
         write_json(FILE, items)
     return rec, True
+
+
+def pick_list(rec: dict):
+    """For a 'which resume?' question: the rows of a WhatsApp pick-list (four resumes do not fit on three buttons),
+    as [(id, title)]. None for any other question."""
+    if rec.get("type") != "resume":
+        return None
+    return [(f"ANSWER {rec['id']} {o}", o) for o in rec.get("options") or []] + [(f"ANSWER {rec['id']} SKIP", "Skip this job")]
 
 
 def buttons(rec: dict) -> list:
@@ -123,7 +132,12 @@ def message(rec: dict, reason: str, steps: str = "", tail: str = "") -> dict:
              f"What was filled so far:\n{steps}{tail}\n\n"
              f"HOW TO ANSWER: {how_to_answer(rec)}\nOr use the Questions page in JobMonitor. Your answer is saved as a "
              f"standing answer for exactly this question, then the application is finished.")
-    whatsapp = (f"#{n} needs your answer\n{title} at {company}\n\nQuestion:\n{rec['question']}\n\n"
+    if rec.get("type") == "resume":
+        whatsapp = (f"#{n} needs a resume choice\n{title} at {company}\n\nThe agent has no rule for which resume to "
+                    f"use for the job title '{title}'. Tap Choose resume and pick one, or use WhatsApp's Reply on this "
+                    f"message (for example: use the Director resume). Your choice is remembered for this exact title.")
+    else:
+        whatsapp = (f"#{n} needs your answer\n{title} at {company}\n\nQuestion:\n{rec['question']}\n\n"
                 + ("Tap an answer below, or use WhatsApp's Reply on this message to type it." if rec.get("options") else
                    "Use WhatsApp's Reply on this message to type your answer, or tap Skip."))
     return {"subject": f"#{n} Needs your answer: {title} at {company}", "body": email, "wa_text": whatsapp,
@@ -140,7 +154,8 @@ def ask_and_report(row: dict, result: dict, link: str, steps: str = "", tail: st
         m = message(rec, result.get("reason", ""), steps, tail)
         reporter.enqueue("question", m["subject"].split(" Needs your answer")[0] + " Needs your answer: "
                          + f"{rec['title']} at {rec['company']}", m["body"], buttons=buttons(rec),
-                         wa_text=m["wa_text"], wa_prompt=m["wa_prompt"], email=False, ref=f"question {rec['id']}")
+                         wa_text=m["wa_text"], wa_prompt=m["wa_prompt"], email=False, ref=f"question {rec['id']}",
+                         pick_list=pick_list(rec))
     return True
 
 
@@ -175,6 +190,16 @@ def answer(qid: str, value: str):
     if canonical is None:
         return False, (f"'{v}' is not one of this question's choices ({', '.join(rec['options'])}). "
                        f"Reply again with ANSWER {rec['id']} and one of them.")
+    if rec.get("type") == "resume":            # a resume choice: remembered for this exact job title, not a standing answer
+        resumes.set_title_rule(rec["title"], resumes.CHOICES[canonical])
+        _update(rec["id"], status="ANSWERED", answer=canonical, answered=_now())
+        try:
+            from . import scheduler
+            scheduler.run_soon("applier")
+        except Exception:
+            pass
+        return True, (f"Using the {canonical} resume for '{rec['title']}' (remembered for that exact title). The application "
+                      f"at {rec['company']} will be finished on the next applier run, usually within a minute or two.")
     if len(canonical) > MAX_ANSWER_LENGTH:
         return False, f"That answer is {len(canonical)} characters; the limit is {MAX_ANSWER_LENGTH}."
     if not answers.acceptable_earlier_answer(rec["question"], canonical):

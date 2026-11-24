@@ -32,6 +32,9 @@ Open outreach drafts (messages to people, awaiting his approval):
 Outreach drafts that failed and were NOT sent (he can ask for a retry):
 {failed}
 
+Applications saved as a draft on LinkedIn and waiting for him (he can ask for one to be finished):
+{paused}
+
 Postings the applier gave up on after three failed attempts (nothing was filled or submitted; he can ask for a retry):
 {given_up}
 
@@ -55,7 +58,8 @@ Return ONLY JSON:
     {{"type": "approve_draft", "id": "<draft id>", "text": null | "<the exact wording to send instead>"}},
     {{"type": "reject_draft", "id": "<draft id>"}},
     {{"type": "retry_invite", "id": "<failed draft id>"}},
-    {{"type": "retry_application", "job_id": "<LinkedIn job id from the given-up list>"}}
+    {{"type": "retry_application", "job_id": "<LinkedIn job id from the given-up list>"}},
+    {{"type": "finish_application", "number": <application number from the waiting list>, "submit": true | false}}
   ],
   "comment": true | false,
   "ask": null | "<one short question, only if you cannot tell which item or what he meant>",
@@ -103,6 +107,22 @@ Rules:
   is sent again. If you cannot tell which failed draft he means, use "ask".
 - "retry_application": when he asks to try again a posting the applier could not process ("Applier could not process
   ..." message), use the job id from the given-up list. If you cannot tell which one, use "ask".
+- "finish_application": when he asks to finish, continue, complete or submit an application that is saved as a draft
+  ("finish it", "go ahead", "submit it"), use its number from the waiting list. "submit": true ONLY if he says to
+  submit; otherwise false (the agent then fills the draft in and stops at the review page unless automatic
+  submission is on). A "which resume?" question is NOT this: answer it with an "answer" action (the options are the
+  resume names, e.g. "use the director resume" -> value "Director", "exec director" -> "Executive Director").
+- WHAT THE AGENT CAN DO FROM THIS CHAT (the complete list; the action types above): apply to or skip an offered role;
+  answer an application question, including which resume to use; skip an application; approve a draft message as
+  shown or with his own wording, or reject it; try a failed invite again; queue a posting the applier gave up on
+  again; finish (and optionally submit) an application that is saved as a draft; record that he applied himself; state
+  a standing preference; answer his questions. If he asks for something NOT on this list (changing settings such as
+  automatic submission, restarting a process, editing a resume file, sending any message he has not approved), say
+  plainly in "reply" that this cannot be done from the chat and which action on the list comes closest. Never say "I
+  can't" about something on the list: do it.
+- A one-off instruction about one specific item ("use the director resume for this one", "skip this") is an action
+  on that item, not a preference: set "comment" false unless he also states a rule for the future ("from now on",
+  "never", "always", "I only want").
 - When unsure which role or question he means, set "ask" and leave the actions out. Never guess."""
 
 
@@ -129,6 +149,12 @@ def _about_text(about):
                 "between the lines is that message):\n-----\n" + item_id + "\n-----\n\n")
     return (f"He used WhatsApp's Reply on the agent's message about {kind} {item_id}, so this reply is about that "
             f"item. Treat a bare answer as an answer to it.\n\n")
+
+
+def _paused_text():
+    rows = [r for r in tracker.rows() if r["status"] == "AWAITING RAJA"]
+    lines = [f"- application #{r['number']}: {r['title']} at {r['company']} ({(r.get('note') or '')[:120]})" for r in rows]
+    return {r["number"] for r in rows}, "\n".join(lines) or "(none)"
 
 
 def _context():
@@ -178,13 +204,14 @@ def route(text: str, client=None, about: str = None) -> dict:
     from . import interpret
     decs, qs, d_text, q_text = _context()
     drafts, draft_text, failed, failed_text, given_up, given_up_text = _drafts_text()
+    paused_numbers, paused_text = _paused_text()
     if client is None:
         import anthropic
         client = anthropic.Anthropic()
     resp = client.messages.create(
         model=config.ROUTER_MODEL, max_tokens=4000,
         messages=[{"role": "user", "content": PROMPT.format(decisions=d_text, questions=q_text, message=text, recent=_recent(),
-                                                      drafts=draft_text, failed=failed_text, given_up=given_up_text, about=_about_text(about),
+                                                      drafts=draft_text, failed=failed_text, given_up=given_up_text, paused=paused_text, about=_about_text(about),
                                                       logs=logtail.excerpts(text))}])
     data = llm.json_object(resp)
 
@@ -212,6 +239,8 @@ def route(text: str, client=None, about: str = None) -> dict:
                 commands.append(f"APPROVE {aid} {own}".rstrip())
         elif kind == "retry_invite" and aid in by_failed:
             commands.append(f"RETRY {aid}")
+        elif kind == "finish_application" and str(a.get("number") or "").isdigit() and int(a["number"]) in paused_numbers:
+            commands.append(f"FINISH {int(a['number'])}" + (" SUBMIT" if a.get("submit") is True else ""))
         elif kind == "retry_application" and str(a.get("job_id") or "").strip() in by_given_up:
             commands.append(f"RETRY JOB {str(a['job_id']).strip()}")
         elif kind == "skip_application" and aid in by_q:

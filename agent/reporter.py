@@ -38,7 +38,8 @@ def ny_now() -> str:
 
 
 def enqueue(kind: str, subject: str, body: str, needs_action: bool = False, buttons: list = None,
-            wa_text: str = None, wa_prompt: str = None, email: bool = False, ref: str = None) -> str:
+            wa_text: str = None, wa_prompt: str = None, email: bool = False, ref: str = None,
+            pick_list: list = None) -> str:
     """Queue a report. `buttons` [(id, title)] make the WhatsApp copy tappable; the email is unchanged.
     `wa_text` replaces the WhatsApp text (it must carry everything Raja is asked to approve, word for word);
     `wa_prompt` is the short line shown with the buttons if that text is too long for one message."""
@@ -50,6 +51,8 @@ def enqueue(kind: str, subject: str, body: str, needs_action: bool = False, butt
              "body": f"{body}\n\nNew York time: {ny_now()}",
              "email_sent": not email, "whatsapp": "pending", "attempts": 0,
              "wa_only": not email, "created": time.time()}   # email=False: WhatsApp only
+    if pick_list:                             # more than three choices: a WhatsApp pick-list, [(id, title)]
+        event.update(pick_list=[list(r) for r in pick_list], wa_text=wa_text, wa_prompt=wa_prompt)
     if ref:                                   # "question <id>" / "draft <id>": a WhatsApp Reply to it is matched to that item
         event["ref"] = ref
     if buttons:
@@ -62,7 +65,8 @@ def enqueue(kind: str, subject: str, body: str, needs_action: bool = False, butt
     return event["id"]
 
 
-def process(send_email=gmail_client.send, send_whatsapp=whatsapp.send_text, send_buttons=whatsapp.send_buttons) -> dict:
+def process(send_email=gmail_client.send, send_whatsapp=whatsapp.send_text, send_buttons=whatsapp.send_buttons,
+            send_list=whatsapp.send_list) -> dict:
     """Deliver pending events. Email failures retry next run; WhatsApp never blocks email."""
     stats = {"emailed": 0, "whatsapp": 0, "whatsapp_closed": 0, "failed": 0}
     with locked("outbox"):
@@ -84,7 +88,7 @@ def process(send_email=gmail_client.send, send_whatsapp=whatsapp.send_text, send
                     shown = e.get("wa_text") or e["subject"] + "\n\n" + e["body"]
                     about = e.get("ref") or "message " + shown[:1200]
                     with whatsapp.sending_for(about):
-                        delivered = _deliver_whatsapp(e, send_whatsapp, send_buttons)
+                        delivered = _deliver_whatsapp(e, send_whatsapp, send_buttons, send_list)
                     if delivered:
                         e["whatsapp"] = "sent"
                         stats["whatsapp"] += 1
@@ -114,12 +118,19 @@ def process(send_email=gmail_client.send, send_whatsapp=whatsapp.send_text, send
     return stats
 
 
-def _deliver_whatsapp(e: dict, send_whatsapp, send_buttons) -> bool:
+def _deliver_whatsapp(e: dict, send_whatsapp, send_buttons, send_list=None) -> bool:
     """Send one event to WhatsApp. With buttons: one tappable message if it fits, else the full text and then a
     short message carrying the buttons. If the buttons can not be sent for any other reason, the plain text goes
     out instead, so the report always arrives (Raja can still type the command)."""
     text = e.get("wa_text") or f"{e['subject']}\n\n{e['body']}"
     buttons = [tuple(b) for b in e.get("buttons") or []]
+    if e.get("pick_list") and send_list is not None:
+        try:
+            if len(text) <= whatsapp.BUTTON_BODY_MAX:
+                return send_list(text, "Choose resume", [tuple(r) for r in e["pick_list"]])
+        except Exception as ex:
+            logging.warning(f"Pick-list not sent for event {e['id']} ({ex}); sending plain text")
+        return send_whatsapp(text)
     if not buttons:
         return send_whatsapp(text)
     try:

@@ -21,6 +21,7 @@ INBOX = "whatsapp_inbox.json"
 _CMD = re.compile(r"^\s*(approve|reject|answer|decide|confirm|cancel|rule|retry)\s+([0-9a-f]{8})\b[ \t:,.-]*(.*)$", re.I | re.S)
 _PENDING = re.compile(r"^\s*pending\s*[.!]?\s*$", re.I)
 _APPLIED = re.compile(r"^\s*applied\s+(\d{6,})\s*[.!]?\s*$", re.I)
+_FINISH = re.compile(r"^\s*finish\s+(\d{1,6})(?:\s+(submit))?\s*[.!]?\s*$", re.I)
 _RETRYJOB = re.compile(r"^\s*retry\s+job\s+(\d{6,})\s*[.!]?\s*$", re.I)
 _RULES = re.compile(r"^\s*rules\s*[.!]?\s*$", re.I)
 _QUOTE_START = re.compile(r"^(>|On .{5,120} wrote:\s*$|-{2,}\s*Original Message|From: .+@|Sent from my\b|--\s*$)", re.I)
@@ -49,6 +50,9 @@ def parse(body: str):
     m = _APPLIED.match(text.split("\n")[0] if text else "")
     if m:
         return {"action": "APPLIED", "id": m.group(1), "text": None}
+    m = _FINISH.match(text.split("\n")[0] if text else "")
+    if m:
+        return {"action": "FINISH", "id": m.group(1), "text": (m.group(2) or "").upper() or None}
     m = _RETRYJOB.match(text.split("\n")[0] if text else "")
     if m:
         return {"action": "RETRYJOB", "id": m.group(1), "text": None}
@@ -76,6 +80,23 @@ def apply(cmd: dict) -> str:
         return outreach.approve(cmd["id"], cmd["text"])[1]
     if cmd["action"] == "REJECT":
         return outreach.reject(cmd["id"])[1]
+    if cmd["action"] == "FINISH":
+        from . import submit_drafts
+        number = int(cmd["id"])
+        rows, skipped = submit_drafts.select_rows([number])
+        if not rows:
+            return skipped[0] if skipped else f"#{number}: no such application."
+        submit = cmd["text"] == "SUBMIT"
+        submit_drafts.request_finish(number, submit)
+        try:
+            from . import scheduler
+            scheduler.run_soon("applier")
+        except Exception:
+            pass
+        r = rows[0]
+        return (f"#{number} {r['title']} at {r['company']} will be reopened from its saved draft and "
+                f"{'submitted' if submit else 'filled in (submitted only if automatic submission is on)'} on the next "
+                f"applier run, usually within a minute or two.")
     if cmd["action"] == "RETRYJOB":
         ok, msg = queue_tool.retry(cmd["id"])
         if ok:

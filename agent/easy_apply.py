@@ -195,7 +195,9 @@ def _run_form(page, title, allow_submit, decide, company, progress) -> dict:
     steps, learned = progress["steps"], []
     resume = resumes.resume_name(title)
     if resume is None:
-        return _paused(f"no resume rule for the title '{title}'")
+        return _paused(f"no resume rule for the title '{title}'",
+                       f"Which resume should be used for the job title '{title}'?",
+                       options=list(resumes.CHOICES), qtype="resume")
     resume_file = resumes.local_path(title)  # may be None: the resume can live on LinkedIn only
     bank = answers.load_bank()
     for n in range(1, MAX_STEPS + 1):

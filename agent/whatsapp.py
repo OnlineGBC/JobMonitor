@@ -123,6 +123,29 @@ def send_buttons(body: str, buttons: list, session=requests, now: float = None) 
     return True
 
 
+LIST_ROWS_MAX, LIST_ROW_TITLE_MAX, LIST_BUTTON_MAX = 10, 24, 20
+
+
+def send_list(body: str, label: str, rows: list, session=requests, now: float = None) -> bool:
+    """Send a pick-list message: rows = [(id, title), ...]. WhatsApp shows a button (`label`) that opens the list;
+    choosing a row sends its id back through the webhook, exactly like tapping a button. Use it when there are more
+    than three choices. Needs the 24-hour window, like any free-form message."""
+    if not 1 <= len(rows) <= LIST_ROWS_MAX:
+        raise ValueError(f"a list needs 1 to {LIST_ROWS_MAX} rows, not {len(rows)}")
+    if not body or len(body) > BUTTON_BODY_MAX or not label or len(label) > LIST_BUTTON_MAX:
+        raise ValueError("list text must be 1 to 1024 characters and its button label 1 to 20")
+    for row_id, title in rows:
+        if not title or len(title) > LIST_ROW_TITLE_MAX or not row_id or len(row_id) > 200:
+            raise ValueError(f"list row '{title}' is not allowed (title up to 24 characters, id up to 200)")
+    if not window_open(now):
+        return False
+    _post({"type": "interactive", "interactive": {
+        "type": "list", "body": {"text": body},
+        "action": {"button": label, "sections": [{"title": "Choose one", "rows": [
+            {"id": i, "title": t} for i, t in rows]}]}}}, session)
+    return True
+
+
 KEEPALIVE_LEAD_SECONDS = 3 * 3600     # send it when the 24-hour window has this little time left (or is closed)
 KEEPALIVE_RETRY_SECONDS = 6 * 3600   # wait this long after a FAILED keepalive (e.g. template still in review)
 

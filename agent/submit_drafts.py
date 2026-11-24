@@ -17,6 +17,9 @@ import logging
 import sys
 
 from . import discovery, questions, reconcile, reporter, tracker
+from .store import locked, read_json, write_json
+
+REQUESTS = "finish_requests.json"        # applications Raja asked, in chat, to be finished: [{"number", "submit"}]
 
 
 def process_row(row: dict, ops, submit: bool) -> str:
@@ -123,6 +126,53 @@ def finish_answered(submit: bool, ops=None) -> int:
             finally:
                 browser.close()
     return _finish_rows(rows, waiting, ops, submit)
+
+
+def request_finish(number: int, submit: bool = False) -> None:
+    """Record that Raja asked (in chat) for application #number to be finished on the applier's next pass."""
+    with locked("finish_requests"):
+        items = [r for r in read_json(REQUESTS, []) if r["number"] != number]
+        items.append({"number": number, "submit": bool(submit)})
+        write_json(REQUESTS, items)
+
+
+def requested() -> list:
+    return read_json(REQUESTS, [])
+
+
+def finish_requested(default_submit: bool, ops=None) -> int:
+    """Finish the applications Raja asked for in chat. Each is reopened from its saved draft and filled; it is
+    submitted only if he said submit, or automatic submission is on (default_submit). Returns 10 if LinkedIn needs
+    a new sign-in, else 0."""
+    with locked("finish_requests"):
+        reqs = read_json(REQUESTS, [])
+        write_json(REQUESTS, [])               # taken now, so a failure is never repeated in a loop
+    if not reqs:
+        return 0
+    rows, _ = select_rows(sorted({r["number"] for r in reqs}))
+    if not rows:
+        return 0
+    wants = {r["number"]: bool(r["submit"]) or default_submit for r in reqs}
+
+    def run(browser_ops):
+        for submit in (False, True):
+            group = [r for r in rows if wants.get(r["number"], False) == submit]
+            if group:
+                _finish_rows(group, [], browser_ops, submit)
+        return 0
+
+    if ops is not None:
+        return run(ops)
+    if not discovery.STATE.exists():
+        return 10
+    from playwright.sync_api import sync_playwright
+    with sync_playwright() as p:
+        browser = p.chromium.launch(headless=True)
+        try:
+            ctx = browser.new_context(storage_state=str(discovery.STATE), viewport={"width": 1500, "height": 1000})
+            return run(LinkedInOps(ctx.new_page()))
+        finally:
+            browser.close()
 
 
 def _finish_rows(rows, waiting, ops, submit) -> int:
