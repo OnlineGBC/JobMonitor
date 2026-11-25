@@ -57,10 +57,14 @@ def _open_overlay(page, name: str):
             page.wait_for_timeout(250)
         if attempt == 1:
             page.reload(wait_until="domcontentloaded")
-            page.wait_for_timeout(5000)
-            state = invite.card_state(page)
-            if not invite.name_matches(state["title"], name) or state["degree"] != "1st":
-                return "the profile changed after a reload; stopping"
+            for _ in range(10):                  # the page can take a while to draw its top card again
+                page.wait_for_timeout(2000)
+                state = invite.card_state(page)
+                if invite.name_matches(state["title"], name) and state["degree"] == "1st":
+                    break
+            else:
+                return (f"the profile did not show {name} as a 1st-degree connection after a reload "
+                        f"(page title '{state['title']}', degree '{state['degree']}'); stopping")
     return "no message box appeared (nothing was sent)"
 
 
