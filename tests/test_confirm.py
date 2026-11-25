@@ -126,19 +126,23 @@ class Questions(Base):
 
 class OldConfirmations(Base):
     """Confirm prompts sent before this change still work; none are created any more."""
+    def old_confirmation(self, cid, created=None):
+        rec = {"id": cid, "commands": [f"DECIDE {decisions.all_decisions()[0]['id']} APPLY"], "description": "Apply: Acme",
+               "source": "whatsapp", "status": "PENDING",
+               "created": (created or datetime.now(reporter.NY)).isoformat(timespec="seconds")}
+        write_json(confirmations.FILE, [rec])
+        return rec
+
     def test_a_plain_yes_still_settles_an_old_confirmation(self):
         decisions.offer(job("1", "Director of AI", "Acme"))
-        rec = confirmations.propose([f"DECIDE {decisions.all_decisions()[0]['id']} APPLY"], "Apply: Acme", "whatsapp")
+        rec = self.old_confirmation("abc12345")
         self.say("yes")
         self.assertEqual(len(queue_tool.all_items()), 1)
         self.assertEqual(confirmations.get(rec["id"])["status"], "CONFIRMED")
 
     def test_an_old_confirmation_is_dropped_after_24_hours(self):
         decisions.offer(job("1", "Director of AI", "Acme"))
-        confirmations.propose([f"DECIDE {decisions.all_decisions()[0]['id']} APPLY"], "Apply: Acme", "whatsapp")
-        items = read_json(confirmations.FILE, [])
-        items[0]["created"] = (datetime.now(reporter.NY) - timedelta(hours=30)).isoformat(timespec="seconds")
-        write_json(confirmations.FILE, items)
+        self.old_confirmation("abc12345", datetime.now(reporter.NY) - timedelta(hours=30))
         self.assertEqual(confirmations.open_ones(), [])
 
 

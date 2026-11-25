@@ -1,10 +1,11 @@
-"""Applier: works ONE queued posting per run, in supervised mode.
+"""Applier: works ONE queued posting per run.
 
     python -m agent.applier
 
-Claims the oldest eligible posting, checks it is still open and not already applied to, fills the Easy
-Apply form to its final review page and SAVES it as a draft on LinkedIn. It never clicks Submit: the
-application is booked in the tracker as AWAITING RAJA and reported, and Raja submits it himself.
+Claims the oldest eligible posting, checks it is still open and not already applied to, and fills the Easy
+Apply form to its final review page. In supervised mode (the default) it SAVES the form as a draft on
+LinkedIn and never clicks Submit: the application is booked in the tracker as AWAITING RAJA and reported, and
+Raja submits it himself. With submit mode on (set_submit_mode) it clicks Submit itself, after the safety checks.
 
 Exit codes follow the scheduler's convention: 0 = ok (including 'nothing to do'), 10 = LinkedIn sign-in needed.
 """

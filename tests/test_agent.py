@@ -356,7 +356,7 @@ class WhatsApp(unittest.TestCase):
         payload = {"entry": [{"changes": [{"value": {"messages": [
             {"from": "12125551234", "text": {"body": "APPROVE 7"}},
             {"from": "19998887777", "text": {"body": "APPROVE 8"}}]}}]}]}
-        self.assertEqual(self.w.parse_inbound(payload), [("12125551234", "APPROVE 7")])
+        self.assertEqual([e[:2] for e in self.w.parse_inbound_events(payload)], [("12125551234", "APPROVE 7")])
 
 
 class Webhook(unittest.TestCase):

@@ -75,6 +75,10 @@ class SendButtons(Base):
         self.assertEqual(self.sent, [])
 
 
+def pairs(payload):
+    return [e[:2] for e in whatsapp.parse_inbound_events(payload)]
+
+
 class Taps(Base):
     def payload(self, sender="12125551234", **msg):
         return {"entry": [{"changes": [{"value": {"messages": [{"from": sender, **msg}]}}]}]}
@@ -82,16 +86,16 @@ class Taps(Base):
     def test_a_tapped_button_becomes_its_command(self):
         tap = self.payload(type="interactive",
                            interactive={"type": "button_reply", "button_reply": {"id": "APPROVE abc12345", "title": "Approve"}})
-        self.assertEqual(whatsapp.parse_inbound(tap), [("12125551234", "APPROVE abc12345")])
+        self.assertEqual(pairs(tap), [("12125551234", "APPROVE abc12345")])
         lst = self.payload(type="interactive", interactive={"type": "list_reply", "list_reply": {"id": "PENDING", "title": "x"}})
-        self.assertEqual(whatsapp.parse_inbound(lst), [("12125551234", "PENDING")])
+        self.assertEqual(pairs(lst), [("12125551234", "PENDING")])
 
     def test_typed_replies_still_work_and_strangers_are_still_ignored(self):
         typed = self.payload(type="text", text={"body": "APPROVE abc12345"})
-        self.assertEqual(whatsapp.parse_inbound(typed), [("12125551234", "APPROVE abc12345")])
+        self.assertEqual(pairs(typed), [("12125551234", "APPROVE abc12345")])
         stranger = self.payload(sender="19998887777", type="interactive",
                                 interactive={"type": "button_reply", "button_reply": {"id": "APPROVE abc12345", "title": "A"}})
-        self.assertEqual(whatsapp.parse_inbound(stranger), [])
+        self.assertEqual(pairs(stranger), [])
 
     def test_end_to_end_a_signed_tap_on_approve_approves_the_draft(self):
         from flask import Flask

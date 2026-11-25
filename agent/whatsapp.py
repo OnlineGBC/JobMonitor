@@ -110,7 +110,7 @@ def check_buttons(body: str, buttons: list) -> None:
 def send_buttons(body: str, buttons: list, session=requests, now: float = None) -> bool:
     """Send a message with tappable reply buttons: buttons = [(id, title), ...].
 
-    Tapping one sends its id back through the webhook, where parse_inbound() turns it into the same text
+    Tapping one sends its id back through the webhook, where parse_inbound_events() turns it into the same text
     command as typing it (e.g. id 'APPROVE 9e6ae9d2'). Like any free-form message it needs the 24-hour window
     to be open; if it is closed this sends nothing and returns False.
     """
@@ -183,13 +183,8 @@ def valid_signature(body: bytes, header: str) -> bool:
     return hmac.compare_digest(expected, header[7:])
 
 
-def parse_inbound(payload: dict) -> list:
-    """Return [(sender_number, text)] from a webhook payload; only Raja's number is accepted."""
-    return [(sender, text) for sender, text, _via, _to in parse_inbound_events(payload)]
-
-
 def parse_inbound_events(payload: dict) -> list:
-    """Like parse_inbound, but [(sender_number, text, via, reply_to)] where via is 'button' for a tapped button or
+    """Return [(sender_number, text, via, reply_to)] from a webhook payload (only Raja's number is accepted), where via is 'button' for a tapped button or
     list row and 'text' for a typed message, and reply_to is the id of the message he used WhatsApp's Reply on
     (None if he just typed)."""
     mine = (vault.get("wa_recipient") or "").lstrip("+")

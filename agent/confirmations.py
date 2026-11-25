@@ -6,7 +6,6 @@ Nothing happens until you confirm. A confirmation that is not answered within 24
 
     CONFIRM <id>   /   CANCEL <id>     (or tap the buttons; a plain "yes" / "no" also works when only one is waiting)
 """
-import uuid
 from datetime import datetime, timedelta
 
 from . import reporter
@@ -41,25 +40,6 @@ def _set(cid: str, status: str) -> None:
             if c["id"] == cid:
                 c["status"], c["resolved"] = status, _now().isoformat(timespec="seconds")
         write_json(FILE, items)
-
-
-def buttons(cid: str) -> list:
-    return [(f"CONFIRM {cid}", "Confirm"), (f"CANCEL {cid}", "Cancel")]
-
-
-def propose(commands: list, description: str, source: str) -> dict:
-    """Record what was understood and ask Raja to confirm it. `commands` are the exact commands that will run."""
-    rec = {"id": uuid.uuid4().hex[:8], "commands": list(commands), "description": description, "source": source,
-           "status": "PENDING", "created": _now().isoformat(timespec="seconds")}
-    with locked("confirmations"):
-        items = read_json(FILE, [])
-        items.append(rec)
-        write_json(FILE, items[-100:])
-    text = (f"I understood:\n{description}\n\nNothing has been done yet. Tap Confirm to go ahead, or Cancel.")
-    body = text + f"\n\nBy email: reply  CONFIRM {rec['id']}  or  CANCEL {rec['id']}"
-    reporter.enqueue("notice", "Please confirm: " + description[:60], body, buttons=buttons(rec["id"]),
-                     wa_text=text[:1000], wa_prompt="Confirm or cancel?", email=(source == "gmail"))
-    return rec
 
 
 def resolve(cid: str, accept: bool, run) -> str:
